@@ -127,3 +127,18 @@ export function changeOf(slice: Point[]): Change | null {
   const change = Math.round((to.value - from.value) * 100) / 100;
   return { from, to, change, pct: from.value > 0 ? (change / from.value) * 100 : null };
 }
+
+/**
+ * `n` evenly spaced values along a line (linear between its points), so two lines of different lengths can be blended
+ * point by point: the chart morphs from one period to the next (owner 2026-11-24: "smoother than a strict change")
+ */
+export function resample(values: number[], n: number): number[] {
+  if (!values.length || n < 1) return [];
+  if (values.length === 1 || n === 1) return Array.from({ length: n }, () => values[0]!);
+  return Array.from({ length: n }, (_, i) => {
+    const at = (i / (n - 1)) * (values.length - 1);
+    const lo = Math.floor(at);
+    const hi = Math.min(values.length - 1, lo + 1);
+    return values[lo]! + (values[hi]! - values[lo]!) * (at - lo);
+  });
+}
