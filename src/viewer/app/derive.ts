@@ -199,12 +199,12 @@ export function addMonths(iso: string, n: number): string {
 }
 
 /** the calendar month and quarter around `today`, first and last day */
-export function periodBounds(today: string): { month: [string, string]; quarter: [string, string] } {
+export function periodBounds(today: string): { month: [string, string]; quarter: [string, string]; year: [string, string] } {
   const y = Number(today.slice(0, 4));
   const m = Number(today.slice(5, 7));
   const q = Math.floor((m - 1) / 3) * 3 + 1;
   const iso = (yy: number, mm: number, dd: number) => new Date(Date.UTC(yy, mm - 1, dd)).toISOString().slice(0, 10);
-  return { month: [iso(y, m, 1), iso(y, m + 1, 0)], quarter: [iso(y, q, 1), iso(y, q + 3, 0)] };
+  return { month: [iso(y, m, 1), iso(y, m + 1, 0)], quarter: [iso(y, q, 1), iso(y, q + 3, 0)], year: [iso(y, 1, 1), iso(y, 12, 31)] };
 }
 
 /**

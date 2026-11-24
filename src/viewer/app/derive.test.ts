@@ -96,7 +96,7 @@ test('my order of accounts: moved within the bar, groups stay put', () => {
 test('income of the month and the quarter from pay dates stepped by the frequency', () => {
   const ps = positionsIn(ds, ds.accounts); // AAAA: quarterly, 0.25 a share, 2.5 shares, pays 2027-01-05
   expect(addMonths('2026-03-31', -1)).toBe('2026-02-28');
-  expect(periodBounds('2026-11-24')).toEqual({ month: ['2026-11-01', '2026-11-30'], quarter: ['2026-10-01', '2026-12-31'] });
+  expect(periodBounds('2026-11-24')).toEqual({ month: ['2026-11-01', '2026-11-30'], quarter: ['2026-10-01', '2026-12-31'], year: ['2026-01-01', '2026-12-31'] });
   expect(incomeIn(ps, '2026-10-01', '2026-12-31', '2026-11-24')).toEqual({ paid: 0.63, coming: 0, total: 0.63 }); // Oct 5, paid
   expect(incomeIn(ps, '2027-01-01', '2027-03-31', '2026-11-24')).toEqual({ paid: 0, coming: 0.63, total: 0.63 });
   expect(incomeIn(ps, '2026-11-01', '2026-11-30', '2026-11-24').total).toBe(0);
