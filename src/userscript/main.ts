@@ -14,7 +14,7 @@ import { mergeHistory } from '../shared/history';
 import { parseTxnStore } from '../shared/transactions';
 import { EMPTY_STORE, readTransactions } from './transactions-sync';
 import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
-import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
+import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, marketOpen, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, usableHandoff, writeFromUserscript } from './sheets-gm';
 import { isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
@@ -178,9 +178,12 @@ function onPortfolio(): void {
   const applyWatch = () => {
     const on = watching();
     badge.watching(on);
-    if (on && !onPositions()) { location.href = POSITIONS_URL; return; }
+    // no jump to Positions and no refresh when a page opens or reloads (owner 2026-11-24): the page reads the grid by
+    // itself; only the viewer's 👀 opens Positions. On Positions the refresh runs every minute, first after a minute,
+    // and only while the market is open (positions do not change otherwise)
     if (on && !refreshTimer) {
       refreshTimer = setInterval(() => {
+        if (!onPositions() || !marketOpen(new Date())) return;
         const b = findRefreshButton(document);
         if (b) b.click(); else askGrid();
       }, WATCH_REFRESH_MS);

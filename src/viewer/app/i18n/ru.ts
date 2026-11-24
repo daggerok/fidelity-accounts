@@ -26,7 +26,7 @@ export const RU: Record<string, string> = {
   'Previous accounts': 'Предыдущие счета',
   'Next accounts': 'Следующие счета',
   "planned {total} at today's holdings; still to come {coming}": 'план {total} при сегодняшних позициях; ещё придёт {coming}',
-  'Needs the transactions history': 'Нужна история транзакций',
+  'Needs the transactions history: update the script (the button in the navbar), then open Fidelity once': 'Нужна история транзакций: обновите скрипт (кнопка в навбаре) и один раз откройте Fidelity',
   '{n} accounts': 'счетов: {n}',
   'Show {name}': 'Показать {name}',
 
