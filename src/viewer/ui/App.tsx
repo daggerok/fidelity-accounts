@@ -1,8 +1,8 @@
 /// <reference lib="esnext" />
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
 import { accountsIn, validScope } from '../app/derive';
-import { askSync, clearDemo, dataset, loginSaved, runState } from '../app/data';
+import { askSync, dataset, loginSaved } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -10,7 +10,7 @@ import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
-import { GetStarted, saidLater, setupDone, setupState } from './GetStarted';
+import { GetStarted, laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
 import { Positions } from './Positions';
 import { SettingsPanel } from './SettingsPanel';
@@ -31,7 +31,6 @@ export function App() {
   const pr = useStore(prefs);
   const { ds, source, error } = useStore(dataset);
   const g = useStore(sheets);
-  const run = useStore(runState);
   useStore(loginSaved);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
@@ -45,13 +44,22 @@ export function App() {
 
   const [showSettings, setShowSettings] = useState(panelOpen);
   const toggleSettings = () => setShowSettings((v) => { try { localStorage.setItem(PANEL_KEY, v ? 'closed' : 'open'); } catch { /* private window */ } return !v; });
-  // the Get started window opens by itself while a required step is missing (not after "Later" in this session);
-  // the script mark may arrive a moment after load, so the first look waits 1.5 s
+  // the 🚀 setup panel slides down by itself while a required step is missing (not after ✕ in this session) and goes
+  // away by itself once they are done; the script mark may arrive a moment after load, so the first look waits 1.5 s
   const [showSetup, setShowSetup] = useState(false);
+  const autoSetup = useRef(false);
   useEffect(() => {
-    const timer = setTimeout(() => { if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') setShowSetup(true); }, 1500);
+    const timer = setTimeout(() => {
+      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') { autoSetup.current = true; setShowSetup(true); }
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
+  const done = setupDone(setupState(userscript));
+  // done (or Enter in one of its fields, owner 2026-11-23): the panel slides up and the app shows
+  useEffect(() => { if (done) { autoSetup.current = false; setShowSetup(false); } }, [done]);
+  const hideSetup = () => { autoSetup.current = false; setShowSetup(false); };
+  const closeSetup = () => { laterThisSession(); autoSetup.current = false; setShowSetup(false); };
+  const toggleSetup = () => (showSetup ? closeSetup() : setShowSetup(true));
 
   const scope = validScope(ds, pr.scope);
   const accounts = ds ? accountsIn(ds, scope) : [];
@@ -79,29 +87,31 @@ export function App() {
               <button type="button" className={`tb ${g.connected ? 'on' : ''}`} data-google disabled={g.connected || g.busy || !loadConfig().clientId}
                 title={g.connected ? t('Google Sheets connected: new data is written by itself') : loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
                 onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>
-              <button type="button" className={`tb ${showSetup ? 'on' : ''}`} title={t('Get started: the setup steps')} onClick={() => setShowSetup(true)} data-get-started-button>🚀</button>
+              {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
+              {!done && <button type="button" className={`tb ${showSetup ? 'on' : ''}`} title={t('Get started: the setup steps')} onClick={toggleSetup} aria-expanded={showSetup} data-get-started-button>🚀</button>}
               <button type="button" className="tb" style={{ width: 'auto', padding: '0 .4rem' }} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
                 <span className="flex items-center gap-1"><span aria-hidden="true">{LANG_FLAGS[language]}</span><span className="text-[10px] font-semibold uppercase">{language}</span></span>
               </button>
+              {/* settings sit right before the theme, the theme is the last one on the right (owner 2026-11-23) */}
+              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" onClick={theme.cycle} title={themeTitle(theme.mode, theme.systemDark)} data-theme-button={theme.mode} className="tb sun">
                 <span className="relative inline-flex">{icon.icon}{icon.auto && <span className="absolute -right-2 -top-1.5 text-[8px] font-bold leading-none">A</span>}</span>
               </button>
-              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
             </div>
           </header>
+          <SlidePanel id="setup-wrap" open={showSetup} title={`🚀 ${t('Get started')}`} onClose={closeSetup}>
+            <div onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') hideSetup(); }}>
+              <GetStarted userscript={userscript} onDemo={hideSetup} />
+            </div>
+          </SlidePanel>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={toggleSettings}>
-            <SettingsPanel userscript={userscript} onGetStarted={() => setShowSetup(true)} />
+            <SettingsPanel userscript={userscript} onDemo={() => undefined} />
           </SlidePanel>
         </div>
 
-        {source === 'demo' && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-            {t('Demo data: made-up accounts and amounts, not yours.')}
-            <button type="button" className="rounded-md bg-amber-200 px-2 py-0.5 dark:bg-amber-500/30" onClick={clearDemo}>{t('Hide demo')}</button>
-          </div>
-        )}
         {error && <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
 
+        {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <>
             <AccountTabs ds={ds} scope={scope} onScope={(s) => setPrefs({ scope: s })} />
@@ -120,18 +130,11 @@ export function App() {
               {pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
           </>
-        ) : (
-          <main className="card flex flex-col items-start gap-3" data-empty>
-            <h2 className="text-xl font-semibold">{t('No data yet')}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{run ? t('The last read in the Fidelity tab: {status}', { status: run.status }) : t('Finish the setup steps, then press ⬇ Sync: the script reads your Fidelity positions into this page and your Google Sheet.')}</p>
-            <button type="button" className="btn primary" onClick={() => setShowSetup(true)}>🚀 {t('Get started')}</button>
-          </main>
-        )}
+        ) : null}
       </div>
       <footer className="flex min-h-4 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-400 lg:min-h-6 lg:px-6">
         <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-600 dark:hover:text-slate-200">daggerok &copy; {year} · {t('not affiliated with Fidelity')}</a>
       </footer>
-      {showSetup && <GetStarted userscript={userscript} onClose={() => setShowSetup(false)} />}
     </div>
   );
 }
