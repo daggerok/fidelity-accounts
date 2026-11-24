@@ -193,12 +193,22 @@ function onPortfolio(): void {
   applyWatch();
   gmWatch(WATCH_KEY, applyWatch);
 
+  // the daily values and the transactions are API reads, they need no grid: on any portfolio page (Summary too) they
+  // run once a day a few seconds after the page opens (owner 2026-11-24: the income stayed -- on the Summary page)
+  setTimeout(() => {
+    const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
+    if (!stored || !stored.accounts.length) return;
+    if (historyDue(stored.historyAt, new Date())) { if (!historyBusy) void syncHistory(); }
+    else if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date()) && !txnsBusy) void syncTransactions();
+  }, 3000);
+
   // ⬇ Sync in the viewer: this tab was opened (or is reused) for it
   const takeCommand = (raw: unknown) => {
     if (!freshCommand(raw, Date.now())) return;
     gmDelete(COMMAND_KEY);
     badge.status('sync asked from the viewer: reading the positions…');
-    goPositions();
+    // on Positions: the page's own refresh brings fresh numbers, the read follows; elsewhere: go to Positions
+    if (onPositions()) { asked = true; const b = findRefreshButton(document); if (b) b.click(); else askGrid(); } else goPositions();
   };
   takeCommand(gmGet<string | null>(COMMAND_KEY, null));
   gmWatch(COMMAND_KEY, takeCommand);

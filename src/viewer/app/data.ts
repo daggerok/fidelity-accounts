@@ -59,6 +59,10 @@ export function accept(json: string, source: Source): boolean {
   return true;
 }
 
+const STALE_MS = 5 * 60_000;
+/** ask an open Fidelity tab to read the positions now (a read; the command is used once and only for 2 minutes) */
+export const requestSync = (): void => { window.postMessage({ type: 'fidelity-accounts:command', mode: 'sync' }, location.origin); };
+
 export function startData(): void {
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || typeof e.data.json !== 'string') return;
@@ -85,6 +89,13 @@ export function startData(): void {
   void cacheGet(TXNS_CACHE_KEY).then((json) => { if (json && !transactions.get()) acceptTxns(json); });
   window.postMessage({ type: 'fidelity-accounts:request' }, location.origin);
   window.postMessage({ type: 'fidelity-accounts:hello' }, location.origin);
+  // a reload of the viewer asks for fresh positions (owner 2026-11-24: "why its not updating when I do refresh of my
+  // app"): when the script is there and the shown copy is older than 5 minutes, an open Fidelity tab reads them
+  setTimeout(() => {
+    const ds = dataset.get().ds;
+    const script = document.documentElement.dataset.fidelityAccountsUserscript;
+    if (script && (!ds || Date.now() - Date.parse(ds.builtAt) > STALE_MS)) requestSync();
+  }, 1500);
 }
 
 

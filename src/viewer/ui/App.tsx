@@ -171,7 +171,7 @@ export function App() {
                     navbar and 27 px over the cards */}
                 <div className="ml-auto flex min-w-0 items-baseline gap-3 pb-[5px] pt-[0.6rem]" data-scope-title>
                   <span className="truncate font-medium text-slate-900 dark:text-slate-100" title={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined}>{title}</span>
-                  <span className="flex-none text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
+                  <span className="flex-none text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
                 </div>
               </div>
               {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
