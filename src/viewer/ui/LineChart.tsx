@@ -67,10 +67,11 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
         )}
       </svg>
       {hp && (
-        <div className="pointer-events-none absolute top-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs shadow dark:border-slate-700 dark:bg-slate-800"
-          style={{ left: Math.min(Math.max(0, x(hover!) - 60), width - 130) }} data-chart-tip>
-          <div className="num font-semibold">{usd(hp.value)}</div>
-          <div className="text-slate-500">{siteDate(hp.date)}</div>
+        // one line above the chart, over the period change text (owner 2026-11-24: the box hid the line; while a value
+        // is pointed at, that text matters less), so the line under the cursor stays visible
+        <div className="pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs shadow dark:border-slate-700 dark:bg-slate-800"
+          style={{ left: Math.min(Math.max(0, x(hover!) - 90), width - 190) }} data-chart-tip>
+          <span className="num font-semibold">{usd(hp.value)}</span> <span className="text-slate-500">{siteDate(hp.date)}</span>
         </div>
       )}
     </div>
