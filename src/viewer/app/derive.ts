@@ -2,6 +2,9 @@
 // Numbers the screens show for the chosen scope (all accounts, a group, one account), computed from the dataset only
 import type { Account, Dataset, Position } from '../../shared/model';
 import type { Scope } from './prefs';
+import { addDays, addMonths } from '../../shared/dates';
+
+export { addMonths };
 
 export interface Group { name: string; accounts: Account[]; balance: number }
 
@@ -204,9 +207,7 @@ export function localToday(now: Date = new Date()): string {
  */
 export type Upcoming = Position & { shares: number; payout?: number };
 export function upcomingDividends(ps: Position[], today: string, days = 30): Upcoming[] {
-  const end = new Date(`${today}T00:00:00Z`);
-  end.setUTCDate(end.getUTCDate() + days);
-  const last = end.toISOString().slice(0, 10);
+  const last = addDays(today, days);
   const due = securities(ps).filter((p) => p.exDate && p.exDate >= today && p.exDate <= last);
   const bySymbol = new Map<string, Upcoming>();
   due.forEach((p) => {
@@ -224,15 +225,6 @@ export function upcomingDividends(ps: Position[], today: string, days = 30): Upc
 export const payoutTotal = (rows: Upcoming[]): number => Math.round(rows.reduce((x, r) => x + (r.payout ?? 0), 0) * 100) / 100;
 
 const STEP_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
-
-/** an ISO date `n` months later (earlier for negative), the day clamped to the month's last day */
-export function addMonths(iso: string, n: number): string {
-  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
-  const first = new Date(Date.UTC(y, m - 1 + n, 1));
-  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-  first.setUTCDate(Math.min(d, last));
-  return first.toISOString().slice(0, 10);
-}
 
 /** the calendar month and quarter around `today`, first and last day */
 export function periodBounds(today: string): { month: [string, string]; quarter: [string, string]; year: [string, string] } {
