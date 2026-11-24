@@ -83,11 +83,12 @@ export function App() {
   };
 
   const scope = validScope(ds, pr.scope);
-  const accounts = ds ? accountsIn(ds, scope) : [];
+  // nothing ticked shows the same as everything ticked (owner 2026-11-24): the boxes stay clear, the numbers are all
+  const accounts = ds ? (scope === 'none' ? ds.accounts : accountsIn(ds, scope)) : [];
   const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
   // a chosen set of accounts is named by its accounts (up to three), else counted
-  const title = !ds ? '' : scope === 'none' ? t('No accounts selected: tick some above') : scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
+  const title = !ds ? '' : scope === 'none' || scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
     : accounts.length <= 3 ? accounts.map((a) => a.name).join(' + ') : t('{n} accounts', { n: accounts.length });
   const year = new Date().getFullYear();
 
@@ -150,9 +151,9 @@ export function App() {
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
-          {/* the navbar to the tab labels as far as the tab line to the cards, 16 px (owner 2026-11-24: consistent): the
-              tabs carry 10 px of their own padding above the text */}
           <div className="flex flex-col gap-4 pt-1.5">
+            {/* the navbar to the tab labels as far as the tab line to the cards, 16 px (owner 2026-11-24: consistent): the
+                tabs carry 10 px of their own padding above the text */}
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
                   time after it */}
