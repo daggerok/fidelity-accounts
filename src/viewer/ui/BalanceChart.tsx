@@ -33,7 +33,7 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
   // the card keeps the short list (plus the one picked in the zoom), the zoom shows every period
   const chips = (all: boolean) => (
     <Pills items={(all ? [...ALL_PERIODS] : cardPeriods(period)) as Period[]} value={period} label={t('Period')}
-      labelOf={(p) => periodLabel(p, !all)} onChange={(p) => setPrefs({ period: p })} />
+      labelOf={(p) => periodLabel(p, !all)} dense={!all} onChange={(p) => setPrefs({ period: p })} />
   );
   const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period })}</span></div>;
   const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;
