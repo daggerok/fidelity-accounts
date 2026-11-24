@@ -70,17 +70,25 @@ function Bars({ slices, all }: { slices: { name: string; value: number; pct: num
 }
 
 // each row has its own transition name, so on % and $ the rows glide to their new places; `at` keeps the card's and
-// the big window's names apart (a name used twice cancels the whole transition)
-function Movers({ list, at }: { list: Position[]; at: 'card' | 'big' }) {
+// the big window's names apart (a name used twice cancels the whole transition). A table with no borders (owner
+// 2026-11-24): tickers, names and values ("$ (%)" as one column) each aligned; the lists share one table so the top and
+// the bottom line up too
+function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' }) {
   return (
-    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-      {list.map((p) => (
-        <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
-          <div className="min-w-0"><span className="font-semibold">{p.symbol}</span> <span className="truncate text-xs text-slate-500 dark:text-slate-400">{p.description}</span></div>
-          <div className={`num whitespace-nowrap text-right ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</div>
-        </div>
+    <table className="w-full text-sm" data-movers>
+      {lists.map((list, i) => (
+        <tbody key={i}>
+          {i > 0 && list.length > 0 && <tr aria-hidden><td colSpan={3} className="h-3" /></tr>}
+          {list.map((p) => (
+            <tr key={p.symbol} style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
+              <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
+              <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
+              <td className={`num whitespace-nowrap py-1 pl-3 text-right align-baseline ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</td>
+            </tr>
+          ))}
+        </tbody>
       ))}
-    </div>
+    </table>
   );
 }
 
@@ -204,9 +212,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         <Toggle value={pr.moversBy} label={t('Sort movers by')} a={{ value: 'pct', text: '%', title: t('Movers by %') }} b={{ value: 'usd', text: '$', title: t('Movers by $') }}
           onChange={(v) => animate(() => setPrefs({ moversBy: v }))} />
       )} expand={mBig.top.length || mBig.bottom.length ? (
-        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers list={mBig.top} at="big" /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers list={mBig.bottom} at="big" /></div></div>
+        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers lists={[mBig.top]} at="big" /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers lists={[mBig.bottom]} at="big" /></div></div>
       ) : undefined}>
-        {m.top.length || m.bottom.length ? <><Movers list={m.top} at="card" /><Movers list={m.bottom} at="card" /></> : <Empty text={t('No price changes yet today')} />}
+        {m.top.length || m.bottom.length ? <Movers lists={[m.top, m.bottom]} at="card" /> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
       {/* the order as pills in one row right after the title (owner 2026-11-24: buttons in line, like Fidelity's 1M YTD
