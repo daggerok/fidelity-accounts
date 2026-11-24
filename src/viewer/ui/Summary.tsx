@@ -106,28 +106,34 @@ function AllocationBig({ id, slices }: { id: string; slices: { name: string; val
   );
 }
 
+// the big ex-dividend table (owner 2026-11-24: every value on one line, wide, scroll sideways when needed, easy to read):
+// no wrapping, the total on top like the card, each account as its own small chip
 function DividendsTable({ ps, today }: { ps: Position[]; today: string }) {
   const rows = upcomingDividends(ps, today, 30);
   const byAccount = (symbol: string) => securities(ps).filter((p) => p.symbol === symbol && p.exDate && p.exDate >= today);
+  const th = 'sticky top-0 z-10 bg-[var(--card-bg)] px-3 py-2 font-medium';
   return (
-    <div className="overflow-auto">
-      <table className="w-full text-sm [&_td]:px-2 [&_th]:px-2">
-        <thead><tr className="text-left text-xs text-slate-500"><th className="py-1.5">{t('Symbol')}</th><th>{t('Ex-date')}</th><th>{t('Pay date')}</th><th className="text-right">{t('Per share')}</th><th className="text-right">{t('Shares')}</th><th className="text-right">{t('To you')}</th><th>{t('Payment frequency')}</th><th>{t('Accounts')}</th></tr></thead>
+    <div className="overflow-x-auto">
+      <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-2" data-dividends-table>
+        <thead><tr className="text-left text-xs text-slate-500">
+          <th className={th}>{t('Symbol')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th><th className={`${th} text-right`}>{t('Per share')}</th>
+          <th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={th}>{t('Payment frequency')}</th><th className={th}>{t('Accounts')}</th>
+        </tr></thead>
         <tbody>
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={5}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(rows.reduce((x, r) => x + (r.payout ?? 0), 0))}</td><td colSpan={2} /></tr>
           {rows.map((r) => (
-            <tr key={r.symbol} className="border-t border-slate-100 align-top dark:border-slate-800">
-              <td className="py-1.5"><div className="font-semibold">{r.symbol}</div><div className="max-w-[16rem] truncate text-xs text-slate-500">{r.description}</div></td>
-              <td className="num py-1.5">{siteDate(r.exDate)}</td>
-              <td className="num py-1.5">{siteDate(r.payDate)}</td>
-              <td className="num py-1.5 text-right">{usd(r.dividendAmount)}</td>
-              <td className="num py-1.5 text-right">{qty(r.shares)}</td>
-              <td className="num py-1.5 text-right font-medium">{usd(r.payout)}</td>
-              <td className="py-1.5">{r.paymentFrequency ?? ''}</td>
-              <td className="py-1.5 text-xs text-slate-500">{byAccount(r.symbol).map((p) => `${p.account.slice(-4)}: ${qty(p.quantity)}`).join(', ')}</td>
+            <tr key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
+              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
+              <td className="num">{siteDate(r.exDate)}</td>
+              <td className="num">{siteDate(r.payDate)}</td>
+              <td className="num text-right">{usd(r.dividendAmount)}</td>
+              <td className="num text-right">{qty(r.shares)}</td>
+              <td className="num text-right font-medium">{usd(r.payout)}</td>
+              <td>{r.paymentFrequency ?? ''}</td>
+              <td><span className="flex gap-1">{byAccount(r.symbol).map((p) => <span key={p.account} className="num rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">···{p.account.slice(-4)} {qty(p.quantity)}</span>)}</span></td>
             </tr>
           ))}
         </tbody>
-        <tfoot><tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td className="py-1.5" colSpan={5}>{t('Total')}</td><td className="num py-1.5 text-right">{usd(rows.reduce((x, r) => x + (r.payout ?? 0), 0))}</td><td colSpan={2} /></tr></tfoot>
       </table>
     </div>
   );
