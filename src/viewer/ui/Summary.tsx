@@ -23,7 +23,9 @@ function Card({ id, title, children, tools, expand }: { id: string; title: strin
     <section ref={box} className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <span className="flex items-center gap-1">{tools}{expand && <button type="button" className="tb" style={{ width: '1.75rem', height: '1.75rem' }} title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
+        {/* the ⤢ glyph sits as far from the top right corner as the title from the top left (owner 2026-11-24): the
+            button's own padding is taken back by negative margins, so the row stays the title's height */}
+        <span className="-my-1 -mr-2 flex items-center gap-1">{tools}{expand && <button type="button" className="tb" title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
       </div>
       {children}
       {expand && <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand}</Zoom>}
@@ -142,14 +144,15 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
+  const balance = combine(ds.history, accounts.map((a) => a.number));
   const yieldOnValue = tot.balance > 0 ? (tot.estAnnualIncome / tot.balance) * 100 : null;
 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
-      <Card id="balance" title={t('Balance')}>
+      <Card id="balance" title={t('Balance')} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
         <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
         <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
-        <BalanceChart series={combine(ds.history, accounts.map((a) => a.number))} />
+        <BalanceChart series={balance} />
         <div className="mt-2 flex flex-col gap-1.5">
           <Row label={t('Total gain/loss')} value={`${signedUsd(tot.totalGl)} (${signedPct(tot.totalGlPct)})`} cls={tone(tot.totalGl)} />
           <Row label={t('Cost basis')} value={usd(tot.costBasis)} />

@@ -53,8 +53,8 @@ export function Zoom({ open, title, onClose, children, tools, origin }: { open: 
       <div ref={panel} className="card relative flex max-h-full w-full max-w-6xl flex-col gap-3 overflow-auto" style={{ transformOrigin: 'top left' }}>
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">{title}</h2>
-          {tools && <span className="flex items-center gap-1">{tools}</span>}
-          <button type="button" className="tb ml-auto" title={t('Close')} onClick={onClose}>✕</button>
+          {tools && <span className="-my-1 flex items-center gap-1">{tools}</span>}
+          <button type="button" className="tb -my-1 -mr-2 ml-auto" title={t('Close')} onClick={onClose}>✕</button>
         </div>
         {children}
       </div>

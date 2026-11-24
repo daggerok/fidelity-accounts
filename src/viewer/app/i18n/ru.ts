@@ -57,7 +57,6 @@ export const RU: Record<string, string> = {
   'Show as bars': 'Показать полосами',
   Other: 'Прочее',
   'balance change, {period}': 'изменение баланса, {period}',
-  'Zoom the chart': 'Увеличить график',
   "Today's gain/loss": 'Изменение за сегодня',
   'Total gain/loss': 'Прибыль/убыток всего',
   'Cost basis': 'Себестоимость',

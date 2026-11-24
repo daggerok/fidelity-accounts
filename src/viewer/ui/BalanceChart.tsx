@@ -1,18 +1,15 @@
-import { useRef, useState } from 'react';
 import { ALL_PERIODS, PERIODS, changeOf, periodSlice, type Period, type Point } from '../../shared/history';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
-import { Zoom } from './Zoom';
 import { LineChart } from './LineChart';
 import { signedPct, signedUsd, tone } from './format';
 import { useStore } from './useStore';
 
-// The value of the chosen accounts over a period (Fidelity's own daily values), the period chips under it, ⤢ to zoom.
+// The value of the chosen accounts over a period (Fidelity's own daily values), the period chips under it. `big` is the
+// zoomed copy (the card's ⤢, top right like on every card): taller, with every period.
 // The change is the balance change: deposits and withdrawals are in it, it is not a return
-export function BalanceChart({ series }: { series: Point[] }) {
+export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }) {
   const pr = useStore(prefs);
-  const [zoom, setZoom] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
   if (series.length < 2) return null;
   const period = pr.period;
   const slice = periodSlice(series, period);
@@ -29,19 +26,12 @@ export function BalanceChart({ series }: { series: Point[] }) {
     </div>
   );
   const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('balance change, {period}', { period })}</span></div>;
+  const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;
   return (
-    <div ref={box} className="flex flex-col gap-2" data-balance-chart>
-      <div className="flex items-center justify-between gap-2">
-        {head}
-        <button type="button" className="tb" title={t('Zoom the chart')} onClick={() => setZoom(true)} data-zoom-button>⤢</button>
-      </div>
-      <LineChart points={slice} up={up} height={180} />
-      {chips(false)}
-      <Zoom open={zoom} title={t('Balance')} origin={box} onClose={() => setZoom(false)}>
-        {head}
-        <LineChart points={slice} up={up} height={Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6))} />
-        {chips(true)}
-      </Zoom>
+    <div className="flex flex-col gap-2" data-balance-chart={big ? 'big' : 'card'}>
+      {head}
+      <LineChart points={slice} up={up} height={height} />
+      {chips(!!big)}
     </div>
   );
 }
