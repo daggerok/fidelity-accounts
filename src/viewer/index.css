@@ -77,9 +77,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .dark .acct-tab.on{border-color:#e2e8f0;background:#0f172a}
 .card{border-radius:1rem;border:1px solid #e2e8f0;background:#fff;padding:1.25rem 1.5rem;min-width:0}
 .dark .card{border-color:#334155;background:#0f172a}
-.main-tab{padding:.6rem .25rem;border-bottom:3px solid transparent;font-weight:500;color:#475569;white-space:nowrap}
+.main-tab{padding:0 .25rem;font-weight:500;color:#64748b;white-space:nowrap}
 .main-tab:hover{color:#0f172a}
-.main-tab.on{border-color:var(--brand);color:#0f172a}
+.main-tab.on{color:#0f172a}
 .dark .main-tab{color:#94a3b8}
 .dark .main-tab:hover,.dark .main-tab.on{color:#f1f5f9}
 .pos-table th{position:sticky;top:0;z-index:1;background:#f8fafc;font-weight:600;font-size:.75rem;line-height:1.1;text-align:right;padding:.5rem .5rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;cursor:pointer;user-select:none}
