@@ -59,7 +59,7 @@ export const RU: Record<string, string> = {
   'Sort accounts by': 'Сортировать счета по',
   'Show as bars': 'Показать полосами',
   Other: 'Прочее',
-  'balance change': 'изменение баланса',
+  '{period} balance change': 'изменение баланса за {period}',
   "Today's gain/loss": 'Изменение за сегодня',
   'Total gain/loss': 'Прибыль/убыток всего',
   'Cost basis': 'Себестоимость',
