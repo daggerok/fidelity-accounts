@@ -59,7 +59,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
         <button data-m="login" title="Optional: your Fidelity login, so the script logs in by itself">🔑</button>
         <button class="min" data-m="minimize" title="Minimize to a small icon">–</button></div>
       <div class="row">
-        <button data-a="watch" title="Watch: refresh Positions every minute and hand the changes to the viewer">👀</button>
+        <button data-a="watch" title="Watch: refresh Positions every 10 minutes and hand the changes to the viewer">👀</button>
         <button data-a="read" class="ic read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇</button>
         <button data-a="json" class="ic json" title="Download the last read as JSON">{}</button>
       </div>
@@ -127,7 +127,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
     watching(on) {
       const b = q('[data-a="watch"]');
       // one 👀 like in the viewer's navbar (owner 2026-11-24): green while watching, the title says what a click does
-      b.title = on ? 'Watching: Positions refresh every minute. Click to stop' : 'Watch: refresh Positions every minute and hand the changes to the viewer';
+      b.title = on ? 'Watching: Positions refresh every 10 minutes. Click to stop' : 'Watch: refresh Positions every 10 minutes and hand the changes to the viewer';
       b.style.background = on ? '#368727' : '';
       host.dataset.watching = on ? 'yes' : 'no';
       // the dot is green while 👀 watches, grey when it does not (owner 2026-11-24)

@@ -1,10 +1,10 @@
 /// <reference lib="esnext" />
 // 👀 Watch (owner 2026-11-23: "if markets are open we would want to see how data is changing"): while it is on, the
-// Fidelity tab presses the page's own "Refresh Positions" button every minute (a read: the page asks for the positions
+// Fidelity tab presses the page's own "Refresh Positions" button every 10 minutes (a read: the page asks for the positions
 // again, nothing changes on Fidelity) and hands every change to the viewer, at most every 30 s; Sheets get a copy at most
 // every 10 minutes (each write is a few MB). Off: one read when Positions opens, and whenever asked (⬇ on the panel)
 export const WATCH_KEY = 'fidelity-accounts.watch'; // boolean, shared by the viewer and the Fidelity tab
-export const WATCH_REFRESH_MS = 60_000;
+export const WATCH_REFRESH_MS = 10 * 60_000; // every 10 minutes (owner 2026-11-24: "refresh once in 10 minutes max")
 export const WATCH_READ_GAP_MS = 30_000;
 export const WATCH_SHEETS_GAP_MS = 10 * 60_000;
 

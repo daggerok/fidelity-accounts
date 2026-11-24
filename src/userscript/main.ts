@@ -173,13 +173,13 @@ function onPortfolio(): void {
     }
   });
 
-  // 👀 Watch: press the page's own Refresh Positions every minute while it is on (a read, nothing changes on Fidelity)
+  // 👀 Watch: press the page's own Refresh Positions every 10 minutes while it is on (a read, nothing changes on Fidelity)
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   const applyWatch = () => {
     const on = watching();
     badge.watching(on);
     // no jump to Positions and no refresh when a page opens or reloads (owner 2026-11-24): the page reads the grid by
-    // itself; only the viewer's 👀 opens Positions. On Positions the refresh runs every minute, first after a minute,
+    // itself; only the viewer's 👀 opens Positions. On Positions the refresh runs every 10 minutes, first after 10 minutes,
     // and only while the market is open (positions do not change otherwise)
     if (on && !refreshTimer) {
       refreshTimer = setInterval(() => {
