@@ -259,7 +259,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       {/* the order as pills in one row on the right of the title row (owner 2026-11-24: buttons in line, like Fidelity's
           1M YTD 1Y 3Y; then "move to the right" for some air after the title); on a narrow card they wrap under it */}
       <Card id="accounts" title={t('Accounts')} tools={(
-        <Pills items={ACCOUNT_SORTS} value={pr.accountSort} label={t('Sort accounts by')} labelOf={(k) => sortName[k]} className="-mr-2.5 justify-end"
+        <Pills items={ACCOUNT_SORTS} value={pr.accountSort} label={t('Sort accounts by')} labelOf={(k) => sortName[k]} className="justify-end"
           onChange={(k) => animate(() => setPrefs({ accountSort: k }))} />
       )}>
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
