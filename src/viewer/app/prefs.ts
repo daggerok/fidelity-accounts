@@ -18,12 +18,12 @@ export interface Prefs {
   search: string;
   hidden: string[]; // positions columns switched off
   period: Period; // the balance chart's period
-  allocView: 'bars' | 'pie'; // the allocation cards
+  views: Record<string, 'bars' | 'pie'>; // each allocation card its own view (owner 2026-11-23: not one global switch)
   moversBy: 'pct' | 'usd'; // top and bottom movers by % or $
   accountSort: 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', allocView: 'pie', moversBy: 'pct', accountSort: 'value' };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', accountSort: 'value' };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -36,7 +36,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
       period: (PERIODS as readonly string[]).indexOf(String(p.period)) >= 0 ? (p.period as Period) : '1Y',
-      allocView: p.allocView === 'bars' ? 'bars' : 'pie',
+      views: p.views && typeof p.views === 'object' && !Array.isArray(p.views) ? p.views : {},
       moversBy: p.moversBy === 'usd' ? 'usd' : 'pct',
       accountSort: ['value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'value',
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
