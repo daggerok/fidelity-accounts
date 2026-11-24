@@ -59,7 +59,6 @@ export function accept(json: string, source: Source): boolean {
   return true;
 }
 
-const STALE_MS = 5 * 60_000;
 /** ask an open Fidelity tab to read the positions now (a read; the command is used once and only for 2 minutes) */
 export const requestSync = (): void => { window.postMessage({ type: 'fidelity-accounts:command', mode: 'sync' }, location.origin); };
 
@@ -89,13 +88,11 @@ export function startData(): void {
   void cacheGet(TXNS_CACHE_KEY).then((json) => { if (json && !transactions.get()) acceptTxns(json); });
   window.postMessage({ type: 'fidelity-accounts:request' }, location.origin);
   window.postMessage({ type: 'fidelity-accounts:hello' }, location.origin);
-  // a reload of the viewer asks for fresh positions (owner 2026-11-24: "why its not updating when I do refresh of my
-  // app"): when the script is there and the shown copy is older than 5 minutes, an open Fidelity tab reads them
-  setTimeout(() => {
-    const ds = dataset.get().ds;
-    const script = document.documentElement.dataset.fidelityAccountsUserscript;
-    if (script && (!ds || Date.now() - Date.parse(ds.builtAt) > STALE_MS)) requestSync();
-  }, 1500);
+  // a reload of the viewer asks for fresh positions (owner 2026-11-24: "cmd+r doest helped"): when the script is there,
+  // an open Fidelity tab presses its own Refresh Positions (a read) and the new copy follows in a few seconds. No age
+  // rule: the read time says nothing about Fidelity's numbers, and Fidelity's "As of" label keeps the page load time
+  // after Refresh Positions (seen live 2026-11-24), so neither can tell a stale copy
+  setTimeout(() => { if (document.documentElement.dataset.fidelityAccountsUserscript) requestSync(); }, 1500);
 }
 
 
