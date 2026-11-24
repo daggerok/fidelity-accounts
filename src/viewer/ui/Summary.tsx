@@ -188,7 +188,6 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const incQ = incomeIn(ps, bounds.quarter[0], bounds.quarter[1], today);
   const incM = incomeIn(ps, bounds.month[0], bounds.month[1], today);
   const incY = incomeIn(ps, bounds.year[0], bounds.year[1], today);
-  const yieldOnValue = tot.balance > 0 ? (tot.estAnnualIncome / tot.balance) * 100 : null;
 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
@@ -283,11 +282,12 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
               <div className="num whitespace-nowrap"><span className="text-xl font-semibold sm:text-2xl">{usd(v.paid)}</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
+              {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
             </div>
           ))}
         </div>
         <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          <span>{t('Estimated annual income')} · <span className="num">{usd(tot.estAnnualIncome)}</span>{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</span>
           <span>{t('Per month, on average')} · <span className="num">{usd(tot.estAnnualIncome / 12)}</span></span>
         </div>
       </Card>
