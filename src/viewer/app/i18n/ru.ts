@@ -30,7 +30,7 @@ export const RU: Record<string, string> = {
   // summary
   Balance: 'Баланс',
   Period: 'Период',
-  Donut: 'Кольцо',
+  'Show as donut': 'Показать кольцом',
   'Open big': 'Открыть крупно',
   Top: 'Рост',
   Bottom: 'Падение',
@@ -51,7 +51,7 @@ export const RU: Record<string, string> = {
   'Total %': 'Всего %',
   'Sort movers by': 'Сортировать лидеров по',
   'Sort accounts by': 'Сортировать счета по',
-  Bars: 'Полосы',
+  'Show as bars': 'Показать полосами',
   Other: 'Прочее',
   'balance change, {period}': 'изменение баланса, {period}',
   'Zoom the chart': 'Увеличить график',
