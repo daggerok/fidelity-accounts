@@ -1,7 +1,7 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
 import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
-import { BalanceChart } from './BalanceChart';
+import { BalanceChart, PeriodChange } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
@@ -198,6 +198,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
           <div className="min-w-0">
             <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
             <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t('Today')}</span></div>
+            <PeriodChange series={balance} />
           </div>
           <table className="text-xs" data-balance-facts>
             <tbody className="[&_td]:py-0.5">
@@ -284,11 +285,10 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
               {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
+              {/* Fidelity's annual estimate spread over the period (owner 2026-11-24: "On average" under each tile) */}
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(tot.estAnnualIncome / (key === 'Y' ? 1 : key === 'Q' ? 4 : 12))}</span></div>
             </div>
           ))}
-        </div>
-        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          <span>{t('Per month, on average')} · <span className="num">{usd(tot.estAnnualIncome / 12)}</span></span>
         </div>
       </Card>
     </div>
