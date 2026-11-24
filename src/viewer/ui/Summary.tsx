@@ -7,6 +7,7 @@ import { Zoom } from './Zoom';
 import { animate } from './animate';
 import { useRef, useState } from 'react';
 import { GainLoss } from './GainLoss';
+import { RangeBar } from './RangeBar';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
@@ -168,9 +169,7 @@ function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
           <td>
             <div className="flex items-center justify-end gap-2 num text-xs text-slate-500">
               <span>{usd(r.low52)}</span>
-              <span className="relative h-1.5 w-24 flex-none rounded-full bg-slate-200 dark:bg-slate-700" title={pct(r.pos * 100)}>
-                <span className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${r.pos * 100}%`, background: high ? 'var(--gain)' : 'var(--loss)' }} />
-              </span>
+              <RangeBar pos={r.pos} color={high ? 'var(--gain)' : 'var(--loss)'} className="w-24 flex-none" title={pct(r.pos * 100)} />
               <span>{usd(r.high52)}</span>
             </div>
           </td>
