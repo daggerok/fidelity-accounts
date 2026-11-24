@@ -1,7 +1,8 @@
-import { ALL_PERIODS, PERIODS, changeOf, periodLabel, periodSlice, type Period, type Point } from '../../shared/history';
+import { ALL_PERIODS, PERIODS, changeOf, periodLabel, periodSlice, type Point } from '../../shared/history';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { LineChart } from './LineChart';
+import { Pills } from './Pills';
 import { signedPct, signedUsd, tone } from './format';
 import { useStore } from './useStore';
 
@@ -31,13 +32,8 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
   const up = (ch?.change ?? 0) >= 0;
   // the card keeps the short list (plus the one picked in the zoom), the zoom shows every period
   const chips = (all: boolean) => (
-    <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('Period')}>
-      {ALL_PERIODS.filter((p) => all || p === period || (PERIODS as readonly string[]).includes(p)).map((p) => (
-        <button key={p} type="button" role="tab" aria-selected={p === period} onClick={() => setPrefs({ period: p as Period })}
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${p === period ? 'text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}
-          style={p === period ? { background: 'var(--brand)' } : undefined}>{periodLabel(p)}</button>
-      ))}
-    </div>
+    <Pills items={ALL_PERIODS.filter((p) => all || p === period || (PERIODS as readonly string[]).includes(p))} value={period} label={t('Period')}
+      labelOf={periodLabel} onChange={(p) => setPrefs({ period: p })} />
   );
   const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period })}</span></div>;
   const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;

@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, kindOf, ofKind, addMonths, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, kindOf, ofKind, toggleKind, kindOn, addMonths, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -111,6 +111,15 @@ test('ETF or stock by the security type', () => {
   const ps = [{ ...p, symbol: 'E', securityType: 'Exchange Traded' }, { ...p, symbol: 'S', securityType: 'Equity' }];
   expect(ofKind(ps, 'etf').map((x) => x.symbol)).toEqual(['E']);
   expect(ofKind(ps, 'all')).toHaveLength(2);
+});
+
+test('ETFs and Stocks switch on their own; both or none is all', () => {
+  expect(toggleKind('all', 'etf')).toBe('stock'); // ETFs off from all
+  expect(toggleKind('stock', 'etf')).toBe('all'); // ETFs on again: both
+  expect(toggleKind('etf', 'etf')).toBe('all'); // the only one off: none = all
+  expect(toggleKind('all', 'stock')).toBe('etf');
+  expect(kindOn('all', 'etf') && kindOn('all', 'stock')).toBe(true);
+  expect(kindOn('etf', 'stock')).toBe(false);
 });
 
 describe('toggleFold', () => {

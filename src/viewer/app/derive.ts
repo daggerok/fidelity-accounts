@@ -147,7 +147,19 @@ export function kindOf(p: Position): 'etf' | 'stock' | 'other' {
   if (p.securityType === 'Equity' || /REIT/i.test(p.securitySubType ?? '')) return 'stock';
   return 'other';
 }
-export const ofKind = (ps: Position[], kind: 'all' | 'etf' | 'stock'): Position[] => (kind === 'all' ? ps : ps.filter((p) => kindOf(p) === kind));
+export type Kind = 'all' | 'etf' | 'stock';
+export const ofKind = (ps: Position[], kind: Kind): Position[] => (kind === 'all' ? ps : ps.filter((p) => kindOf(p) === kind));
+/** is ETFs or Stocks lit: both are with all shown */
+export const kindOn = (value: Kind, k: 'etf' | 'stock'): boolean => value === 'all' || value === k;
+/**
+ * ETFs or Stocks switched (owner 2026-11-24): from all, switching one off leaves the other; switching the only one off
+ * leaves none, which is all again; switching the other on makes both, which is all
+ */
+export function toggleKind(value: Kind, k: 'etf' | 'stock'): Kind {
+  const other = k === 'etf' ? 'stock' : 'etf';
+  if (value === 'all') return other;
+  return 'all'; // value === k: off -> none -> all; value === other: on -> both -> all
+}
 
 export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];
