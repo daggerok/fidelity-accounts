@@ -17,3 +17,21 @@ export function Toggle<T extends string>({ value, a, b, label, onChange }: { val
     </button>
   );
 }
+
+// The same look for three or more choices (owner 2026-11-24: All, ETFs, Stocks): each choice is its own button, the
+// thumb slides under the chosen one
+export function Segmented<T extends string>({ value, options, label, onChange }: { value: T; options: ToggleOption<T>[]; label: string; onChange: (v: T) => void }) {
+  const at = Math.max(0, options.findIndex((o) => o.value === value));
+  const n = options.length;
+  return (
+    <div role="radiogroup" aria-label={label} data-segmented={value}
+      className="relative inline-grid h-9 flex-none items-center rounded-lg bg-slate-100 p-0.5 text-sm dark:bg-slate-800" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+      <span aria-hidden className="absolute inset-y-0.5 left-0.5 rounded-md bg-white shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-slate-600"
+        style={{ width: `calc((100% - 0.25rem) / ${n})`, transform: `translateX(${at * 100}%)` }} />
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio" aria-checked={o.value === value} title={o.title} onClick={() => onChange(o.value)}
+          className={`relative z-10 h-full cursor-pointer whitespace-nowrap px-2.5 text-center transition-colors duration-200 ${o.value === value ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}>{o.text}</button>
+      ))}
+    </div>
+  );
+}

@@ -138,6 +138,17 @@ export function movers(ps: Position[], n = 5, by: 'pct' | 'usd' = 'pct'): { top:
   return { top: list.slice(0, n).filter((p) => key(p) > 0), bottom: list.slice(-n).filter((p) => key(p) < 0) };
 }
 
+/**
+ * ETF or stock (owner 2026-11-24: movers of All, ETFs or Stocks): Fidelity's security type Exchange Traded is an ETF,
+ * Equity and REITs are stocks; mutual funds and the rest count only in All
+ */
+export function kindOf(p: Position): 'etf' | 'stock' | 'other' {
+  if (p.securityType === 'Exchange Traded') return 'etf';
+  if (p.securityType === 'Equity' || /REIT/i.test(p.securitySubType ?? '')) return 'stock';
+  return 'other';
+}
+export const ofKind = (ps: Position[], kind: 'all' | 'etf' | 'stock'): Position[] => (kind === 'all' ? ps : ps.filter((p) => kindOf(p) === kind));
+
 export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];
 

@@ -1,12 +1,12 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, ofKind, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
 import { useRef, useState } from 'react';
-import { Toggle } from './Toggle';
+import { Segmented, Toggle, type ToggleOption } from './Toggle';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -175,8 +175,11 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const tot = totalsOf(accounts);
   const ps = positionsIn(ds, accounts);
   const pr = useStore(prefs);
-  const m = movers(ps, 5, pr.moversBy);
-  const mBig = movers(ps, 20, pr.moversBy);
+  const moverPs = ofKind(ps, pr.moversOf);
+  const m = movers(moverPs, 5, pr.moversBy);
+  const mBig = movers(moverPs, 20, pr.moversBy);
+  // All, ETFs or Stocks (owner 2026-11-24), for the movers and the income
+  const kinds: ToggleOption<'all' | 'etf' | 'stock'>[] = [{ value: 'all', text: t('All'), title: t('Every security') }, { value: 'etf', text: t('ETFs'), title: t('Only ETFs') }, { value: 'stock', text: t('Stocks'), title: t('Only stocks') }];
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
   const today = new Date().toISOString().slice(0, 10);
   const divs = upcomingDividends(ps, today);
@@ -185,9 +188,12 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const types = allocation(ps, (p) => p.securityType);
   const balance = combine(ds.history, accounts.map((a) => a.number));
   const bounds = periodBounds(today);
-  const incQ = incomeIn(ps, bounds.quarter[0], bounds.quarter[1], today);
-  const incM = incomeIn(ps, bounds.month[0], bounds.month[1], today);
-  const incY = incomeIn(ps, bounds.year[0], bounds.year[1], today);
+  const incomePs = ofKind(ps, pr.incomeOf);
+  const incQ = incomeIn(incomePs, bounds.quarter[0], bounds.quarter[1], today);
+  const incM = incomeIn(incomePs, bounds.month[0], bounds.month[1], today);
+  const incY = incomeIn(incomePs, bounds.year[0], bounds.year[1], today);
+  // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
+  const estAnnual = pr.incomeOf === 'all' ? tot.estAnnualIncome : securities(incomePs).reduce((x, p) => x + (p.estAnnualIncome ?? 0), 0);
 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
@@ -217,8 +223,11 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       </Card>
 
       <Card id="movers" title={t('Your top and bottom movers')} tools={(
+        <span className="flex flex-wrap items-center justify-end gap-2">
+        <Segmented value={pr.moversOf} label={t('Movers of')} options={kinds} onChange={(v) => animate(() => setPrefs({ moversOf: v }))} />
         <Toggle value={pr.moversBy} label={t('Sort movers by')} a={{ value: 'pct', text: '%', title: t('Movers by %') }} b={{ value: 'usd', text: '$', title: t('Movers by $') }}
           onChange={(v) => animate(() => setPrefs({ moversBy: v }))} />
+        </span>
       )} expand={mBig.top.length || mBig.bottom.length ? (
         <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers lists={[mBig.top]} at="big" /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers lists={[mBig.bottom]} at="big" /></div></div>
       ) : undefined}>
@@ -278,7 +287,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       {/* YTD / Y | QTD / Q | MTD / M (owner 2026-11-24): each shows received so far / the total of the current calendar year, quarter
           and month (received and still to come), with a bar of the received share. Dividends from each position's pay
           date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
-      <Card id="income" title={t('Income')}>
+      <Card id="income" title={t('Income')} tools={<Segmented value={pr.incomeOf} label={t('Income of')} options={kinds} onChange={(v) => animate(() => setPrefs({ incomeOf: v }))} />}>
         {/* the tiles take the width their numbers need, never cut (owner 2026-11-24: "values without ...", the year wider);
             the total is in whole dollars; on a narrow card they wrap */}
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-3" data-income>
@@ -290,7 +299,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
               {/* Fidelity's annual estimate spread over the period (owner 2026-11-24: "On average" under each tile) */}
-              <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(tot.estAnnualIncome / (key === 'Y' ? 1 : key === 'Q' ? 4 : 12))}</span></div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Y' ? 1 : key === 'Q' ? 4 : 12))}</span></div>
             </div>
           ))}
         </div>

@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, addMonths, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, kindOf, ofKind, addMonths, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -100,6 +100,17 @@ test('income of the month and the quarter from pay dates stepped by the frequenc
   expect(incomeIn(ps, '2026-10-01', '2026-12-31', '2026-11-24')).toEqual({ paid: 0.63, coming: 0, total: 0.63 }); // Oct 5, paid
   expect(incomeIn(ps, '2027-01-01', '2027-03-31', '2026-11-24')).toEqual({ paid: 0, coming: 0.63, total: 0.63 });
   expect(incomeIn(ps, '2026-11-01', '2026-11-30', '2026-11-24').total).toBe(0);
+});
+
+test('ETF or stock by the security type', () => {
+  const p = positionsIn(ds, ds.accounts)[1]!;
+  expect(kindOf({ ...p, securityType: 'Exchange Traded' })).toBe('etf');
+  expect(kindOf({ ...p, securityType: 'Equity' })).toBe('stock');
+  expect(kindOf({ ...p, securityType: 'Others', securitySubType: 'REITS' })).toBe('stock');
+  expect(kindOf({ ...p, securityType: 'Mutual Fund' })).toBe('other');
+  const ps = [{ ...p, symbol: 'E', securityType: 'Exchange Traded' }, { ...p, symbol: 'S', securityType: 'Equity' }];
+  expect(ofKind(ps, 'etf').map((x) => x.symbol)).toEqual(['E']);
+  expect(ofKind(ps, 'all')).toHaveLength(2);
 });
 
 describe('toggleFold', () => {
