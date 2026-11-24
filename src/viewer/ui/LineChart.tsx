@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { resample, type Point } from '../../shared/history';
+import { resample, valueRange, type Point } from '../../shared/history';
 import { siteDate, usd } from './format';
 
 // A light SVG line chart in the Fidelity look: the line with a soft fill, three value levels on the right, the first and
@@ -22,12 +22,7 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
   const norm = useMemo(() => {
     if (points.length < 2) return [];
     const v = points.map((p) => p.value);
-    let lo = Math.min(...v);
-    let hi = Math.max(...v);
-    if (hi === lo) { hi += 1; lo -= 1; }
-    const s = hi - lo;
-    lo -= s * 0.05;
-    hi += s * 0.05;
+    const { min: lo, max: hi } = valueRange(v);
     return v.map((x) => (x - lo) / (hi - lo));
   }, [points]);
   const shown = useRef<number[] | null>(null);
@@ -55,13 +50,7 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
   const pad = { l: 4, r: 64, t: 10, b: 24 };
   const w = width - pad.l - pad.r;
   const h = height - pad.t - pad.b;
-  const vals = points.map((p) => p.value);
-  let min = Math.min(...vals);
-  let max = Math.max(...vals);
-  if (max === min) { max += 1; min -= 1; }
-  const span = max - min;
-  min -= span * 0.05;
-  max += span * 0.05;
+  const { min, max } = valueRange(points.map((p) => p.value));
   const x = (i: number) => pad.l + (i / (points.length - 1)) * w;
   const y = (v: number) => pad.t + (1 - (v - min) / (max - min)) * h;
   const line = blend
