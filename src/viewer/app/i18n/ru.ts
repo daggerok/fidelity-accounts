@@ -152,6 +152,7 @@ export const RU: Record<string, string> = {
   'Tampermonkey and the sync script': 'Tampermonkey и скрипт синхронизации',
   'Install Tampermonkey from tampermonkey.net. In Chrome open its extension details: turn on Allow User Scripts and give it site access to digital.fidelity.com and {host}. Then open the script and press Install, and reload this page.': 'Установи Tampermonkey с tampermonkey.net. В Chrome открой сведения о расширении: включи Allow User Scripts и дай доступ к сайтам digital.fidelity.com и {host}. Затем открой скрипт, нажми Install и перезагрузи эту страницу.',
   optional: 'необязательно',
+  'Fidelity checks: all {n} ok, last {at}': 'Проверки Fidelity: все {n} в порядке, последняя {at}',
   'needs the Client ID first': 'сначала нужен Client ID',
   'needs Connect Google first, or paste a link below': 'сначала подключи Google или вставь ссылку ниже',
   'needs the script installed first': 'сначала установи скрипт',

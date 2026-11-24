@@ -6,7 +6,7 @@ import { parseDataset, DATASET_VERSION, type Dataset } from '../../shared/model'
 import { SheetsClient } from '../../shared/sheets/client';
 import { GoogleAuth, loadConfig, saveConfig } from '../../shared/sheets/gis';
 import { pushAll } from '../../shared/sheets/sync';
-import { ACCOUNTS, POSITIONS } from '../../shared/sheets/tabs';
+import { ACCOUNTS, BALANCES, POSITIONS } from '../../shared/sheets/tabs';
 import { createStore } from '../../shared/store';
 import { accept, dataset } from './data';
 import { t } from './i18n';
@@ -186,10 +186,14 @@ export async function loadFromSheets(): Promise<void> {
   sheets.set((s) => ({ ...s, busy: true, error: null }));
   try {
     const c = client();
-    const [accounts, rows] = await Promise.all([c.readRows(ACCOUNTS), c.readRows(POSITIONS)]);
+    const [accounts, rows, days] = await Promise.all([c.readRows(ACCOUNTS), c.readRows(POSITIONS), c.readRows(BALANCES)]);
+    // the daily history back from fidelity_balances_daily, so another computer draws the balance chart too
+    const history: Record<string, Array<{ date: string; value: number }>> = {};
+    days.forEach((d) => { if (typeof d.balance === 'number' && /^\d{4}-\d{2}-\d{2}$/.test(d.date)) (history[d.account] = history[d.account] ?? []).push({ date: d.date, value: d.balance }); });
+    Object.keys(history).forEach((k) => history[k]!.sort((a, b) => (a.date < b.date ? -1 : 1)));
     const builtAt = rows.reduce((m, r) => (r.asOf > m ? r.asOf : m), accounts.reduce((m, a) => (a.asOf > m ? a.asOf : m), ''));
     const positions = rows.map(({ asOf: _asOf, ...p }) => p);
-    const ds = parseDataset(JSON.stringify({ version: DATASET_VERSION, builtAt: builtAt || new Date().toISOString(), asOf: null, accounts, positions, warnings: [] }));
+    const ds = parseDataset(JSON.stringify({ version: DATASET_VERSION, builtAt: builtAt || new Date().toISOString(), asOf: null, accounts, positions, warnings: [], history: Object.keys(history).length ? history : undefined }));
     if (ds && (accounts.length || positions.length)) accept(JSON.stringify(ds), 'sheets');
     sheets.set((s) => ({ ...s, busy: false }));
     add(t('loaded from the sheet: {accounts} accounts, {positions} positions', { accounts: accounts.length, positions: positions.length }));

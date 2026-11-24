@@ -48,6 +48,10 @@ Sheet tabs:
 | `fidelity_balances_daily` | balance history, one row per day and account, since each account opened | added and updated |
 | `fidelity_positions_all` | every field of every position as its own column; new fields add columns | rewritten |
 
+## When Fidelity changes something
+
+Everything this app relies on at Fidelity is listed in `src/shared/contract.ts`: each entry says what we expect (a page address, a selector, the fields of a row, the shape of an answer) and which of our files use it. The script checks the real data against it on every read; a broken entry shows on the corner panel and under ⚙️ in the viewer as `✗ grid.fields: POSITION.curVal is gone (fix in src/shared/parse.ts)`. The tests run the same checks on recorded shapes and on broken copies
+
 ## Safety
 
 - Read only: the script never trades, transfers or submits anything on Fidelity; the only form it fills is the login, with your saved login, at most once per 30 minutes, and it stops for good when the password is refused

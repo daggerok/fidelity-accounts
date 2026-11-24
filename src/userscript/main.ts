@@ -11,6 +11,7 @@ import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
 import { historyDue, pagePost, readHistory } from './history-sync';
 import { mergeHistory } from '../shared/history';
+import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, usableHandoff, writeFromUserscript } from './sheets-gm';
@@ -28,6 +29,14 @@ const FLOW_KEY = 'fidelity-accounts.loginFlowAt';
 const PASS_KEY = 'fidelity-accounts.loginPassAt';
 const REFUSED_KEY = 'fidelity-accounts.loginRefusedAt'; // the saved password was refused: no auto login until 🔑 Save
 const RESUME_MAX_AGE_MS = 30 * 60 * 1000;
+// the live check of the contract with Fidelity (src/shared/contract.ts): the newest result per entry, for the panel and the viewer
+const CONTRACT_KEY = 'fidelity-accounts.contract';
+function report(checked: string[], findings: Finding[]): Report {
+  const prev = (() => { try { return JSON.parse(gmGet<string>(CONTRACT_KEY, '')) as Report; } catch { return null; } })();
+  const next = mergeReport(prev, { at: new Date().toISOString(), checked, findings });
+  gmSet(CONTRACT_KEY, JSON.stringify(next));
+  return next;
+}
 
 const time = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const onPositions = () => /\/portfolio\/positions/.test(location.pathname);
@@ -99,7 +108,9 @@ function onPortfolio(): void {
     try {
       const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
       if (stored && stored.accounts.length) {
-        const fresh = await readHistory(stored.accounts, stored.history, pagePost);
+        const seen: Finding[] = [];
+        const fresh = await readHistory(stored.accounts, stored.history, async (url, body) => { const json = await pagePost(url, body); seen.push(...checkBalanceHistory(json)); return json; });
+        report(['balanceHistory'], seen.slice(0, 1));
         const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
         const next = { ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() };
         gmSet(DATASET_KEY, JSON.stringify(next));
@@ -115,7 +126,7 @@ function onPortfolio(): void {
 
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || e.data.source !== PAGE_TAG) return;
-    if (e.data.type === 'error') { badge.status(`!page reader: ${String(e.data.message)}`); return; }
+    if (e.data.type === 'error') { badge.status(`!page reader: ${String(e.data.message)}`); report(['grid.api'], [{ id: 'grid.api', level: 'error', problem: String(e.data.message).slice(0, 200) }]); return; }
     if (e.data.type !== 'grid' || typeof e.data.json !== 'string') return;
     const now = Date.now();
     const wasAsked = asked || e.data.forced === true;
@@ -124,6 +135,9 @@ function onPortfolio(): void {
     asked = false;
     try {
       const rows = JSON.parse(e.data.json) as GridRow[];
+      const r = report(['grid.api', 'grid.rowTypes', 'grid.fields', 'grid.dates', 'grid.percents', 'sidebar', 'asOf', 'refresh'], checkGridRows(rows).concat(checkPage(document, onPositions())));
+      const broken = r.findings.filter((f) => f.level === 'error');
+      if (broken.length) badge.sheets(`!Fidelity changed: ${broken.map((f) => f.id).join(', ')} (details in ⚙️ of the viewer)`);
       const ds = buildDataset({ rows, sidebar: readSidebar(document), asOf: readAsOf(document), builtAt: new Date().toISOString() });
       const merged = mergeDatasets(parseDataset(gmGet<string>(DATASET_KEY, '')), ds);
       gmSet(DATASET_KEY, JSON.stringify(merged));
@@ -192,6 +206,7 @@ function onLogin(): void {
   const timer = setInterval(() => {
     const now = Date.now();
     if (!fieldsReady() && ++tries < 60) return;
+    if (!fieldsReady()) { report(['login'], [{ id: 'login', level: 'error', problem: 'no input fields on the login page after 60 s' }]); clearInterval(timer); return; }
     if (!checkedRefusal) {
       checkedRefusal = true;
       if (passwordRefused(document, first, now)) {
@@ -227,10 +242,10 @@ function onViewer(): void {
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
-    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); }
+    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
     // Fidelity login stays: 🔑 on Fidelity manages it)
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY].forEach(gmDelete);
     if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); }
   });
   post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null));
@@ -241,6 +256,8 @@ function onViewer(): void {
   gmWatch(LOGIN_KEY, (v) => post('fidelity-accounts:login', JSON.stringify({ saved: !!v })));
   postWatch();
   gmWatch(WATCH_KEY, postWatch);
+  post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null));
+  gmWatch(CONTRACT_KEY, (v) => post('fidelity-accounts:contract', v));
 }
 
 if (location.hostname === 'digital.fidelity.com' && isLoginPage(location.pathname)) onLogin();

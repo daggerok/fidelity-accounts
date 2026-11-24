@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
-import { dataset, importFile, loginSaved, openFidelity, setWatch } from '../app/data';
+import { contract, dataset, importFile, loginSaved, openFidelity, setWatch } from '../app/data';
+import { CLAUSES, describe } from '../../shared/contract';
 import { APP_VERSION, isOlder } from '../app/version';
 import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
@@ -56,6 +57,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   const g = useStore(sheets);
   const d = useStore(dataset);
   const login = useStore(loginSaved);
+  const rep = useStore(contract);
   const [cfg, setCfg] = useState(loadConfig);
   // which steps show is taken from a snapshot, refreshed when something happens (connect, data, script, login) and when
   // a field is left or confirmed: a step must not vanish under the cursor at the first typed character
