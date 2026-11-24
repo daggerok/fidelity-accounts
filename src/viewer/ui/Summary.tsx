@@ -7,6 +7,7 @@ import { Zoom } from './Zoom';
 import { animate } from './animate';
 import { useRef, useState } from 'react';
 import { Toggle } from './Toggle';
+import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { t } from '../app/i18n';
@@ -25,9 +26,8 @@ function Card({ id, title, children, tools, lead, expand }: { id: string; title:
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         {lead}
-        {/* the ⤢ glyph sits as far from the top right corner as the title from the top left (owner 2026-11-24): the
-            button's own padding is taken back by negative margins, so the row stays the title's height */}
-        <span className="-my-1 -mr-2 ml-auto flex items-center gap-1">{tools}{expand && <button type="button" className="tb" title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
+        {/* the expand icon sits as far from the top right corner as the title from the top left (owner 2026-11-24) */}
+        <span className="-my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
       </div>
       {children}
       {expand && <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand}</Zoom>}

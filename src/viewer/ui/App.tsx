@@ -63,8 +63,12 @@ export function App() {
     autoWatched.current = true;
     setWatch(true);
   }, [g.connected, g.busy, ds, userscript, watch]);
+  // ☁️ and 🚀 wait for the same 1.5 s (owner 2026-11-24: on a reload 🚀 flashed and went away): the script mark, the saved
+  // data and the saved Google sign-in come a moment after the first paint
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => {
+      setSettled(true);
       if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater()) { autoOpened.current = true; setShowSettings(true); }
     }, 1500);
     return () => clearTimeout(timer);
@@ -119,11 +123,11 @@ export function App() {
                 <span className="relative inline-flex">👀{watch && <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-emerald-500" />}</span>
               </button>
               {/* ☁️ only until Google is connected, like 🚀; disconnecting lives in ⚙️ Settings (owner 2026-11-23) */}
-              {!g.connected && <button type="button" className="tb" data-google disabled={g.busy || !loadConfig().clientId}
+              {settled && !g.connected && <button type="button" className="tb" data-google disabled={g.busy || !loadConfig().clientId}
                 title={loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
                 onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>}
               {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
-              {!done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
+              {settled && !done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
               <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" className="tb" aria-label={t('Language: English (click for Russian)')} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
