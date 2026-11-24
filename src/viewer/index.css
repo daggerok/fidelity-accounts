@@ -7,8 +7,11 @@
 
 
 html, body { margin: 0; }
-:root { --gain: #15803d; --loss: #dc2626; --brand: #368727; }
-:root.dark { --gain: #4ade80; --loss: #f87171; --brand: #6abf4b; }
+:root { --gain: #15803d; --loss: #dc2626; --brand: #368727; --card-bg: #ffffff;
+  /* categorical slots, fixed order (dataviz skill reference palette, validated on #ffffff and #0f172a) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s-other: #94a3b8; }
+:root.dark { --gain: #4ade80; --loss: #f87171; --brand: #6abf4b; --card-bg: #0f172a;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767; --s-other: #64748b; }
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
 .num { font-variant-numeric: tabular-nums; }
