@@ -9,7 +9,7 @@ import { asKind, type Kind } from './derive';
 export const MAIN_TABS = ['summary', 'positions'] as const;
 export type MainTab = (typeof MAIN_TABS)[number];
 
-// 'all', 'group:<name>' or 'account:<number>'
+// 'all', 'none', 'group:<name>', 'account:<number>' or 'set:<number>,<number>'
 export type Scope = string;
 
 export interface Prefs {
@@ -40,6 +40,8 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
     return {
       ...DEFAULT_PREFS,
       ...p,
+      scope: typeof p.scope === 'string' ? p.scope : 'all',
+      search: typeof p.search === 'string' ? p.search : '',
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
       period: (ALL_PERIODS as readonly string[]).indexOf(periodAlias(String(p.period))) >= 0 ? (periodAlias(String(p.period)) as Period) : '1Y',
