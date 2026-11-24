@@ -4,7 +4,7 @@
 import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -71,4 +71,20 @@ test('movers by % or $: the worst loser last; accounts sorted by the chosen meas
   expect(sortAccounts(accs, 'value').map((a) => a.number)).toEqual(['2', '1']);
   expect(sortAccounts(accs, 'todayUsd').map((a) => a.number)).toEqual(['1', '2']);
   expect(sortAccounts(accs, 'totalPct').map((a) => a.number)).toEqual(['2', '1']);
+});
+
+test('my order of accounts: moved within the bar, groups stay put', () => {
+  const acc = (number: string, group: string) => ({ number, name: number, group, asOf: 't' });
+  const d = { ...ds, accounts: [acc('A', 'Investment'), acc('B', 'Investment'), acc('C', 'Investment'), acc('R1', 'Retirement'), acc('R2', 'Retirement')] };
+  const order = moveAccount(d.accounts, 'C', 'A');
+  expect(order).toEqual(['C', 'A', 'B', 'R1', 'R2']);
+  expect(orderAccounts(d, order).accounts.map((a) => a.number)).toEqual(['C', 'A', 'B', 'R1', 'R2']);
+  // a retirement account moved first in the list still stays in its group, after the investment ones
+  expect(orderAccounts(d, ['R2', 'R1']).accounts.map((a) => a.number)).toEqual(['A', 'B', 'C', 'R2', 'R1']);
+  expect(orderAccounts(d, [])).toBe(d);
+  expect(sortAccounts(d.accounts, 'mine').map((a) => a.number)).toEqual(['A', 'B', 'C', 'R1', 'R2']);
+  // a group moves as a whole with its accounts, keeping their own order inside
+  const groups = moveGroup(['Investment', 'Retirement'], 'Retirement', 'Investment');
+  expect(groups).toEqual(['Retirement', 'Investment']);
+  expect(orderAccounts(d, ['R2', 'R1', 'C'], groups).accounts.map((a) => a.number)).toEqual(['R2', 'R1', 'C', 'A', 'B']);
 });
