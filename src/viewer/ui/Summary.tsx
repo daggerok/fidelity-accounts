@@ -12,7 +12,7 @@ const Card = ({ title, children, wide }: { title: string; children: React.ReactN
 );
 
 const Row = ({ label, value, cls = '' }: { label: string; value: string; cls?: string }) => (
-  <div className="flex items-baseline justify-between gap-3 text-sm"><span className="text-slate-500 dark:text-slate-400">{label}</span><span className={`num font-medium ${cls}`}>{value}</span></div>
+  <div className="flex items-baseline justify-between gap-3 text-sm"><span className="text-slate-500 dark:text-slate-400">{label}</span><span className={`num whitespace-nowrap text-right font-medium ${cls}`}>{value}</span></div>
 );
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;

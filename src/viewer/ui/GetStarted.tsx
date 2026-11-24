@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
 import { askSync, dataset, loginSaved, openFidelity, showDemo } from '../app/data';
-import { connectGoogle, createSpreadsheet, handOff, sheets } from '../app/google';
+import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
+import { TAB_NAMES } from '../../shared/sheets/tabs';
 import { t } from '../app/i18n';
-import { MaskedField } from './MaskedField';
+import { MaskedField, RevealCopy } from './MaskedField';
 import { useStore } from './useStore';
 
-// Setup panel (owner 2026-11-23: no modal windows, a panel that slides down from the navbar showing only what still
-// needs setup): each step disappears by itself once done. It opens on load while a required step is missing, closes
-// by itself when they are all done, and 🚀 in the navbar opens it any time
+// Get started, the first section of ⚙️ Settings (owner 2026-11-23: no modal windows; settings slide down by themselves
+// while something needs setup and show only those steps; once set up the section is squashed and lists every step)
 export interface SetupState { clientId: boolean; connected: boolean; spreadsheet: boolean; script: boolean; login: boolean; data: boolean }
 
 export function setupState(userscript: string | null): SetupState {
@@ -25,7 +25,7 @@ export function setupState(userscript: string | null): SetupState {
   };
 }
 
-// ✕ holds for this browser session only: the next visit opens the panel again while a step is missing
+// ✕ on settings that opened by themselves holds for this browser session: the next visit opens them again while a step is missing
 const LATER_KEY = 'fidelity-accounts-setup-later';
 export const laterThisSession = (): void => { try { sessionStorage.setItem(LATER_KEY, '1'); } catch { /* blocked storage */ } };
 export const saidLater = (): boolean => { try { return sessionStorage.getItem(LATER_KEY) === '1'; } catch { return false; } };
@@ -47,8 +47,7 @@ function Step({ n, title, optional, done, children }: { n: number; title: string
   );
 }
 
-/** the 🚀 slide-down panel: only the steps that still need doing; `all` (inside ⚙️ Settings once set up): every step,
- * the done ones ticked, to change or redo one */
+/** only the steps that still need doing; `all` (once set up): every step, the done ones ticked, to change or redo one */
 export function GetStarted({ userscript, onDemo, all = false }: { userscript: string | null; onDemo: () => void; all?: boolean }) {
   const g = useStore(sheets);
   const d = useStore(dataset);
@@ -59,6 +58,7 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
   const [s, setS] = useState(() => setupState(userscript));
   useEffect(() => { setS(setupState(userscript)); }, [g.connected, d.ds, d.source, login, userscript]);
   const settle = () => setS(setupState(userscript));
+  const [showUrl, setShowUrl] = useState(false);
   const change = (p: Partial<typeof cfg>) => { const next = { ...cfg, ...p }; setCfg(next); saveConfig(next); handOff(); };
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
@@ -100,14 +100,44 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
     </div>
   </> });
 
+  const sheetUrl = sheetId ? spreadsheetUrl(sheetId) : '';
+  // Google Sheets is part of Get started (owner 2026-11-23): the connection, the sheet link and its actions
+  const sheetsBox = (cfg.clientId || s.connected) && (
+    <div className={`rounded-xl border p-3 ${g.connected ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40'}`} data-sheets-box>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-medium">{g.connected ? t('Connected to Google Sheets') : t('Not connected to Google Sheets')}</div>
+          <div className="text-xs text-slate-500">{TAB_NAMES.join(', ')}</div>
+          {sheetUrl && (
+            <div className="mt-1 flex min-w-0 items-center gap-2">
+              <a className="masked min-w-0 break-all text-xs underline" href={sheetUrl} target="_blank" rel="noreferrer">{showUrl ? sheetUrl : maskSpreadsheetUrl(sheetUrl)}</a>
+              <RevealCopy label={t('spreadsheet link')} value={sheetUrl} shown={showUrl} onToggle={() => setShowUrl((v) => !v)} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {g.connected
+            ? <button type="button" className="btn sm danger" disabled={g.busy} onClick={disconnectGoogle}>{t('Disconnect')}</button>
+            : <button type="button" className="btn sm primary" disabled={g.busy || !cfg.clientId} onClick={() => void connectGoogle()}>{t('Connect Google')}</button>}
+          <button type="button" className="btn sm" disabled={!d.ds || d.source === 'demo' || !g.connected || g.busy || !cfg.spreadsheetId} onClick={() => d.ds && void writeNow(d.ds)}>{t('Write now')}</button>
+          <button type="button" className="btn sm" disabled={!g.connected || g.busy || !cfg.spreadsheetId} onClick={() => void loadFromSheets()}>↻ {t('Load from the sheet')}</button>
+        </div>
+      </div>
+      {g.error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{t('Last error: {error}', { error: g.error })}</p>}
+      {g.log.length > 0 && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-slate-500">{g.log.slice(-6).join('\n')}</pre>}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4" data-get-started onBlur={settle} onKeyDown={(e) => { if (e.key === 'Enter') settle(); }}>
       {steps.length ? (
         <>
           <p className="text-sm text-slate-600 dark:text-slate-300">{all ? t('The setup steps; the ticked ones are done.') : t('Your Fidelity data stays yours: a Tampermonkey script reads the Positions page in your own logged-in browser (read only) and puts it into your own Google Sheet. Nothing goes anywhere else. What still needs setup:')}</p>
+          {all && sheetsBox}
           <ol className="grid gap-5 lg:grid-cols-2">
             {steps.map((st, i) => <Step key={st.key} n={i + 1} title={st.title} optional={st.optional} done={all && st.done}>{st.body}</Step>)}
           </ol>
+          {!all && sheetsBox}
         </>
       ) : <p className="text-sm text-slate-600 dark:text-slate-300">{t('All set: Sync whenever you want fresh numbers.')}</p>}
     </div>

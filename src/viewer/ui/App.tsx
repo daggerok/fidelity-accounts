@@ -10,7 +10,7 @@ import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
-import { GetStarted, laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
+import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
 import { Positions } from './Positions';
 import { SettingsPanel } from './SettingsPanel';
@@ -42,24 +42,28 @@ export function App() {
     return () => obs.disconnect();
   }, []);
 
+  // ⚙️ Settings hold Get started on top (owner 2026-11-23). They slide down by themselves while a required step is missing
+  // (not after ✕ in this session) and slide up by themselves once all is done, or on Enter in a setup field; the script
+  // mark may arrive a moment after load, so the first look waits 1.5 s
   const [showSettings, setShowSettings] = useState(panelOpen);
-  const toggleSettings = () => setShowSettings((v) => { try { localStorage.setItem(PANEL_KEY, v ? 'closed' : 'open'); } catch { /* private window */ } return !v; });
-  // the 🚀 setup panel slides down by itself while a required step is missing (not after ✕ in this session) and goes
-  // away by itself once they are done; the script mark may arrive a moment after load, so the first look waits 1.5 s
-  const [showSetup, setShowSetup] = useState(false);
-  const autoSetup = useRef(false);
+  const autoOpened = useRef(false);
+  const [expandSetup, setExpandSetup] = useState(0); // 🚀: open settings with Get started expanded
+  const rememberPanel = (open: boolean) => { try { localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed'); } catch { /* private window */ } };
+  const done = setupDone(setupState(userscript));
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') { autoSetup.current = true; setShowSetup(true); }
+      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') { autoOpened.current = true; setShowSettings(true); }
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
-  const done = setupDone(setupState(userscript));
-  // done (or Enter in one of its fields, owner 2026-11-23): the panel slides up and the app shows
-  useEffect(() => { if (done) { autoSetup.current = false; setShowSetup(false); } }, [done]);
-  const hideSetup = () => { autoSetup.current = false; setShowSetup(false); };
-  const closeSetup = () => { laterThisSession(); autoSetup.current = false; setShowSetup(false); };
-  const toggleSetup = () => (showSetup ? closeSetup() : setShowSetup(true));
+  useEffect(() => { if (done && autoOpened.current) { autoOpened.current = false; setShowSettings(false); } }, [done]);
+  const closeSettings = () => { if (autoOpened.current && !done) laterThisSession(); autoOpened.current = false; rememberPanel(false); setShowSettings(false); };
+  const toggleSettings = () => (showSettings ? closeSettings() : (rememberPanel(true), setShowSettings(true)));
+  const openSetup = () => { setShowSettings(true); setExpandSetup((n) => n + 1); };
+  // Enter in a setup field (owner 2026-11-23): the panel slides up and the app shows
+  const onSettingsKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLElement).closest('[data-get-started]')) closeSettings();
+  };
 
   const scope = validScope(ds, pr.scope);
   const accounts = ds ? accountsIn(ds, scope) : [];
@@ -72,12 +76,14 @@ export function App() {
     <div className="flex min-h-dvh flex-col font-sans">
       <div className="flex flex-1 flex-col gap-4 px-4 pt-4 lg:px-6 lg:pt-6">
         <div className="flex flex-col">
-          <header className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
-            <h1 className="m-0 leading-none">
+          {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
+              below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
+          <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+            <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
-            <div className="flex-1" />
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="hidden flex-1 sm:block" />
+            <div className="flex w-full items-center justify-evenly gap-1 sm:w-auto sm:justify-end">
               {isOlder(userscript, APP_VERSION) && (
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>
@@ -88,7 +94,7 @@ export function App() {
                 title={g.connected ? t('Google Sheets connected: new data is written by itself') : loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
                 onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>
               {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
-              {!done && <button type="button" className={`tb ${showSetup ? 'on' : ''}`} title={t('Get started: the setup steps')} onClick={toggleSetup} aria-expanded={showSetup} data-get-started-button>🚀</button>}
+              {!done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
               <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" className="tb" style={{ width: 'auto', padding: '0 .4rem' }} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
@@ -99,13 +105,10 @@ export function App() {
               </button>
             </div>
           </header>
-          <SlidePanel id="setup-wrap" open={showSetup} title={`🚀 ${t('Get started')}`} onClose={closeSetup}>
-            <div onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') hideSetup(); }}>
-              <GetStarted userscript={userscript} onDemo={hideSetup} />
+          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings}>
+            <div onKeyDown={onSettingsKey}>
+              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} onDemo={closeSettings} />
             </div>
-          </SlidePanel>
-          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={toggleSettings}>
-            <SettingsPanel userscript={userscript} onDemo={() => undefined} />
           </SlidePanel>
         </div>
 
