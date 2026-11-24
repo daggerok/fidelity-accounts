@@ -16,16 +16,18 @@ import { pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
 // content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
 // `expand`: the card's full view, opened big over the page by ⤢ (owner 2026-11-23: maximize for every plate where it
 // makes sense, more rows and details there)
-function Card({ id, title, children, tools, expand }: { id: string; title: string; children: React.ReactNode; tools?: React.ReactNode; expand?: React.ReactNode }) {
+// `lead` sits right after the title, `tools` at the top right corner
+function Card({ id, title, children, tools, lead, expand }: { id: string; title: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLElement>(null);
   return (
     <section ref={box} className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-lg font-semibold">{title}</h2>
+        {lead}
         {/* the ⤢ glyph sits as far from the top right corner as the title from the top left (owner 2026-11-24): the
             button's own padding is taken back by negative margins, so the row stays the title's height */}
-        <span className="-my-1 -mr-2 flex items-center gap-1">{tools}{expand && <button type="button" className="tb" title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
+        <span className="-my-1 -mr-2 ml-auto flex items-center gap-1">{tools}{expand && <button type="button" className="tb" title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
       </div>
       {children}
       {expand && <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand}</Zoom>}
@@ -203,8 +205,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         {m.top.length || m.bottom.length ? <><Movers list={m.top} at="card" /><Movers list={m.bottom} at="card" /></> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
-      <Card id="accounts" title={t('Accounts')}>
-        {/* the order as pills in one row (owner 2026-11-24: buttons in line, like Fidelity's 1M YTD 1Y 3Y) */}
+      {/* the order as pills in one row right after the title (owner 2026-11-24: buttons in line, like Fidelity's 1M YTD
+          1Y 3Y; "not below accounts word, but after it to the right"); on a narrow card they wrap under it */}
+      <Card id="accounts" title={t('Accounts')} lead={(
         <div className="flex flex-wrap gap-1" role="group" aria-label={t('Sort accounts by')}>
           {ACCOUNT_SORTS.map((k) => (
             <button key={k} type="button" aria-pressed={pr.accountSort === k} onClick={() => animate(() => setPrefs({ accountSort: k }))}
@@ -212,6 +215,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               style={pr.accountSort === k ? { background: 'var(--brand)' } : undefined}>{sortName[k]}</button>
           ))}
         </div>
+      )}>
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
           {sortAccounts(accounts, pr.accountSort).map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
