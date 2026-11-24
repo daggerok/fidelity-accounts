@@ -62,7 +62,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       <div class="line" data-sheets-line></div>
       <div class="line" data-login-line></div>
       <div class="lg" hidden>
-        <div class="hint">Optional. Kept only in this script's Tampermonkey storage (never in the repo, the viewer or Sheets). One try per 30 minutes; a refused password stops it; a one-time code you type yourself.</div>
+        <div class="hint">Optional. Kept in this script's Tampermonkey storage on this computer (never in the repo, the viewer or Sheets); Tampermonkey itself can read it, like anything this script keeps. Want no copy anywhere? Do not save it: log in yourself (Chrome's password manager or a passkey) and the script goes on after the login. One try per 30 minutes; a refused password stops it; a one-time code you type yourself.</div>
         <input class="lu" type="text" placeholder="Fidelity username" autocomplete="off" spellcheck="false">
         <input class="lp" type="password" placeholder="password" autocomplete="new-password">
         <label class="row hint"><input class="la" type="checkbox"> log in by itself whenever the login page opens</label>

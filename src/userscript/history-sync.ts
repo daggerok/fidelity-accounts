@@ -1,0 +1,36 @@
+/// <reference lib="esnext" />
+// Daily account values for the viewer's chart and periods: Fidelity's own BalanceHistory, read with the page's session
+// (a read: the same request Fidelity's Summary chart makes). The first time 3Y per account (= since it opened), then 1M
+// once a day to add the new days. Only this one URL is ever asked
+import { BALANCE_HISTORY_URL, parseBalanceHistory, type History } from '../shared/history';
+import type { Account } from '../shared/model';
+
+export type Post = (url: string, body: unknown) => Promise<unknown>;
+
+/** due when never read, or last read on another day (local) */
+export function historyDue(historyAt: string | undefined, now: Date): boolean {
+  if (!historyAt) return true;
+  const last = new Date(historyAt);
+  return last.toDateString() !== now.toDateString();
+}
+
+/** one request per account: 3Y for an account without points yet, else 1M; a failed account is skipped */
+export async function readHistory(accounts: Account[], have: History | undefined, post: Post): Promise<History> {
+  const out: History = {};
+  for (const a of accounts) {
+    const range = have?.[a.number]?.length ? '1M' : '3Y';
+    try {
+      const points = parseBalanceHistory(await post(BALANCE_HISTORY_URL, { range, acctList: [{ acctNum: a.number, acctType: a.type || 'Brokerage' }] }));
+      if (points.length) out[a.number] = points;
+    } catch { /* this account waits for the next day */ }
+  }
+  return out;
+}
+
+/** same-origin POST with the owner's session; only BalanceHistory is allowed */
+export const pagePost: Post = async (url, body) => {
+  if (url !== BALANCE_HISTORY_URL) throw new Error(`not allowed: ${url}`);
+  const r = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`BalanceHistory ${r.status}`);
+  return r.json();
+};

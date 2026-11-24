@@ -16,9 +16,21 @@ export function dayOf(ds: Dataset): string {
 
 export const positionRows = (ds: Dataset): PositionRow[] => ds.positions.map((p) => ({ ...p, asOf: ds.builtAt }));
 
-export const balanceRows = (ds: Dataset): BalanceRow[] => ds.accounts.map((a) => ({
-  date: dayOf(ds), account: a.number, name: a.name, balance: a.balance, todayGl: a.todayGl, totalGl: a.totalGl, costBasis: a.costBasis, cash: a.cash,
-}));
+// every day of BalanceHistory (value only) plus today's row of each account with its gains, cost basis and cash
+export const balanceRows = (ds: Dataset): BalanceRow[] => {
+  const names = new Map(ds.accounts.map((a) => [a.number, a.name]));
+  const rows: BalanceRow[] = [];
+  Object.keys(ds.history ?? {}).forEach((acct) => (ds.history![acct] ?? []).forEach((p) => rows.push({ date: p.date, account: acct, name: names.get(acct) ?? acct, balance: p.value })));
+  ds.accounts.forEach((a) => rows.push({ date: dayOf(ds), account: a.number, name: a.name, balance: a.balance, todayGl: a.todayGl, totalGl: a.totalGl, costBasis: a.costBasis, cash: a.cash }));
+  return rows;
+};
+
+// a stored row keeps the fields a new row of the same day does not have (a history value never wipes today's gains)
+export const keepFilled = (stored: BalanceRow, incoming: BalanceRow): BalanceRow => {
+  const out: BalanceRow = { ...stored };
+  (Object.keys(incoming) as Array<keyof BalanceRow>).forEach((k) => { if (incoming[k] !== undefined) (out as unknown as Record<string, unknown>)[k] = incoming[k]; });
+  return out;
+};
 
 export const wideRows = (ds: Dataset): Record<string, unknown>[] => ds.positions.map((p) => ({ as_of: ds.builtAt, ...p.fields }));
 
@@ -28,7 +40,7 @@ export async function pushAll(client: SheetsClient, ds: Dataset, log: (line: str
   log(`${ACCOUNTS.name}: ${a.written} rows`);
   const p = await client.writeAll(POSITIONS, positionRows(ds));
   log(`${POSITIONS.name}: ${p.written} rows`);
-  const b = await client.upsertById(BALANCES, balanceRows(ds));
+  const b = await client.upsertById(BALANCES, balanceRows(ds), { merge: keepFilled, sort: (x, y) => (x.date === y.date ? (x.account < y.account ? -1 : 1) : x.date < y.date ? -1 : 1) });
   log(`${BALANCES.name}: ${b.inserted} new, ${b.updated} updated, ${b.total} rows`);
   const rows = wideRows(ds);
   const keys = Array.from(new Set(rows.reduce<string[]>((all, r) => all.concat(Object.keys(r)), WIDE_FIRST.slice())));

@@ -4,7 +4,6 @@
 import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { sampleDataset } from '../../shared/sample';
 import { accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
@@ -35,10 +34,9 @@ test('allocation, dividends, 52-week, sort and search', () => {
   expect(upcomingDividends(ps, '2026-12-13')).toEqual([]);
   expect(rangePos(ps[1]!)).toBeCloseTo(100 / 110);
   expect(near52(ps, 0.1).highs.map((p) => p.symbol)).toEqual(['AAAA']);
-  const demo = sampleDataset(new Date('2026-11-20T12:00:00Z'));
-  const sorted = sortPositions(demo.positions.filter((p) => p.kind === 'position'), 'todayGlPct', -1);
-  expect(sorted[0]!.todayGlPct).toBe(4.12);
-  expect(sortPositions(demo.positions, 'symbol', 1)[0]!.symbol).toBe('ACME');
+  const secs = ps.filter((p) => p.kind === 'position');
+  expect(sortPositions(secs, 'todayGlPct', -1).map((p) => p.symbol)).toEqual(['AAAA', 'BBBB']);
+  expect(sortPositions(ps, 'symbol', 1)[0]!.symbol).toBe('AAAA');
   expect(matches(ps[1]!, 'alpha')).toBe(true);
   expect(matches(ps[1]!, 'zzz')).toBe(false);
 });

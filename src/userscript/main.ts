@@ -9,6 +9,8 @@ import { COMMAND_KEY, freshCommand } from './command';
 import { DATASET_KEY, RUN_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
+import { historyDue, pagePost, readHistory } from './history-sync';
+import { mergeHistory } from '../shared/history';
 import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, usableHandoff, writeFromUserscript } from './sheets-gm';
@@ -90,6 +92,27 @@ function onPortfolio(): void {
     writing = false;
   };
 
+  // the daily values for the chart (BalanceHistory), once a day after a read: 3Y the first time, then 1M
+  let historyBusy = false;
+  const syncHistory = async () => {
+    historyBusy = true;
+    try {
+      const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
+      if (stored && stored.accounts.length) {
+        const fresh = await readHistory(stored.accounts, stored.history, pagePost);
+        const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
+        const next = { ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() };
+        gmSet(DATASET_KEY, JSON.stringify(next));
+        badge.sheets(`history: ${Object.keys(fresh).length} accounts updated ${time()}`);
+        lastWrite = Date.now();
+        void writeSheets(next);
+      }
+    } catch (err) {
+      badge.status(`!history: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    historyBusy = false;
+  };
+
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || e.data.source !== PAGE_TAG) return;
     if (e.data.type === 'error') { badge.status(`!page reader: ${String(e.data.message)}`); return; }
@@ -107,6 +130,7 @@ function onPortfolio(): void {
       gmSet(RUN_KEY, JSON.stringify({ status: 'done', at: Date.now(), accounts: merged.accounts.length, positions: merged.positions.length, message: ds.asOf }));
       badge.status(`read: ${ds.accounts.length} accounts, ${ds.positions.length} positions · ${time()}${watching() ? ' · watching' : ''}${ds.asOf ? `\n${ds.asOf}` : ''}`);
       if (sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite })) { lastWrite = now; void writeSheets(merged); }
+      if (historyDue(merged.historyAt, new Date()) && !historyBusy) void syncHistory();
     } catch (err) {
       badge.status(`!read failed: ${err instanceof Error ? err.message : String(err)}`);
     }

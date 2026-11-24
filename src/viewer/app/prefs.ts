@@ -2,6 +2,7 @@
 // What the owner picked in the interface, remembered per browser until reset (owner 2026-11-23: "if other tab was
 // opened or dark theme was selected - we must use user selection until reset"): the account or group shown, the main
 // tab, the positions sort, search and hidden columns. The theme and the language keep their own keys
+import { PERIODS, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
@@ -16,9 +17,10 @@ export interface Prefs {
   sort: { key: string; dir: 1 | -1 };
   search: string;
   hidden: string[]; // positions columns switched off
+  period: Period; // the balance chart's period
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y' };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -30,6 +32,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       ...p,
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
+      period: (PERIODS as readonly string[]).indexOf(String(p.period)) >= 0 ? (p.period as Period) : '1Y',
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {

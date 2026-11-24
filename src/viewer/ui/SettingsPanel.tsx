@@ -7,7 +7,7 @@ import { Section } from './Section';
 
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
 // (owner 2026-11-23), its header slides it open and shut; the two resets always at the very bottom
-export function SettingsPanel({ userscript, done, expand, onDemo }: { userscript: string | null; done: boolean; expand: number; onDemo: () => void }) {
+export function SettingsPanel({ userscript, done, expand }: { userscript: string | null; done: boolean; expand: number }) {
   // Get started on top: expanded while something needs setup, squashed once done; its header toggles it (owner 2026-11-23)
   const [setupOpen, setSetupOpen] = useState(!done);
   useEffect(() => { setSetupOpen(!done); }, [done]);
@@ -18,7 +18,7 @@ export function SettingsPanel({ userscript, done, expand, onDemo }: { userscript
   return (
     <div className="flex flex-col gap-6 text-sm">
     <Section id="get-started" title={`🚀 ${t('Get started')}`} note={done ? t('all set') : t('needs setup')} open={setupOpen} onToggle={() => setSetupOpen((v) => !v)}>
-      <GetStarted userscript={userscript} onDemo={onDemo} all={done} />
+      <GetStarted userscript={userscript} all={done} />
     </Section>
     {/* always the very bottom of settings (owner 2026-11-23) */}
     <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700" data-resets>
