@@ -13,6 +13,8 @@ html, body { margin: 0; }
 :root.dark { --gain: #4ade80; --loss: #f87171; --brand: #6abf4b; --card-bg: #0f172a;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767; --s-other: #64748b; }
 .gain { color: var(--gain); }
+.scrollbar-hidden { scrollbar-width: none; }
+.scrollbar-hidden::-webkit-scrollbar { display: none; }
 .loss { color: var(--loss); }
 .num { font-variant-numeric: tabular-nums; }
 

@@ -3,10 +3,11 @@ import type { Account, Dataset } from '../../shared/model';
 import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount, totalsOf } from '../app/derive';
 import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
+import { EdgeScrollRow } from './EdgeScrollRow';
 import { signedPct, tone, usd } from './format';
 
-// The accounts bar (owner 2026-11-23): one line per chip, so the bar stays low. Same box as the navbar: width, border,
-// background, side padding and height (owner 2026-11-24: consistent). Accounts are the solid, bold chips and
+// The accounts strip (owner 2026-11-23): one line per chip. It lives in the navbar between the logo and the buttons and
+// scrolls sideways with fading edges and ‹ › (owner 2026-11-24: like the gex Expirations panel). Accounts are the solid, bold chips and
 // the groups (All accounts, Investment, Retirement) light outlined ones (owner 2026-11-24: accounts look more permanent
 // than groups), so a section never looks like an account. A click on All accounts or a group folds or unfolds it (All
 // accounts unfolds every group); a click on an account shows only it. Checkboxes alone choose: All accounts ticks or
@@ -20,7 +21,7 @@ function Check({ checked, mixed, label, onChange }: { checked: boolean; mixed?: 
   );
 }
 
-export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
+export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; className?: string; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
   // drag an account chip onto another account of its group to put it there (owner 2026-11-24: my own order)
   const [dragged, setDragged] = useState<{ number: string; group: string } | null>(null);
   // a group chip is dragged as a whole (with its accounts) onto another group; All accounts stays first
@@ -59,7 +60,8 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
     </div>
   );
   return (
-    <nav className="flex items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-900" aria-label={t('Accounts')}>
+    // All accounts stays on the very left, the groups and accounts after it scroll (owner 2026-11-24)
+    <div className={`flex min-w-0 items-center ${className ?? ''}`} data-accounts-bar>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
         onClick={() => onFold(ALL_FOLD)} onKeyDown={(e) => { if (e.key === 'Enter') onFold(ALL_FOLD); }} data-scope="all">
         {chev(!allFolded)}
@@ -69,7 +71,8 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
         <span>{t('All accounts')}</span>
         {money(all.balance, all.todayGl, all.todayGlPct)}
       </div>
-      <div className={`hslide ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
+      <div className={`hslide min-w-0 flex-1 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
+      <EdgeScrollRow label={t('Accounts')} items="[data-scope]" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-1">
       {groupsOf(ds).map((g) => {
         const open = !collapsed.includes(g.name);
         const gt = totalsOf(g.accounts);
@@ -98,7 +101,8 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
           </div>
         );
       })}
+      </EdgeScrollRow>
       </div></div>
-    </nav>
+    </div>
   );
 }
