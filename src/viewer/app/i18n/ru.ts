@@ -18,8 +18,6 @@ export const RU: Record<string, string> = {
   'Google Sheets: set the Client ID first (🚀 Get started)': 'Google Sheets: сначала укажи Client ID (🚀 Начало работы)',
   'The installed script is {installed}; this page serves {served}': 'Установлен скрипт {installed}; эта страница даёт {served}',
   'Script update {version} →': 'Обновить скрипт до {version} →',
-  'Hide demo': 'Скрыть демо',
-  'demo data': 'демо-данные',
   'read {at}': 'прочитано {at}',
 
   // accounts bar
@@ -29,6 +27,9 @@ export const RU: Record<string, string> = {
 
   // summary
   Balance: 'Баланс',
+  Period: 'Период',
+  'balance change, {period}': 'изменение баланса, {period}',
+  'Zoom the chart': 'Увеличить график',
   "Today's gain/loss": 'Изменение за сегодня',
   'Total gain/loss': 'Прибыль/убыток всего',
   'Cost basis': 'Себестоимость',
@@ -96,7 +97,6 @@ export const RU: Record<string, string> = {
   'not saved': 'не сохранён',
   'Open Fidelity': 'Открыть Fidelity',
   'Import JSON': 'Загрузить JSON',
-  'Show demo data': 'Показать демо-данные',
   'Reset view': 'Сбросить вид',
   'Selected account, tab, sort, columns, theme and language back to their defaults; the setup stays': 'Выбранный счёт, вкладка, сортировка, столбцы, тема и язык вернутся к значениям по умолчанию; настройка остаётся',
   'Full reset': 'Полный сброс',
@@ -140,7 +140,6 @@ export const RU: Record<string, string> = {
   'First sync': 'Первая синхронизация',
   'Press 👀 Watch (here or in the navbar): Fidelity opens on Positions, the script reads it and the data appears here and in your sheet; while watching, the numbers follow the market.': 'Нажми 👀 (здесь или в верхней панели): Fidelity откроется на позициях, скрипт их прочитает, и данные появятся здесь и в таблице; пока идёт наблюдение, цифры следуют за рынком.',
   Watch: 'Наблюдать',
-  'Look around with demo data': 'Посмотреть на демо-данных',
   'All set: press 👀 to watch your numbers live.': 'Готово: нажми 👀, чтобы следить за цифрами вживую.',
 
   // log lines

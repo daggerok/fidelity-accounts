@@ -62,7 +62,7 @@ export function App() {
   }, [g.connected, g.busy, ds, userscript, watch]);
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') { autoOpened.current = true; setShowSettings(true); }
+      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater()) { autoOpened.current = true; setShowSettings(true); }
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -127,7 +127,7 @@ export function App() {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings}>
             <div onKeyDown={onSettingsKey}>
-              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} onDemo={closeSettings} />
+              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} />
             </div>
           </SlidePanel>
 
@@ -147,7 +147,7 @@ export function App() {
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
                 <div className="flex-1" />
-                <span className="pb-2 text-xs text-slate-500 dark:text-slate-400">{source === 'demo' ? t('demo data') : ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
+                <span className="pb-2 text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
               </div>
               {pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
             </main>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
-import { clearDemo, dataset, importFile, loginSaved, openFidelity, setWatch, showDemo } from '../app/data';
+import { dataset, importFile, loginSaved, openFidelity, setWatch } from '../app/data';
 import { APP_VERSION, isOlder } from '../app/version';
 import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
@@ -22,7 +22,7 @@ export function setupState(userscript: string | null): SetupState {
     spreadsheet: !!cfg.spreadsheetId,
     script: !!userscript,
     login: loginSaved.get() === true,
-    data: !!d.ds && d.source !== 'demo',
+    data: !!d.ds,
   };
 }
 
@@ -52,7 +52,7 @@ function Step({ n, title, optional, done, children }: { n: number; title: string
 }
 
 /** only the steps that still need doing; `all` (once set up): every step, the done ones ticked, to change or redo one */
-export function GetStarted({ userscript, onDemo, all = false }: { userscript: string | null; onDemo: () => void; all?: boolean }) {
+export function GetStarted({ userscript, all = false }: { userscript: string | null; all?: boolean }) {
   const g = useStore(sheets);
   const d = useStore(dataset);
   const login = useStore(loginSaved);
@@ -64,16 +64,16 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
   const settle = () => setS(setupState(userscript));
   const [showUrl, setShowUrl] = useState(false);
   const file = useRef<HTMLInputElement>(null);
-  const sourceName: Record<string, string> = { userscript: t('the script'), sheets: t('Google Sheets'), import: t('a JSON file'), cache: t('this browser'), demo: t('demo data') };
+  const sourceName: Record<string, string> = { userscript: t('the script'), sheets: t('Google Sheets'), import: t('a JSON file'), cache: t('this browser') };
   const change = (p: Partial<typeof cfg>) => { const next = { ...cfg, ...p }; setCfg(next); saveConfig(next); handOff(); };
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
 
-  // the data part (owner 2026-11-23): where the data comes from, the script and the login, import and demo; it lives in
+  // the data part (owner 2026-11-23): where the data comes from, the script and the login, import; it lives in
   // the script step, so that step always shows (ticked once the script is installed)
   const dataBlock = (
     <div className="mt-1 flex flex-col gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700" data-data>
-      <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf && d.source !== 'demo' ? ` · ${d.ds.asOf}` : ''}</p>
+      <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf ? ` · ${d.ds.asOf}` : ''}</p>
       <div className="flex flex-wrap items-center gap-2">
         <span>{t('Script')}: {userscript ? <b>{userscript}</b> : t('not seen on this page')}</span>
         {userscript && isOlder(userscript, APP_VERSION) && <a className="btn sm primary" href="./fidelity-accounts-sync.user.js" data-update-script>{t('Update to {version}', { version: APP_VERSION })}</a>}
@@ -82,7 +82,6 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
-        {d.source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Show demo data')}</button>}
         <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
       </div>
       <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
@@ -125,7 +124,6 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
     <div className="flex flex-wrap gap-2">
       <button type="button" className="btn sm primary" disabled={!s.script} onClick={() => setWatch(true)}>👀 {t('Watch')}</button>
       <Needs when={!s.script} text={t('needs the script installed first')} />
-      <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Look around with demo data')}</button>
     </div>
   </> });
 
@@ -148,7 +146,7 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
           {g.connected
             ? <button type="button" className="btn sm danger" disabled={g.busy} onClick={disconnectGoogle}>{t('Disconnect')}</button>
             : <button type="button" className="btn sm primary" disabled={g.busy || !cfg.clientId} onClick={() => void connectGoogle()}>{t('Connect Google')}</button>}
-          <button type="button" className="btn sm" disabled={!d.ds || d.source === 'demo' || !g.connected || g.busy || !cfg.spreadsheetId} onClick={() => d.ds && void writeNow(d.ds)}>{t('Write now')}</button>
+          <button type="button" className="btn sm" disabled={!d.ds || !g.connected || g.busy || !cfg.spreadsheetId} onClick={() => d.ds && void writeNow(d.ds)}>{t('Write now')}</button>
           <button type="button" className="btn sm" disabled={!g.connected || g.busy || !cfg.spreadsheetId} onClick={() => void loadFromSheets()}>↻ {t('Load from the sheet')}</button>
         </div>
       </div>

@@ -37,7 +37,7 @@ const add = (line: string) => sheets.set((s) => ({ ...s, log: [...s.log.slice(-5
 const client = () => new SheetsClient({ fetch: window.fetch.bind(window), getToken: auth.getter(), spreadsheetId: loadConfig().spreadsheetId });
 
 export const worthWriting = (ds: Dataset | null, source: string | null): ds is Dataset =>
-  !!ds && source !== 'demo' && source !== 'sheets' && (ds.accounts.length > 0 || ds.positions.length > 0);
+  !!ds && source !== 'sheets' && (ds.accounts.length > 0 || ds.positions.length > 0);
 
 export async function writeNow(ds: Dataset): Promise<void> {
   if (!loadConfig().spreadsheetId) { sheets.set((s) => ({ ...s, error: t('no spreadsheet: set it in ⚙️ Settings') })); return; }
@@ -90,10 +90,10 @@ async function connected(line: string): Promise<void> {
     add(line);
     handOff();
     keepFresh();
-    // connected = the data comes by itself (owner 2026-11-23: "without any other clicks"): nothing shown yet, or only
-    // the demo, reads the sheet; data already here goes to the sheet
+    // connected = the data comes by itself (owner 2026-11-23: "without any other clicks"): nothing shown yet reads the
+    // sheet; data already here goes to the sheet
     const { ds, source } = dataset.get();
-    if (!ds || source === 'demo') await loadFromSheets();
+    if (!ds) await loadFromSheets();
     else if (worthWriting(ds, source)) { latest = ds; await drainWrites(); }
   } catch (err) {
     sheets.set((s) => ({ ...s, connected: false, error: err instanceof Error ? err.message : String(err) }));

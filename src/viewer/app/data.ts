@@ -1,14 +1,13 @@
 /// <reference lib="esnext" />
 // Where the dataset comes from in the viewer: the userscript bridge (window message 'fidelity-accounts:dataset'),
-// Google Sheets (↻), Import JSON, the demo, and IndexedDB of the viewer origin for the next visit
+// Google Sheets (↻), Import JSON, and IndexedDB of the viewer origin for the next visit
 import { parseDataset, type Dataset } from '../../shared/model';
-import { sampleDataset } from '../../shared/sample';
 import { createStore } from '../../shared/store';
 import { POSITIONS_URL } from '../../userscript/header';
 import { cacheGet, cacheSet } from './cache';
 import { t } from './i18n';
 
-export type Source = 'userscript' | 'sheets' | 'import' | 'cache' | 'demo';
+export type Source = 'userscript' | 'sheets' | 'import' | 'cache';
 export interface DataState { ds: Dataset | null; source: Source | null; error: string | null }
 export const dataset = createStore<DataState>({ ds: null, source: null, error: null });
 
@@ -22,14 +21,14 @@ export const watching = createStore<boolean>(false);
 
 const CACHE_KEY = 'dataset';
 
-/** a new copy replaces the shown one unless it is older (the demo never goes to the cache) */
+/** a new copy replaces the shown one unless it is older */
 export function accept(json: string, source: Source): boolean {
   const ds = parseDataset(json);
   if (!ds) { dataset.set((s) => ({ ...s, error: t('could not read the data (another version?)') })); return false; }
   const cur = dataset.get();
-  if (cur.ds && cur.source !== 'demo' && source !== 'demo' && cur.ds.builtAt > ds.builtAt) return false;
+  if (cur.ds && cur.ds.builtAt > ds.builtAt) return false;
   dataset.set({ ds, source, error: null });
-  if (source !== 'demo') void cacheSet(CACHE_KEY, json);
+  void cacheSet(CACHE_KEY, json);
   return true;
 }
 
@@ -66,11 +65,3 @@ export async function importFile(f: File): Promise<void> {
   accept(await f.text(), 'import');
 }
 
-export function showDemo(): void {
-  accept(JSON.stringify(sampleDataset(new Date())), 'demo');
-}
-
-export function clearDemo(): void {
-  dataset.set({ ds: null, source: null, error: null });
-  void cacheGet(CACHE_KEY).then((json) => { if (json) accept(json, 'cache'); });
-}

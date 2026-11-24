@@ -1,5 +1,7 @@
 import type { Account, Dataset, Position } from '../../shared/model';
+import { combine } from '../../shared/history';
 import { allocation, movers, near52, positionsIn, totalsOf, upcomingDividends } from '../app/derive';
+import { BalanceChart } from './BalanceChart';
 import { t } from '../app/i18n';
 import { pct, signedPct, signedUsd, siteDate, tone, usd } from './format';
 
@@ -59,6 +61,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       <Card title={t('Balance')}>
         <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
         <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
+        <BalanceChart series={combine(ds.history, accounts.map((a) => a.number))} />
         <div className="mt-2 flex flex-col gap-1.5">
           <Row label={t('Total gain/loss')} value={`${signedUsd(tot.totalGl)} (${signedPct(tot.totalGlPct)})`} cls={tone(tot.totalGl)} />
           <Row label={t('Cost basis')} value={usd(tot.costBasis)} />

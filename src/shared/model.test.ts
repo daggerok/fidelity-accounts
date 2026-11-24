@@ -5,7 +5,6 @@ import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from './fixtures/grid';
 import { mergeDatasets, parseDataset } from './model';
 import { buildDataset } from './parse';
-import { sampleDataset } from './sample';
 
 const full = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: '2026-11-20T10:00:00.000Z' });
 
@@ -26,10 +25,3 @@ test('a read of one account replaces only that account', () => {
   expect(mergeDatasets(null, one)).toBe(one);
 });
 
-test('the demo data is made up and complete', () => {
-  const d = sampleDataset(new Date('2026-11-20T12:00:00Z'));
-  expect(d.accounts).toHaveLength(5);
-  expect(d.positions.every((p) => p.fields.demo === true)).toBe(true);
-  expect(d.accounts.every((a) => /^(X0+\d|0+\d)$/.test(a.number))).toBe(true);
-  expect(parseDataset(JSON.stringify(d))).not.toBeNull();
-});

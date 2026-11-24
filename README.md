@@ -17,7 +17,7 @@ Script: https://daggerok.github.io/fidelity-accounts/fidelity-accounts-sync.user
 5. Optional: open Fidelity, press 🔑 in the script's corner panel and save your username and password. The script then logs in by itself when Fidelity asks; a one-time code you type yourself
 6. Press 👀 in the navbar: Fidelity opens on Positions, the script reads it, the data shows up in the viewer and in the sheet. While 👀 is on, Positions refresh every minute and the numbers in the viewer follow the market; press 👀 again to stop
 
-Once Google is connected the data comes by itself: from the sheet, or with 👀 started for you when the sheet is empty. The Google sign-in is kept until it expires (about an hour), so a reload needs no click; ☁️ shows in the navbar only while Google is not connected, Disconnect is in ⚙️. On another computer: Connect Google and the data loads from the sheet, no script needed. Demo data with made-up accounts is one click away in ⚙️ Settings
+Once Google is connected the data comes by itself: from the sheet, or with 👀 started for you when the sheet is empty. The Google sign-in is kept until it expires (about an hour), so a reload needs no click; ☁️ shows in the navbar only while Google is not connected, Disconnect is in ⚙️. On another computer: Connect Google and the data loads from the sheet, no script needed.
 
 ## How it works
 
@@ -33,6 +33,7 @@ digital.fidelity.com (you are logged in)     daggerok.github.io/fidelity-account
 
 - The Positions page keeps Fidelity's own answer (about 100 fields per position) in its grid. A tiny reader in the page copies those rows, no extra request is sent. It reads once when Positions opens and when you press ⬇ on the corner panel; with 👀 on it presses the page's own Refresh Positions button every minute (a read) and hands the changes to the viewer at most every 30 seconds, to the sheet at most every 10 minutes
 - The account list on the left gives the groups (Investment, Retirement) and balances
+- Once a day the script also reads Fidelity's own daily account values (the data of its Summary balance chart): since each account opened the first time, then the last month. The Balance card draws them for the chosen accounts with periods 1D, 2D, 3D, WTD, 1W..3W, MTD, 1M..3M, QTD, 1Q..3Q, YTD, 1Y..3Y; ⤢ opens the chart big, ✕, a click outside or Esc closes it. The change shown is the balance change (deposits are in it), not a return
 - The viewer hands its Google token to the script, so the Fidelity tab writes the sheet right after a read. Without a token the data waits until the viewer is open and connected
 - At the bottom of ⚙️ Settings: Reset view (theme, language, account, tab, sort, columns, panels; the setup stays) and Full reset, off until its switch is ticked (also the Google setup and the cached data; the script forgets its data and Google token, the Fidelity login stays under 🔑)
 - What the browser keeps: the public Client ID and the spreadsheet id (localStorage), the last data (IndexedDB), your choices: account, tab, sort, columns, theme, language. The Google token and its expiry stay in localStorage until it expires. The Fidelity login, if saved, lives only in the script's Tampermonkey storage
@@ -43,7 +44,7 @@ Sheet tabs:
 |-----|------|---------|
 | `fidelity_accounts` | one row per account: group, type, balance, gains, cost basis, income, cash | rewritten on every read |
 | `fidelity_positions` | positions now, the main columns plus every field as JSON | rewritten |
-| `fidelity_balances_daily` | balance history, one row per day and account | added and updated |
+| `fidelity_balances_daily` | balance history, one row per day and account, since each account opened | added and updated |
 | `fidelity_positions_all` | every field of every position as its own column; new fields add columns | rewritten |
 
 ## Safety
