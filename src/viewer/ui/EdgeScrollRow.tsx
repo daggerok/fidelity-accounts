@@ -5,15 +5,17 @@ import { edgeFadeMask, edgeScrollTarget, scrollEdges, type ScrollEdges } from '.
 // accounts and groups in the navbar scroll smoothly like the gex Expirations panel). A side with more chips fades out
 // and shows a ‹ or › button that glides the previous or next hidden chip into view; trackpad and touch swipes scroll
 // natively, a vertical mouse wheel scrolls it sideways. `items` picks the chips to step over (nested chips count too)
-export const EDGE_FADE_PX = 28;
+export const EDGE_FADE_PX = 48; // a wide, soft fade under the arrow (owner 2026-11-24: "do nicer")
 const NO_EDGES: ScrollEdges = { left: false, right: false };
 
-function EdgeButton({ dir, label, onClick }: { dir: 1 | -1; label: string; onClick: () => void }) {
+// the ‹ › arrow: a chevron on a soft, blurred round pad that fades and scales in when there is more that way and out
+// when there is not (always in the DOM, so it can animate)
+function EdgeButton({ dir, label, show, onClick }: { dir: 1 | -1; label: string; show: boolean; onClick: () => void }) {
   return (
-    <div className={`absolute inset-y-0 z-10 flex items-center ${dir === 1 ? 'right-0' : 'left-0'}`}>
-      <button type="button" tabIndex={-1} onClick={onClick} aria-label={label} title={label} data-strip-scroll={dir === 1 ? 'next' : 'prev'}
-        className="grid size-6 place-items-center rounded-full border border-slate-300 bg-white text-slate-500 shadow-sm hover:text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:text-white">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+    <div className={`pointer-events-none absolute inset-y-0 z-10 flex items-center ${dir === 1 ? 'right-0' : 'left-0'}`}>
+      <button type="button" tabIndex={-1} onClick={onClick} aria-label={label} title={label} aria-hidden={!show} data-strip-scroll={dir === 1 ? 'next' : 'prev'}
+        className={`grid size-7 place-items-center rounded-full bg-white/80 text-slate-500 shadow-sm ring-1 ring-slate-200/70 backdrop-blur-sm transition-[opacity,transform,color,background-color] duration-200 ease-out hover:bg-white hover:text-slate-900 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-600/50 dark:hover:bg-slate-700 dark:hover:text-white ${show ? 'pointer-events-auto scale-100 opacity-100' : 'scale-75 opacity-0'}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
           <path d={dir === 1 ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'} />
         </svg>
       </button>
@@ -80,8 +82,8 @@ export function EdgeScrollRow({ prevLabel, nextLabel, items, label, storeKey, cl
       <nav ref={rowRef} aria-label={label} className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>
         {children}
       </nav>
-      {edges.left && <EdgeButton dir={-1} label={prevLabel} onClick={() => step(-1)} />}
-      {edges.right && <EdgeButton dir={1} label={nextLabel} onClick={() => step(1)} />}
+      <EdgeButton dir={-1} label={prevLabel} show={edges.left} onClick={() => step(-1)} />
+      <EdgeButton dir={1} label={nextLabel} show={edges.right} onClick={() => step(1)} />
     </div>
   );
 }
