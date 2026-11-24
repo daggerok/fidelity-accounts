@@ -287,7 +287,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
                 <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
                 <div className="text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
-                  {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{amount} × {shares} shares', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
+                  {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
                 </div>
               </div>
             ))}

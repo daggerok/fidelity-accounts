@@ -89,7 +89,7 @@ export const RU: Record<string, string> = {
   'Upcoming ex-dividend dates (30 days)': 'Ближайшие экс-дивидендные даты (30 дней)',
   'pay date {date}': 'выплата {date}',
   'ex {date}': 'экс {date}',
-  '{amount} × {shares} shares': '{amount} × {shares} акций',
+  '{shares} × {amount}': '{shares} × {amount}',
   'No ex-dividend dates in the next 30 days': 'В ближайшие 30 дней экс-дивидендных дат нет',
   'Near a 52-week high or low': 'Рядом с 52-недельным максимумом или минимумом',
   High: 'Максимум',
