@@ -208,7 +208,7 @@ test('income facts: received from the transactions, planned adds what still come
   expect(q).toEqual({ received: 0.62, coming: 0, planned: 0.62 }); // the December row is after today
   const next = incomeFacts(store, accts, ps, 'all', '2027-01-01', '2027-03-31', '2026-11-24');
   expect(next.coming).toBe(0.63);
-  expect(incomeFacts({ ...store, synced: {} }, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24').received).toBeNull();
+  expect(incomeFacts({ ...store, synced: {} }, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24')).toEqual({ received: null, coming: 0, planned: 0.63 }); // the October payment at today's shares
   expect(incomeFacts(null, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24').received).toBeNull();
   expect(incomeFacts(store, accts, ps, 'etf', '2026-10-01', '2026-12-31', '2026-11-24').received).toBe(0); // AAAA is not held as an ETF
 });

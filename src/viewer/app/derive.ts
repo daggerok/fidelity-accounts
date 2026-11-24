@@ -338,9 +338,11 @@ export function matches(p: Position, q: string): boolean {
  */
 export interface IncomeFacts { received: number | null; coming: number; planned: number }
 export function incomeFacts(store: TxnStore | null, accounts: Account[], ps: Position[], kind: Kind, from: string, to: string, today: string): IncomeFacts {
-  const coming = incomeIn(ofKind(ps, kind), from, to, today).coming;
+  const est = incomeIn(ofKind(ps, kind), from, to, today);
+  const coming = est.coming;
   const nums = accounts.map((a) => a.number);
-  if (!store || !nums.length || nums.some((n) => !store.synced[n])) return { received: null, coming, planned: coming };
+  // no facts yet: the plan is the whole period at today's holdings, as before the history was read
+  if (!store || !nums.length || nums.some((n) => !store.synced[n])) return { received: null, coming, planned: est.total };
   const kinds = new Map(securities(ps).map((p) => [p.symbol, kindOf(p)] as [string, ReturnType<typeof kindOf>]));
   const keep = kind === 'etf' || kind === 'stock' ? (t: { symbol: string }) => kinds.get(t.symbol) === kind : () => true;
   const received = incomeReceived(store.rows, new Set(nums), from, today < to ? today : to, keep);
