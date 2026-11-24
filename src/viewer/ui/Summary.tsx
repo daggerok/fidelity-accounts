@@ -116,7 +116,7 @@ function DividendsTable({ ps, accounts, today }: { ps: Position[]; accounts: Acc
       <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
         <thead><tr className="text-left text-xs text-slate-500">
           <th className={th}>{t('Symbol')}</th><th className={th}>{t('Account')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th>
-          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={th}>{t('Frequency')}</th>
+          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={`${th} text-right`}>{t('Frequency')}</th>
         </tr></thead>
         <tbody>
           <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(rows.reduce((x, r) => x + (r.payout ?? 0), 0))}</td><td /></tr>
@@ -134,7 +134,7 @@ function DividendsTable({ ps, accounts, today }: { ps: Position[]; accounts: Acc
                 <td className="num text-right">{usd(r.dividendAmount)}</td>
                 <td className="num text-right">{qty(r.shares)}</td>
                 <td className="num text-right font-medium">{usd(r.payout)}</td>
-                <td>{r.paymentFrequency ?? ''}</td>
+                <td className="text-right">{r.paymentFrequency ?? ''}</td>
               </tr>
               {!one && parts.map((p) => (
                 <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
