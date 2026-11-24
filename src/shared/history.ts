@@ -51,7 +51,8 @@ export function combine(history: History | undefined, accounts: string[]): Point
   });
 }
 
-export const PERIODS = ['1D', '2D', '3D', 'WTD', '1W', '2W', '3W', 'MTD', '1M', '2M', '3M', 'QTD', '1Q', '2Q', '3Q', 'YTD', '1Y', '2Y', '3Y'] as const;
+// owner 2026-11-24: no 2D, 2W, 2M, 2Q, 2Y; 6M for half a year
+export const PERIODS = ['1D', '3D', 'WTD', '1W', '3W', 'MTD', '1M', '3M', 'QTD', '1Q', '3Q', '6M', 'YTD', '1Y', '3Y'] as const;
 export type Period = (typeof PERIODS)[number];
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);

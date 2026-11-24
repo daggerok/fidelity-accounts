@@ -35,11 +35,12 @@ test('periods start at the right close', () => {
   expect(periodSlice(s, '3D')).toHaveLength(4);
   expect(start('WTD')).toBe('2026-11-13'); // the Friday before this Monday
   expect(start('1W')).toBe('2026-11-13');
-  expect(start('2W')).toBe('2026-11-06');
+  expect(start('3W')).toBe('2026-10-30');
   expect(start('MTD')).toBe('2026-10-30'); // the last close of October
   expect(start('1M')).toBe('2026-10-20');
   expect(start('QTD')).toBe('2026-09-30');
   expect(start('1Q')).toBe('2026-08-20');
+  expect(start('6M')).toBe('2026-05-20');
   expect(start('YTD')).toBe('2025-12-31');
   expect(start('1Y')).toBe('2025-11-20');
   expect(start('3Y')).toBe('2025-10-15'); // shorter history: from its first point

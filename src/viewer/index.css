@@ -82,7 +82,8 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .pos-table th{position:sticky;top:0;z-index:1;background:#f8fafc;font-weight:600;font-size:.75rem;line-height:1.1;text-align:right;padding:.5rem .5rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;cursor:pointer;user-select:none}
 .pos-table th:first-child,.pos-table td:first-child{text-align:left;position:sticky;left:0;z-index:2}
 .pos-table td:first-child{background:inherit}
-.pos-table td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pos-table td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.pos-table tr.pos-spacer td{padding:0;border:0}
 .pos-table tr{background:#fff}
 .pos-table tr.acct-row{background:#f1f5f9}
 .pos-table tr.cash-row{background:#fefce8}
