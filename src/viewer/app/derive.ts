@@ -253,6 +253,20 @@ export function incomeIn(ps: Position[], from: string, to: string, today: string
   return { paid: r(paid), coming: r(coming), total: r(paid + coming) };
 }
 
+/**
+ * One upcoming payout split by account (owner 2026-11-24: one line per account, named, in the order of the Accounts
+ * card): the account's shares of the symbol and its part of the payout
+ */
+export interface PayoutPart { account: Account; shares: number; payout?: number }
+export function payoutParts(ps: Position[], accounts: Account[], u: Upcoming): PayoutPart[] {
+  return accounts
+    .map((a) => {
+      const shares = securities(ps).filter((p) => p.account === a.number && p.symbol === u.symbol).reduce((x, p) => x + (p.quantity ?? 0), 0);
+      return { account: a, shares, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * shares * 100) / 100 : undefined };
+    })
+    .filter((x) => x.shares > 0);
+}
+
 /** where the last price sits in the 52-week range, 0..1, or null */
 export function rangePos(p: Position): number | null {
   if (p.low52 === undefined || p.high52 === undefined || p.lastPrice === undefined || p.high52 <= p.low52) return null;

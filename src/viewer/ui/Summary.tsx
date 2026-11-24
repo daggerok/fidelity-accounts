@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, ofKind, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -106,34 +106,49 @@ function AllocationBig({ id, slices }: { id: string; slices: { name: string; val
   );
 }
 
-// the big ex-dividend table (owner 2026-11-24: every value on one line, wide, scroll sideways when needed, easy to read):
-// no wrapping, the total on top like the card, each account as its own small chip
-function DividendsTable({ ps, today }: { ps: Position[]; today: string }) {
+// the big ex-dividend table (owner 2026-11-24: every value on one line, wide, easy to read): the total on top, one row
+// per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order
+function DividendsTable({ ps, accounts, today }: { ps: Position[]; accounts: Account[]; today: string }) {
   const rows = upcomingDividends(ps, today, 30);
-  const byAccount = (symbol: string) => securities(ps).filter((p) => p.symbol === symbol && p.exDate && p.exDate >= today);
   const th = 'sticky top-0 z-10 bg-[var(--card-bg)] px-3 py-2 font-medium';
   return (
     <div className="overflow-x-auto">
-      <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-2" data-dividends-table>
+      <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
         <thead><tr className="text-left text-xs text-slate-500">
-          <th className={th}>{t('Symbol')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th><th className={`${th} text-right`}>{t('Per share')}</th>
-          <th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={th}>{t('Payment frequency')}</th><th className={th}>{t('Accounts')}</th>
+          <th className={th}>{t('Symbol')}</th><th className={th}>{t('Account')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th>
+          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={th}>{t('Frequency')}</th>
         </tr></thead>
         <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={5}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(rows.reduce((x, r) => x + (r.payout ?? 0), 0))}</td><td colSpan={2} /></tr>
-          {rows.map((r) => (
-            <tr key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
-              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
-              <td className="num">{siteDate(r.exDate)}</td>
-              <td className="num">{siteDate(r.payDate)}</td>
-              <td className="num text-right">{usd(r.dividendAmount)}</td>
-              <td className="num text-right">{qty(r.shares)}</td>
-              <td className="num text-right font-medium">{usd(r.payout)}</td>
-              <td>{r.paymentFrequency ?? ''}</td>
-              <td><span className="flex gap-1">{byAccount(r.symbol).map((p) => <span key={p.account} className="num rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">···{p.account.slice(-4)} {qty(p.quantity)}</span>)}</span></td>
-            </tr>
-          ))}
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(rows.reduce((x, r) => x + (r.payout ?? 0), 0))}</td><td /></tr>
         </tbody>
+        {rows.map((r) => {
+          const parts = payoutParts(ps, accounts, r);
+          const one = parts.length === 1 ? parts[0]!.account : null;
+          return (
+            <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
+              <tr>
+                <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
+                <td className="text-slate-600 dark:text-slate-300">{one ? one.name : t('{n} accounts', { n: parts.length })}</td>
+                <td className="num">{siteDate(r.exDate)}</td>
+                <td className="num">{siteDate(r.payDate)}</td>
+                <td className="num text-right">{usd(r.dividendAmount)}</td>
+                <td className="num text-right">{qty(r.shares)}</td>
+                <td className="num text-right font-medium">{usd(r.payout)}</td>
+                <td>{r.paymentFrequency ?? ''}</td>
+              </tr>
+              {!one && parts.map((p) => (
+                <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
+                  <td />
+                  <td className="pl-6">{p.account.name} <span className="text-slate-400">···{p.account.number.slice(-4)}</span></td>
+                  <td colSpan={3} />
+                  <td className="num text-right">{qty(p.shares)}</td>
+                  <td className="num text-right">{usd(p.payout)}</td>
+                  <td />
+                </tr>
+              ))}
+            </tbody>
+          );
+        })}
       </table>
     </div>
   );
@@ -259,7 +274,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
 
       <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
-        expand={divs.length ? <DividendsTable ps={divPs} today={today} /> : undefined}>
+        expand={divs.length ? <DividendsTable ps={divPs} accounts={accounts} today={today} /> : undefined}>
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {/* the total on top, as the first row (owner 2026-11-24) */}
