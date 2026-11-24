@@ -167,7 +167,9 @@ export function App() {
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
-                <div className="ml-auto flex min-w-0 items-baseline gap-3 py-[0.6rem]" data-scope-title>
+                {/* measured live (owner 2026-11-24: same space above and below): 5 px under it puts the name 27 px under the
+                    navbar and 27 px over the cards */}
+                <div className="ml-auto flex min-w-0 items-baseline gap-3 pb-[5px] pt-[0.6rem]" data-scope-title>
                   <span className="truncate font-medium text-slate-900 dark:text-slate-100" title={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined}>{title}</span>
                   <span className="flex-none text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
                 </div>
