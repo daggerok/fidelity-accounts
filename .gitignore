@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+google.json
+*.local.json
+.DS_Store
+.idea/
+.check/
+.claude/
+.parcel-cache/
