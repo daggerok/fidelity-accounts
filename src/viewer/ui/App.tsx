@@ -73,9 +73,10 @@ export function App() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="flex min-h-dvh flex-col font-sans">
-      <div className="flex flex-1 flex-col gap-4 px-4 pt-4 lg:px-6 lg:pt-6">
-        <div className="flex flex-col">
+    // the page is exactly one screen tall (owner 2026-11-23: the footer must always be visible): the navbar on top, the
+    // footer in the bottom gutter, and only the part between them scrolls
+    <div className="flex h-dvh flex-col font-sans">
+      <div className="shrink-0 px-4 pt-4 lg:px-6 lg:pt-6">
           {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
           <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
@@ -105,18 +106,19 @@ export function App() {
               </button>
             </div>
           </header>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings}>
             <div onKeyDown={onSettingsKey}>
               <SettingsPanel userscript={userscript} done={done} expand={expandSetup} onDemo={closeSettings} />
             </div>
           </SlidePanel>
-        </div>
 
-        {error && <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
+        {error && <div className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
-          <>
+          <div className="flex flex-col gap-4 pt-4 lg:pt-6">
             <AccountTabs ds={ds} scope={scope} onScope={(s) => setPrefs({ scope: s })} />
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               <div>
@@ -132,10 +134,10 @@ export function App() {
               </div>
               {pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
-          </>
+          </div>
         ) : null}
       </div>
-      <footer className="flex min-h-4 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-400 lg:min-h-6 lg:px-6">
+      <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-400 lg:min-h-6 lg:px-6">
         <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-600 dark:hover:text-slate-200">daggerok &copy; {year} · {t('not affiliated with Fidelity')}</a>
       </footer>
     </div>
