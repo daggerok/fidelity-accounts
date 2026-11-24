@@ -48,6 +48,10 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       .lg { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #1e293b; padding-top: 6px; }
       .lg input[type=text], .lg input[type=password] { all: unset; background: #1e293b; border-radius: 6px; padding: 4px 8px; color: #e2e8f0; }
       .hint { color: #94a3b8; }
+      /* icons only, the tooltip says what they do (owner 2026-11-24): a green ⬇ reads now, an amber {} downloads JSON */
+      .ic { font-weight: 700; min-width: 14px; text-align: center; }
+      .read { color: #22c55e; }
+      .json { color: #f59e0b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     </style>
     <button class="mini" data-m="restore" title="fidelity-accounts: show the panel" hidden><span class="dot"></span><span class="ml"></span></button>
     <div class="b" role="status">
@@ -56,8 +60,8 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
         <button class="min" data-m="minimize" title="Minimize to a small icon">–</button></div>
       <div class="row">
         <button data-a="watch" title="Watch: refresh Positions every minute and hand the changes to the viewer">👀</button>
-        <button data-a="read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇ Read now</button>
-        <button data-a="json" title="Download the last read as JSON">{} JSON</button>
+        <button data-a="read" class="ic read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇</button>
+        <button data-a="json" class="ic json" title="Download the last read as JSON">{}</button>
       </div>
       <div class="st"></div>
       <div class="line" data-sheets-line></div>
