@@ -8,6 +8,9 @@ import { flushSync } from 'react-dom';
 export function animate(change: () => void): void {
   const doc = typeof document === 'undefined' ? null : (document as Document & { startViewTransition?: (cb: () => void) => unknown });
   const reduced = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (!doc || !doc.startViewTransition || reduced) { change(); return; }
+  // a big window is open: no page transition, it would cross-fade the dimmed page behind the window and blink
+  // (owner 2026-11-24); the change simply happens inside the window
+  const zoomOpen = !!doc?.querySelector('[data-chart-zoom]');
+  if (!doc || !doc.startViewTransition || reduced || zoomOpen) { change(); return; }
   doc.startViewTransition(() => { flushSync(change); });
 }
