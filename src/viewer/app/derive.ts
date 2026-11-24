@@ -226,7 +226,7 @@ export const payoutTotal = (rows: Upcoming[]): number => Math.round(rows.reduce(
 
 const STEP_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
 
-/** the calendar month and quarter around `today`, first and last day */
+/** the calendar month, quarter and year around `today`, first and last day */
 export function periodBounds(today: string): { month: [string, string]; quarter: [string, string]; year: [string, string] } {
   const y = Number(today.slice(0, 4));
   const m = Number(today.slice(5, 7));

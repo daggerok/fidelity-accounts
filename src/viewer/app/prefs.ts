@@ -4,7 +4,7 @@
 // tab, the positions sort, search and hidden columns. The theme and the language keep their own keys
 import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
-import { asKind, type Kind } from './derive';
+import { ACCOUNT_SORTS, asKind, type AccountSort, type Kind } from './derive';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
 export type MainTab = (typeof MAIN_TABS)[number];
@@ -24,7 +24,7 @@ export interface Prefs {
   moversOf: Kind; // the movers of every security, only ETFs or only stocks
   incomeOf: Kind; // the income of every security, only ETFs or only stocks
   dividendsOf: Kind; // the upcoming ex-dividend dates of every security, ETFs or stocks
-  accountSort: 'mine' | 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
+  accountSort: AccountSort; // the Accounts card order
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
@@ -50,7 +50,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       moversOf: asKind(p.moversOf),
       incomeOf: asKind(p.incomeOf),
       dividendsOf: asKind(p.dividendsOf),
-      accountSort: ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'mine',
+      accountSort: (ACCOUNT_SORTS as readonly string[]).indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as AccountSort) : 'mine',
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
       collapsed: Array.isArray(p.collapsed) ? p.collapsed.filter((x): x is string => typeof x === 'string') : [],

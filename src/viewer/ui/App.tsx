@@ -30,7 +30,7 @@ export function App() {
   const theme = useTheme();
   const language = useStore(lang);
   const pr = useStore(prefs);
-  const { ds: rawDs, source, error } = useStore(dataset);
+  const { ds: rawDs, error } = useStore(dataset);
   // the owner's own order of accounts applies everywhere: the bar, Positions, the Accounts card
   const ds = useMemo(() => (rawDs ? orderAccounts(rawDs, pr.accountOrder, pr.groupOrder) : null), [rawDs, pr.accountOrder, pr.groupOrder]);
   const g = useStore(sheets);
