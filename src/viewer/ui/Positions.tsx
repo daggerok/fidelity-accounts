@@ -5,6 +5,7 @@ import { matches, positionsIn, rangePos, sortPositions, totalsOf } from '../app/
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
+import { RangeBar } from './RangeBar';
 import { DASH, bigUsd, pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
@@ -19,7 +20,7 @@ function Range({ p }: { p: Position }) {
   if (r === null) return <>{DASH}</>;
   return (
     <span className="inline-flex flex-col items-stretch gap-0.5 align-middle" style={{ width: '7rem' }} title={`${usd(p.low52)} - ${usd(p.high52)}`}>
-      <span className="relative h-1.5 rounded-full bg-slate-200 dark:bg-slate-700"><span className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-slate-800 dark:bg-slate-200" style={{ left: `${r * 100}%` }} /></span>
+      <RangeBar pos={r} shape="diamond" />
       <span className="flex justify-between text-[10px] text-slate-500"><span>{usd(p.low52)}</span><span>{usd(p.high52)}</span></span>
     </span>
   );
