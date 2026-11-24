@@ -187,11 +187,6 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-      <Card id="income" title={t('Income')}>
-        <div className="num text-3xl font-semibold">{usd(tot.estAnnualIncome)}</div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</div>
-        <Row label={t('Per month, on average')} value={usd(tot.estAnnualIncome / 12)} />
-      </Card>
 
       <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} expand={divs.length ? <DividendsTable ps={ps} today={today} /> : undefined}>
         {divs.length > 0 && <div className="text-sm text-slate-500 dark:text-slate-400">{t('About {sum} to you from {n} payouts', { sum: usd(divs.reduce((x, d) => x + (d.payout ?? 0), 0)), n: divs.length })}</div>}
@@ -221,6 +216,11 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
       <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig slices={types} />}><Allocation id="type" slices={types} /></Card>
+      <Card id="income" title={t('Income')}>
+        <div className="num text-3xl font-semibold">{usd(tot.estAnnualIncome)}</div>
+        <div className="text-sm text-slate-500 dark:text-slate-400">{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</div>
+        <Row label={t('Per month, on average')} value={usd(tot.estAnnualIncome / 12)} />
+      </Card>
     </div>
   );
 }
