@@ -150,6 +150,11 @@ export function kindOf(p: Position): 'etf' | 'stock' | 'other' {
 /** the ETFs and Stocks checkboxes: 'all' = both ticked, 'none' = both clear (also every security), or one of them */
 export type Kind = 'all' | 'none' | 'etf' | 'stock';
 export const ofKind = (ps: Position[], kind: Kind): Position[] => (kind === 'etf' || kind === 'stock' ? ps.filter((p) => kindOf(p) === kind) : ps);
+
+/** Fidelity's annual income estimate for a filter: the accounts' own (cash interest in it) for every security, the positions' sum for ETFs or Stocks */
+export function estAnnualOf(kind: Kind, accountsEstimate: number, ps: Position[]): number {
+  return kind === 'etf' || kind === 'stock' ? securities(ofKind(ps, kind)).reduce((x, p) => x + (p.estAnnualIncome ?? 0), 0) : accountsEstimate;
+}
 /** is the ETFs or the Stocks box ticked */
 export const kindOn = (value: Kind, k: 'etf' | 'stock'): boolean => value === 'all' || value === k;
 /** one box switched on or off, the other kept (owner 2026-11-24: both or none shows all) */

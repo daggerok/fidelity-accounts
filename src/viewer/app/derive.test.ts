@@ -3,8 +3,9 @@
 /// <reference lib="esnext" />
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
+import type { Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -144,4 +145,13 @@ describe('toggleFold', () => {
 test('localToday is the date in local time, not UTC', () => {
   expect(localToday(new Date(2026, 10, 30, 21, 30))).toBe('2026-11-30');
   expect(localToday(new Date(2026, 0, 5, 0, 10))).toBe('2026-01-05');
+});
+
+test('estAnnualOf: both pills on or off use the accounts estimate, one pill sums its positions', () => {
+  const q = (securityType: string, estAnnualIncome: number) => ({ account: 'A', kind: 'position' as const, symbol: 'X', description: '', securityType, estAnnualIncome, fields: {} });
+  const ps = [q('Exchange Traded', 10), q('Equity', 5)] as Position[];
+  expect(estAnnualOf('all', 99, ps)).toBe(99);
+  expect(estAnnualOf('none', 99, ps)).toBe(99);
+  expect(estAnnualOf('etf', 99, ps)).toBe(10);
+  expect(estAnnualOf('stock', 99, ps)).toBe(5);
 });
