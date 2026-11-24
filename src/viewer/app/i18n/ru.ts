@@ -23,6 +23,8 @@ export const RU: Record<string, string> = {
   // accounts bar
   Accounts: 'Счета',
   'All accounts': 'Все счета',
+  'Previous accounts': 'Предыдущие счета',
+  'Next accounts': 'Следующие счета',
   '{n} accounts': 'счетов: {n}',
   'Show {name}': 'Показать {name}',
   'No accounts selected: tick some above': 'Счета не выбраны: отметь нужные выше',

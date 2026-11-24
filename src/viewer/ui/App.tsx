@@ -98,7 +98,13 @@ export function App() {
             <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
-            <div className="hidden flex-1 sm:block" />
+            {/* the accounts strip lives in the navbar between the logo and the buttons (owner 2026-11-24); below lg it takes
+                its own full row under them */}
+            {ds && <AccountTabs ds={ds} scope={scope} collapsed={pr.collapsed} className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:basis-0"
+              onScope={(s) => animate(() => setPrefs({ scope: s }))} onFold={(name) => setPrefs({ collapsed: toggleFold(prefs.get().collapsed, name) })}
+              onMove={(moved, target) => animate(() => setPrefs({ accountOrder: moveAccount(ds.accounts, moved, target) }))}
+              onMoveGroup={(moved, target) => animate(() => setPrefs({ groupOrder: moveGroup(groupsOf(ds).map((g) => g.name), moved, target) }))} />}
+            <div className={`hidden flex-1 sm:block ${ds ? 'lg:hidden' : ''}`} />
             <div className="flex w-full items-center justify-evenly gap-1 sm:w-auto sm:justify-end">
               {isOlder(userscript, APP_VERSION) && (
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
@@ -141,8 +147,6 @@ export function App() {
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <div className="flex flex-col gap-4 pt-4 lg:pt-6">
-            <AccountTabs ds={ds} scope={scope} collapsed={pr.collapsed} onScope={(s) => animate(() => setPrefs({ scope: s }))} onFold={(name) => setPrefs({ collapsed: toggleFold(prefs.get().collapsed, name) })} onMove={(moved, target) => animate(() => setPrefs({ accountOrder: moveAccount(ds.accounts, moved, target) }))}
-              onMoveGroup={(moved, target) => animate(() => setPrefs({ groupOrder: moveGroup(groupsOf(ds).map((g) => g.name), moved, target) }))} />
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               <div>
                 <h2 className="text-3xl font-semibold tracking-tight">{title}</h2>
