@@ -6,11 +6,13 @@ import { buildDataset, type GridRow } from '../shared/parse';
 import { mergeDatasets, parseDataset, type Dataset } from '../shared/model';
 import { mountBadge, type Badge } from './badge';
 import { COMMAND_KEY, freshCommand } from './command';
-import { DATASET_KEY, RUN_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
+import { DATASET_KEY, RUN_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
 import { historyDue, pagePost, readHistory } from './history-sync';
 import { mergeHistory } from '../shared/history';
+import { parseTxnStore } from '../shared/transactions';
+import { EMPTY_STORE, readTransactions } from './transactions-sync';
 import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
@@ -122,6 +124,27 @@ function onPortfolio(): void {
       badge.status(`!history: ${err instanceof Error ? err.message : String(err)}`);
     }
     historyBusy = false;
+    if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date()) && !txnsBusy) void syncTransactions();
+  };
+
+  // the transactions history once a day, right after the daily values: facts for income, deposits and holdings
+  let txnsBusy = false;
+  const syncTransactions = async () => {
+    txnsBusy = true;
+    try {
+      const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
+      if (stored && stored.accounts.length) {
+        badge.status('transactions: reading…');
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const { store, failed } = await readTransactions(stored.accounts, parseTxnStore(gmGet<string>(TXNS_KEY, '')) ?? EMPTY_STORE, stored.history, today, pagePost);
+        gmSet(TXNS_KEY, JSON.stringify(store));
+        badge.status(`transactions: ${store.rows.length} rows${failed.length ? `, !${failed.length} accounts wait for tomorrow` : ''} · ${time()}`);
+      }
+    } catch (err) {
+      badge.status(`!transactions: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    txnsBusy = false;
   };
 
   window.addEventListener('message', (e) => {
@@ -244,10 +267,10 @@ function onViewer(): void {
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
-    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); }
+    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); post('fidelity-accounts:transactions', gmGet(TXNS_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
     // Fidelity login stays: 🔑 on Fidelity manages it)
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY].forEach(gmDelete);
     if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); }
   });
   post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null));
@@ -260,6 +283,8 @@ function onViewer(): void {
   gmWatch(WATCH_KEY, postWatch);
   post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null));
   gmWatch(CONTRACT_KEY, (v) => post('fidelity-accounts:contract', v));
+  post('fidelity-accounts:transactions', gmGet(TXNS_KEY, null));
+  gmWatch(TXNS_KEY, (v) => post('fidelity-accounts:transactions', v));
 }
 
 if (location.hostname === 'digital.fidelity.com' && isLoginPage(location.pathname)) onLogin();

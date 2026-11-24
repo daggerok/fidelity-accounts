@@ -3,6 +3,7 @@
 // (a read: the same request Fidelity's Summary chart makes). The first time 3Y per account (= since it opened), then 1M
 // once a day to add the new days. Only this one URL is ever asked
 import { BALANCE_HISTORY_URL, parseBalanceHistory, type History } from '../shared/history';
+import { TRANSACTIONS_HEADERS, TRANSACTIONS_URL } from '../shared/transactions';
 import type { Account } from '../shared/model';
 
 export type Post = (url: string, body: unknown) => Promise<unknown>;
@@ -27,10 +28,15 @@ export async function readHistory(accounts: Account[], have: History | undefined
   return out;
 }
 
-/** same-origin POST with the owner's session; only BalanceHistory is allowed */
+/**
+ * same-origin POST with the owner's session; only two reads are allowed: BalanceHistory (the Summary chart's data) and
+ * the transactions history (the Activity page's data, with the page's own appId and appName headers)
+ */
+const ALLOWED: Record<string, Record<string, string>> = { [BALANCE_HISTORY_URL]: {}, [TRANSACTIONS_URL]: { ...TRANSACTIONS_HEADERS } };
 export const pagePost: Post = async (url, body) => {
-  if (url !== BALANCE_HISTORY_URL) throw new Error(`not allowed: ${url}`);
-  const r = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(`BalanceHistory ${r.status}`);
+  const extra = ALLOWED[url];
+  if (!extra) throw new Error(`not allowed: ${url}`);
+  const r = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json', accept: 'application/json', ...extra }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${url.split('/').pop()} ${r.status}`);
   return r.json();
 };

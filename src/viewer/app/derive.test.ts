@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -196,4 +196,19 @@ test('sortAccounts puts an account with no today gain last for todayUsd', () => 
 test('moveGroup and moveAccount append at the end for an unknown target', () => {
   expect(moveGroup(['a', 'b', 'c'], 'a', 'gone')).toEqual(['b', 'c', 'a']);
   expect(moveAccount([acct('A'), acct('B'), acct('C')], 'A', 'gone')).toEqual(['B', 'C', 'A']);
+});
+
+test('income facts: received from the transactions, planned adds what still comes; unknown until every account is read', () => {
+  const ps = positionsIn(ds, ds.accounts); // AAAA pays 0.25 a share quarterly on 2027-01-05, 2.5 shares
+  const row = (account: string, date: string, net: number, symbol = 'AAAA') => ({ account, date, mnemonic: 'DIV', cat: 'DV', sub: 'VP', dir: 'D', symbol, qty: 0, net, desc: '', cancelled: false });
+  const accts = ds.accounts;
+  const synced = Object.fromEntries(accts.map((a) => [a.number, '2026-11-24']));
+  const store = { version: 1 as const, at: 'x', synced, rows: [row(accts[0]!.number, '2026-10-05', 0.62), row(accts[0]!.number, '2026-12-01', 99)] };
+  const q = incomeFacts(store, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24');
+  expect(q).toEqual({ received: 0.62, coming: 0, planned: 0.62 }); // the December row is after today
+  const next = incomeFacts(store, accts, ps, 'all', '2027-01-01', '2027-03-31', '2026-11-24');
+  expect(next.coming).toBe(0.63);
+  expect(incomeFacts({ ...store, synced: {} }, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24').received).toBeNull();
+  expect(incomeFacts(null, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24').received).toBeNull();
+  expect(incomeFacts(store, accts, ps, 'etf', '2026-10-01', '2026-12-31', '2026-11-24').received).toBe(0); // AAAA is not held as an ETF
 });

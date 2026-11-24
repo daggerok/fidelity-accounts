@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -14,6 +14,7 @@ import { Pills } from './Pills';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
+import { transactions } from '../app/data';
 import { t } from '../app/i18n';
 import { pct, qty, signedPct, signedUsd, siteDate, tone, usd, usd0 } from './format';
 
@@ -212,9 +213,11 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const balance = combine(ds.history, accounts.map((a) => a.number));
   const bounds = periodBounds(today);
   const incomePs = ofKind(ps, pr.incomeOf);
-  const incQ = incomeIn(incomePs, bounds.quarter[0], bounds.quarter[1], today);
-  const incM = incomeIn(incomePs, bounds.month[0], bounds.month[1], today);
-  const incY = incomeIn(incomePs, bounds.year[0], bounds.year[1], today);
+  const txns = useStore(transactions);
+  const facts = (b: [string, string]) => incomeFacts(txns, accounts, ps, pr.incomeOf, b[0], b[1], today);
+  const incQ = facts(bounds.quarter);
+  const incM = facts(bounds.month);
+  const incY = facts(bounds.year);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
   const estAnnual = estAnnualOf(pr.incomeOf, tot.estAnnualIncome, ps);
 
@@ -318,14 +321,17 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
           {[{ key: 'Y', v: incY }, { key: 'Q', v: incQ }, { key: 'M', v: incM }].map(({ key, v }) => (
             // received so far is a fact only the transactions history gives (owner 2026-11-24: the estimate from today's
             // shares overstated it): -- until it is read; the total is the plan at today's holdings
-            <div key={key} className="flex-auto" data-income-period={key} title={t('planned {total} at today\'s holdings; still to come {coming}', { total: usd(v.total), coming: usd(v.coming) })}>
+            <div key={key} className="flex-auto" data-income-period={key} title={v.received === null ? t('planned {total} at today\'s holdings; still to come {coming}', { total: usd(v.planned), coming: usd(v.coming) }) : t('received {received} of the planned {total}; still to come {coming}', { received: usd(v.received), total: usd(v.planned), coming: usd(v.coming) })}>
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
-              <div className="num whitespace-nowrap"><span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history')}>--</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
-              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800" />
+              <div className="num whitespace-nowrap">{v.received === null
+                ? <span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history')}>--</span>
+                : <span className="text-xl font-semibold sm:text-2xl">{usd(v.received)}</span>} <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.planned)}</span></div>
+              {/* progress of the facts towards the plan */}
+              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.received !== null && v.planned > 0 ? Math.min(100, (v.received / v.planned) * 100) : 0}%`, background: 'var(--brand)' }} /></div>
               {/* On average first, then the share of the balance (owner 2026-11-24); the year has no average, an empty line
                   keeps its share level with the others */}
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{key === 'Y' ? '\u00a0' : <>{t('On average')}: <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></>}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.planned / tot.balance) * 100) }) : ''}</div>
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 {
   "name": "fidelity-accounts",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "Own viewer of your Fidelity accounts: a Tampermonkey script reads your positions (read only) into your Google Sheet",
   "source": "src/viewer/index.html",

@@ -2,6 +2,7 @@
 // Where the dataset comes from in the viewer: the userscript bridge (window message 'fidelity-accounts:dataset'),
 // Google Sheets (↻), Import JSON, and IndexedDB of the viewer origin for the next visit
 import { mergeHistory } from '../../shared/history';
+import { parseTxnStore, type TxnStore } from '../../shared/transactions';
 import { parseDataset, type Dataset } from '../../shared/model';
 import { createStore } from '../../shared/store';
 import type { Report } from '../../shared/contract';
@@ -31,6 +32,18 @@ const remember = (on: boolean) => { try { localStorage.setItem(WATCH_MIRROR, on 
 export const contract = createStore<Report | null>(null);
 
 const CACHE_KEY = 'dataset';
+const TXNS_CACHE_KEY = 'transactions';
+
+// the transactions history the script reads once a day (shared/transactions), kept in IndexedDB like the dataset
+export const transactions = createStore<TxnStore | null>(null);
+function acceptTxns(json: string): void {
+  const store = parseTxnStore(json);
+  if (!store) return;
+  const cur = transactions.get();
+  if (cur && cur.at > store.at) return;
+  transactions.set(store);
+  void cacheSet(TXNS_CACHE_KEY, json);
+}
 
 /** a new copy replaces the shown one unless it is older */
 export function accept(json: string, source: Source): boolean {
@@ -63,11 +76,13 @@ export function startData(): void {
         if (w.chosen) { watchChosen.set(true); remember(!!w.on); }
       } catch { /* ignore */ }
     }
+    if (e.data.type === 'fidelity-accounts:transactions') acceptTxns(e.data.json);
     if (e.data.type === 'fidelity-accounts:login') {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }
     }
   });
   void cacheGet(CACHE_KEY).then((json) => { if (json && !dataset.get().ds) accept(json, 'cache'); });
+  void cacheGet(TXNS_CACHE_KEY).then((json) => { if (json && !transactions.get()) acceptTxns(json); });
   window.postMessage({ type: 'fidelity-accounts:request' }, location.origin);
   window.postMessage({ type: 'fidelity-accounts:hello' }, location.origin);
 }
