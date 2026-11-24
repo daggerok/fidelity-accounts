@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -33,6 +33,8 @@ test('allocation, dividends, 52-week, sort and search', () => {
   expect(allocation(ps, (p) => p.sector).map((s) => s.name)).toEqual(['Energy', 'Other', 'Cash']);
   expect(upcomingDividends(ps, '2026-11-20').map((p) => [p.symbol, p.shares, p.payout])).toEqual([['AAAA', 2.5, 0.63]]); // 0.25 x 2.5 shares
   expect(upcomingDividends(ps, '2026-12-13')).toEqual([]);
+  expect(payoutTotal(upcomingDividends(ps, '2026-11-20'))).toBe(0.63);
+  expect(payoutTotal([])).toBe(0);
   const [u] = upcomingDividends(ps, '2026-11-20');
   const parts = payoutParts(ps, ds.accounts.slice().reverse(), u!);
   expect(parts.map((x) => x.account.number)).toEqual(ds.accounts.slice().reverse().filter((a) => parts.some((x) => x.account.number === a.number)).map((a) => a.number)); // the given order

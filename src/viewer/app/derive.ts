@@ -220,6 +220,9 @@ export function upcomingDividends(ps: Position[], today: string, days = 30): Upc
     .sort((a, b) => (a.exDate! < b.exDate! ? -1 : a.exDate! > b.exDate! ? 1 : 0));
 }
 
+/** the sum of the payouts of a list of upcoming dividends */
+export const payoutTotal = (rows: Upcoming[]): number => Math.round(rows.reduce((x, r) => x + (r.payout ?? 0), 0) * 100) / 100;
+
 const STEP_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
 
 /** an ISO date `n` months later (earlier for negative), the day clamped to the month's last day */
