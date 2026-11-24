@@ -33,7 +33,8 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
            font: 12px/1.3 system-ui, sans-serif; color: #e2e8f0; background: #0f172a; border-radius: 10px; padding: 8px 10px;
            box-shadow: 0 4px 14px rgba(0,0,0,.25); width: 380px; box-sizing: border-box; }
       .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-      .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #368727; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #64748b; transition: background-color .2s; }
+      .dot.on { background: #22c55e; }
       .st { color: #94a3b8; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
       .st > div, .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #94a3b8; }
       .st > div.imp { white-space: normal; overflow-wrap: anywhere; color: #fca5a5; }
@@ -54,7 +55,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
         <button data-m="login" title="Optional: your Fidelity login, so the script logs in by itself">🔑</button>
         <button class="min" data-m="minimize" title="Minimize to a small icon">–</button></div>
       <div class="row">
-        <button data-a="watch" title="Watch: refresh Positions every minute and hand the changes to the viewer">👀 Watch</button>
+        <button data-a="watch" title="Watch: refresh Positions every minute and hand the changes to the viewer">👀</button>
         <button data-a="read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇ Read now</button>
         <button data-a="json" title="Download the last read as JSON">{} JSON</button>
       </div>
@@ -121,9 +122,13 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
     sheets(note) { q('[data-sheets-line]').textContent = note; q('[data-sheets-line]').title = note; },
     watching(on) {
       const b = q('[data-a="watch"]');
-      b.textContent = on ? '⏸ Stop watching' : '👀 Watch';
+      // one 👀 like in the viewer's navbar (owner 2026-11-24): green while watching, the title says what a click does
+      b.title = on ? 'Watching: Positions refresh every minute. Click to stop' : 'Watch: refresh Positions every minute and hand the changes to the viewer';
       b.style.background = on ? '#368727' : '';
       host.dataset.watching = on ? 'yes' : 'no';
+      // the dot is green while 👀 watches, grey when it does not (owner 2026-11-24)
+      root.querySelectorAll('.dot').forEach((d) => d.classList.toggle('on', on));
+      q('.mini').title = on ? 'fidelity-accounts: watching · show the panel' : 'fidelity-accounts: not watching · show the panel';
     },
   };
 }

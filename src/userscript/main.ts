@@ -235,7 +235,9 @@ function onLogin(): void {
 function onViewer(): void {
   document.documentElement.dataset.fidelityAccountsUserscript = VERSION;
   const post = (type: string, json: unknown) => { if (typeof json === 'string') window.postMessage({ type, json }, location.origin); };
-  const postWatch = () => post('fidelity-accounts:watch', JSON.stringify({ on: gmGet<boolean>(WATCH_KEY, false) === true }));
+  // `chosen`: the owner switched 👀 on or off at least once (here, on the Fidelity badge or in the viewer); the viewer
+  // then never switches it on by itself (owner 2026-11-24: "do not want if it was disabled previously")
+  const postWatch = () => post('fidelity-accounts:watch', JSON.stringify({ on: gmGet<boolean>(WATCH_KEY, false) === true, chosen: gmGet<boolean | null>(WATCH_KEY, null) !== null }));
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data) return;
     // the Google token after ☁️ and each silent renew: the Fidelity tab writes the fidelity_* tabs with it
