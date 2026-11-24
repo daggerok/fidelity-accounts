@@ -5,7 +5,8 @@ import { edgeFadeMask, edgeScrollTarget, scrollEdges, type ScrollEdges } from '.
 // accounts and groups in the navbar scroll smoothly like the gex Expirations panel). A side with more chips fades out
 // and shows a ‹ or › button that glides the previous or next hidden chip into view; trackpad and touch swipes scroll
 // natively, a vertical mouse wheel scrolls it sideways. `items` picks the chips to step over (nested chips count too)
-export const EDGE_FADE_PX = 48; // a wide, soft fade under the arrow (owner 2026-11-24: "do nicer")
+export const EDGE_FADE_PX = 40; // a soft fade after the arrow's clear band (owner 2026-11-24: "do nicer")
+const ARROW_PX = 24; // the arrow's band at a clipped edge: nothing shows under it
 const NO_EDGES: ScrollEdges = { left: false, right: false };
 
 // the ‹ › arrow: a bare chevron over the faded edge (owner 2026-11-24: no circle), sliding and fading in when there is
@@ -73,10 +74,10 @@ export function EdgeScrollRow({ prevLabel, nextLabel, items, label, storeKey, cl
       .filter((r) => r.width > 0)
       .map((r) => ({ left: r.left - box.left + row.scrollLeft, right: r.right - box.left + row.scrollLeft }))
       .sort((a, b) => a.left - b.left);
-    const target = edgeScrollTarget(chips, row.scrollLeft, row.clientWidth, row.scrollWidth, dir, EDGE_FADE_PX);
+    const target = edgeScrollTarget(chips, row.scrollLeft, row.clientWidth, row.scrollWidth, dir, EDGE_FADE_PX + ARROW_PX);
     if (target !== null) row.scrollTo({ left: target, behavior: 'smooth' });
   }, [items]);
-  const mask = edgeFadeMask(edges, EDGE_FADE_PX) ?? undefined;
+  const mask = edgeFadeMask(edges, EDGE_FADE_PX, ARROW_PX) ?? undefined;
   return (
     <div className={`relative flex min-w-0 ${className}`} data-strip>
       <nav ref={rowRef} aria-label={label} className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>

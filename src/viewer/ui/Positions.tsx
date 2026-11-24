@@ -102,6 +102,22 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     ro.observe(el);
     return () => { cancelAnimationFrame(frame); el.removeEventListener('scroll', on); ro.disconnect(); };
   }, []);
+  // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
+  // height is the room between its top and the footer, measured again on a resize or when the columns panel opens
+  const [fill, setFill] = useState<number | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const foot = document.querySelector('footer')?.getBoundingClientRect().top ?? window.innerHeight;
+      setFill(Math.max(240, Math.floor(foot - el.getBoundingClientRect().top)));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = new ResizeObserver(measure);
+    if (el.parentElement) ro.observe(el.parentElement);
+    return () => { window.removeEventListener('resize', measure); ro.disconnect(); };
+  }, [showCols]);
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
   const tableWidth = 240 + cols.reduce((sum, c) => sum + width(c.key), 0);
@@ -123,7 +139,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
           ))}
         </div>
       )}
-      <div ref={box} className="min-h-0 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700" style={{ maxHeight: '70vh' }} data-rows={lines.length} data-drawn={last - first}>
+      <div ref={box} className="min-h-0 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
           <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           <thead>
