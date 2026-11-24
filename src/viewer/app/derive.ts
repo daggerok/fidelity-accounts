@@ -147,19 +147,19 @@ export function kindOf(p: Position): 'etf' | 'stock' | 'other' {
   if (p.securityType === 'Equity' || /REIT/i.test(p.securitySubType ?? '')) return 'stock';
   return 'other';
 }
-export type Kind = 'all' | 'etf' | 'stock';
-export const ofKind = (ps: Position[], kind: Kind): Position[] => (kind === 'all' ? ps : ps.filter((p) => kindOf(p) === kind));
-/** is ETFs or Stocks lit: both are with all shown */
+/** the ETFs and Stocks checkboxes: 'all' = both ticked, 'none' = both clear (also every security), or one of them */
+export type Kind = 'all' | 'none' | 'etf' | 'stock';
+export const ofKind = (ps: Position[], kind: Kind): Position[] => (kind === 'etf' || kind === 'stock' ? ps.filter((p) => kindOf(p) === kind) : ps);
+/** is the ETFs or the Stocks box ticked */
 export const kindOn = (value: Kind, k: 'etf' | 'stock'): boolean => value === 'all' || value === k;
-/**
- * ETFs or Stocks switched (owner 2026-11-24): from all, switching one off leaves the other; switching the only one off
- * leaves none, which is all again; switching the other on makes both, which is all
- */
+/** one box switched on or off, the other kept (owner 2026-11-24: both or none shows all) */
 export function toggleKind(value: Kind, k: 'etf' | 'stock'): Kind {
-  const other = k === 'etf' ? 'stock' : 'etf';
-  if (value === 'all') return other;
-  return 'all'; // value === k: off -> none -> all; value === other: on -> both -> all
+  const on = { etf: kindOn(value, 'etf'), stock: kindOn(value, 'stock') };
+  on[k] = !on[k];
+  return on.etf && on.stock ? 'all' : on.etf ? 'etf' : on.stock ? 'stock' : 'none';
 }
+/** a saved filter value, anything unknown is both ticked */
+export const asKind = (v: unknown): Kind => (v === 'none' || v === 'etf' || v === 'stock' ? v : 'all');
 
 export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];

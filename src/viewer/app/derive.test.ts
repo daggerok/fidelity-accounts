@@ -113,13 +113,14 @@ test('ETF or stock by the security type', () => {
   expect(ofKind(ps, 'all')).toHaveLength(2);
 });
 
-test('ETFs and Stocks switch on their own; both or none is all', () => {
-  expect(toggleKind('all', 'etf')).toBe('stock'); // ETFs off from all
-  expect(toggleKind('stock', 'etf')).toBe('all'); // ETFs on again: both
-  expect(toggleKind('etf', 'etf')).toBe('all'); // the only one off: none = all
-  expect(toggleKind('all', 'stock')).toBe('etf');
-  expect(kindOn('all', 'etf') && kindOn('all', 'stock')).toBe(true);
-  expect(kindOn('etf', 'stock')).toBe(false);
+test('ETFs and Stocks boxes switch on their own; both or none is all', () => {
+  expect(toggleKind('all', 'etf')).toBe('stock'); // ETFs off: Stocks only
+  expect(toggleKind('stock', 'stock')).toBe('none'); // both clear: every security
+  expect(toggleKind('none', 'etf')).toBe('etf');
+  expect(toggleKind('etf', 'stock')).toBe('all');
+  expect(kindOn('none', 'etf') || kindOn('none', 'stock')).toBe(false);
+  const p = positionsIn(ds, ds.accounts)[1]!;
+  expect(ofKind([{ ...p, securityType: 'Mutual Fund' }], 'none')).toHaveLength(1);
 });
 
 describe('toggleFold', () => {
