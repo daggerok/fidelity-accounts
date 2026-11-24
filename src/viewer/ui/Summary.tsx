@@ -1,7 +1,7 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
 import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
-import { BalanceChart, PeriodChange } from './BalanceChart';
+import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
@@ -197,8 +197,12 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <div className="min-w-0">
             <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
-            <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t('Today')}</span></div>
-            <PeriodChange series={balance} />
+            {/* Today and the period's change as a table with no borders (owner 2026-11-24): values in one column, words in
+                the next */}
+            <table className="text-sm"><tbody>
+              <tr><td className={`num whitespace-nowrap pr-3 ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)})</td><td className="text-slate-500 dark:text-slate-400">{t('Today')}</td></tr>
+              <PeriodChangeRow series={balance} />
+            </tbody></table>
           </div>
           <table className="text-xs" data-balance-facts>
             <tbody className="[&_td]:py-0.5">
