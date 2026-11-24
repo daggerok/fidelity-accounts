@@ -49,9 +49,10 @@ export function edgeScrollTarget(
  * The CSS mask that fades the clipped sides of the row (`px` wide) and leaves the rest opaque; null with nothing clipped.
  * A mask (not a gradient overlay) so it works on any panel background, theme and palette.
  */
-export function edgeFadeMask(edges: ScrollEdges, px: number): string | null {
+export function edgeFadeMask(edges: ScrollEdges, px: number, clear = 0): string | null {
   if (!edges.left && !edges.right) return null;
-  const left = edges.left ? `transparent 0, #000 ${px}px` : '#000 0';
-  const right = edges.right ? `#000 calc(100% - ${px}px), transparent 100%` : '#000 100%';
+  // `clear` px at a clipped edge are fully hidden (the arrow sits there, no text under it), then the fade
+  const left = !edges.left ? '#000 0' : clear ? `transparent 0, transparent ${clear}px, #000 ${clear + px}px` : `transparent 0, #000 ${px}px`;
+  const right = !edges.right ? '#000 100%' : clear ? `#000 calc(100% - ${clear + px}px), transparent calc(100% - ${clear}px), transparent 100%` : `#000 calc(100% - ${px}px), transparent 100%`;
   return `linear-gradient(to right, ${left}, ${right})`;
 }

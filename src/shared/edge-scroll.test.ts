@@ -44,6 +44,10 @@ describe('edgeScrollTarget', () => {
 });
 
 describe('edgeFadeMask', () => {
+  test('a clear band under the arrow before the fade', () => {
+    expect(edgeFadeMask({ left: true, right: false }, 40, 24)).toBe('linear-gradient(to right, transparent 0, transparent 24px, #000 64px, #000 100%)');
+  });
+
   test('fades only the clipped sides', () => {
     expect(edgeFadeMask({ left: false, right: false }, 24)).toBeNull();
     expect(edgeFadeMask({ left: false, right: true }, 24)).toBe('linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%)');
