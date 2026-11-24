@@ -179,6 +179,9 @@ function onViewer(): void {
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); }
+    // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
+    // Fidelity login stays: 🔑 on Fidelity manages it)
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY].forEach(gmDelete);
     if (e.data.type === 'fidelity-accounts:hello') post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) }));
   });
   post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null));
