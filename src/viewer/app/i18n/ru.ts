@@ -19,7 +19,6 @@ export const RU: Record<string, string> = {
   'The installed script is {installed}; this page serves {served}': 'Установлен скрипт {installed}; эта страница даёт {served}',
   'Script update {version} →': 'Обновить скрипт до {version} →',
   'Hide demo': 'Скрыть демо',
-  'not affiliated with Fidelity': 'не связано с Fidelity',
   'demo data': 'демо-данные',
   'read {at}': 'прочитано {at}',
 
@@ -131,6 +130,9 @@ export const RU: Record<string, string> = {
   'Tampermonkey and the sync script': 'Tampermonkey и скрипт синхронизации',
   'Install Tampermonkey from tampermonkey.net. In Chrome open its extension details: turn on Allow User Scripts and give it site access to digital.fidelity.com and {host}. Then open the script and press Install, and reload this page.': 'Установи Tampermonkey с tampermonkey.net. В Chrome открой сведения о расширении: включи Allow User Scripts и дай доступ к сайтам digital.fidelity.com и {host}. Затем открой скрипт, нажми Install и перезагрузи эту страницу.',
   optional: 'необязательно',
+  'needs the Client ID first': 'сначала нужен Client ID',
+  'needs Connect Google first, or paste a link below': 'сначала подключи Google или вставь ссылку ниже',
+  'needs the script installed first': 'сначала установи скрипт',
   'all set': 'всё настроено',
   'needs setup': 'нужна настройка',
   'The setup steps; the ticked ones are done.': 'Шаги настройки; отмеченные галочкой уже выполнены.',
