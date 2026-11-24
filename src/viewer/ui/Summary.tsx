@@ -217,9 +217,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         {m.top.length || m.bottom.length ? <Movers lists={[m.top, m.bottom]} at="card" /> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
-      {/* the order as pills in one row right after the title (owner 2026-11-24: buttons in line, like Fidelity's 1M YTD
-          1Y 3Y; "not below accounts word, but after it to the right"); on a narrow card they wrap under it */}
-      <Card id="accounts" title={t('Accounts')} lead={(
+      {/* the order as pills in one row on the right of the title row (owner 2026-11-24: buttons in line, like Fidelity's
+          1M YTD 1Y 3Y; then "move to the right" for some air after the title); on a narrow card they wrap under it */}
+      <Card id="accounts" title={t('Accounts')} tools={(
         <div className="flex flex-wrap gap-1" role="group" aria-label={t('Sort accounts by')}>
           {ACCOUNT_SORTS.map((k) => (
             <button key={k} type="button" aria-pressed={pr.accountSort === k} onClick={() => animate(() => setPrefs({ accountSort: k }))}
