@@ -198,7 +198,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <div className="min-w-0">
             <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
-            <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
+            <div className="num text-sm"><span className="text-slate-500 dark:text-slate-400">{t('Today')}</span> <span className={tone(tot.todayGl)}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)})</span></div>
           </div>
           <table className="text-xs" data-balance-facts>
             <tbody className="[&_td]:py-0.5">
