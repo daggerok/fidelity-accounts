@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
-import { contract, dataset, importFile, loginSaved, openFidelity, setWatch } from '../app/data';
+import { contract, dataset, loginSaved, openFidelity, setWatch } from '../app/data';
 import { CLAUSES, describe } from '../../shared/contract';
 import { APP_VERSION, isOlder } from '../app/version';
-import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
+import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
 import { t } from '../app/i18n';
 import { MaskedField, RevealCopy } from './MaskedField';
@@ -65,13 +65,12 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   useEffect(() => { setS(setupState(userscript)); }, [g.connected, d.ds, d.source, login, userscript]);
   const settle = () => setS(setupState(userscript));
   const [showUrl, setShowUrl] = useState(false);
-  const file = useRef<HTMLInputElement>(null);
-  const sourceName: Record<string, string> = { userscript: t('the script'), sheets: t('Google Sheets'), import: t('a JSON file'), cache: t('this browser') };
+  const sourceName: Record<string, string> = { sheets: t('Google Sheets'), cache: t('this browser') };
   const change = (p: Partial<typeof cfg>) => { const next = { ...cfg, ...p }; setCfg(next); saveConfig(next); handOff(); };
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
 
-  // the data part (owner 2026-11-23): where the data comes from, the script and the login, import; it lives in
+  // the data part (owner 2026-11-23): where the data comes from (the sheet), the script and the login; it lives in
   // the script step, so that step always shows (ticked once the script is installed)
   const dataBlock = (
     <div className="mt-1 flex flex-col gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700" data-data>
@@ -81,10 +80,6 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
         {userscript && isOlder(userscript, APP_VERSION) && <a className="btn sm primary" href="./fidelity-accounts-sync.user.js" data-update-script>{t('Update to {version}', { version: APP_VERSION })}</a>}
         <span>{t('Fidelity login in the script')}: <b>{login === null ? '—' : login ? t('saved') : t('not saved')}</b></span>
         <button type="button" className="btn sm" onClick={openFidelity}>{t('Open Fidelity')}</button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
-        <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
       </div>
       <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
     </div>
@@ -148,7 +143,6 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
           {g.connected
             ? <button type="button" className="btn sm danger" disabled={g.busy} onClick={disconnectGoogle}>{t('Disconnect')}</button>
             : <button type="button" className="btn sm primary" disabled={g.busy || !cfg.clientId} onClick={() => void connectGoogle()}>{t('Connect Google')}</button>}
-          <button type="button" className="btn sm" disabled={!d.ds || !g.connected || g.busy || !cfg.spreadsheetId} onClick={() => d.ds && void writeNow(d.ds)}>{t('Write now')}</button>
           <button type="button" className="btn sm" disabled={!g.connected || g.busy || !cfg.spreadsheetId} onClick={() => void loadFromSheets()}>↻ {t('Load from the sheet')}</button>
         </div>
       </div>

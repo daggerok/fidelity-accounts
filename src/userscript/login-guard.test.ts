@@ -42,5 +42,5 @@ test('the login key is read only for the login form and the panel; the viewer ge
   });
   expect(lines.length).toBeGreaterThan(0);
   // nothing that leaves the script (Sheets, the dataset, JSON export) knows the Login type
-  ['sheets-gm.ts', 'history-sync.ts', 'inject.ts', 'read.ts'].forEach((f) => expect(readFileSync(join(SRC, 'userscript', f), 'utf8')).not.toMatch(/\bLogin\b|LOGIN_KEY/));
+  ['sheets-gm.ts', 'sheets-queue.ts', 'history-sync.ts', 'inject.ts', 'read.ts'].forEach((f) => expect(readFileSync(join(SRC, 'userscript', f), 'utf8')).not.toMatch(/\bLogin\b|LOGIN_KEY/));
 });

@@ -1,6 +1,7 @@
 /// <reference lib="esnext" />
-// Where the dataset comes from in the viewer: the userscript bridge (window message 'fidelity-accounts:dataset'),
-// Google Sheets (↻), Import JSON, and IndexedDB of the viewer origin for the next visit
+// Where the dataset comes from in the viewer: only Google Sheets (one way data flow: Fidelity tab -> sheet -> viewer,
+// app/google.ts reads it), kept in IndexedDB of the viewer origin for a fast next visit. The userscript bridge brings
+// status only: the last run, the login yes or no, 👀 and the contract report
 import { mergeHistory } from '../../shared/history';
 import { parseTxnStore, type TxnStore } from '../../shared/transactions';
 import { parseDataset, type Dataset } from '../../shared/model';
@@ -10,7 +11,7 @@ import { POSITIONS_URL } from '../../userscript/header';
 import { cacheGet, cacheSet } from './cache';
 import { t } from './i18n';
 
-export type Source = 'userscript' | 'sheets' | 'import' | 'cache';
+export type Source = 'sheets' | 'cache';
 export interface DataState { ds: Dataset | null; source: Source | null; error: string | null }
 export const dataset = createStore<DataState>({ ds: null, source: null, error: null });
 
@@ -34,9 +35,9 @@ export const contract = createStore<Report | null>(null);
 const CACHE_KEY = 'dataset';
 const TXNS_CACHE_KEY = 'transactions';
 
-// the transactions history the script reads once a day (shared/transactions), kept in IndexedDB like the dataset
+// the transactions history the script reads once a day (shared/transactions), from the sheet, kept in IndexedDB too
 export const transactions = createStore<TxnStore | null>(null);
-function acceptTxns(json: string): void {
+export function acceptTxns(json: string): void {
   const store = parseTxnStore(json);
   if (!store) return;
   const cur = transactions.get();
@@ -65,7 +66,6 @@ export const requestSync = (): void => { window.postMessage({ type: 'fidelity-ac
 export function startData(): void {
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || typeof e.data.json !== 'string') return;
-    if (e.data.type === 'fidelity-accounts:dataset') accept(e.data.json, 'userscript');
     if (e.data.type === 'fidelity-accounts:run') {
       try { runState.set(JSON.parse(e.data.json) as RunState); } catch { /* ignore */ }
     }
@@ -79,7 +79,6 @@ export function startData(): void {
         if (w.chosen) { watchChosen.set(true); remember(!!w.on); }
       } catch { /* ignore */ }
     }
-    if (e.data.type === 'fidelity-accounts:transactions') acceptTxns(e.data.json);
     if (e.data.type === 'fidelity-accounts:login') {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }
     }
@@ -106,8 +105,3 @@ export function setWatch(on: boolean): void {
   remember(on);
   if (on) window.open(POSITIONS_URL, 'fidelity-accounts-sync');
 }
-
-export async function importFile(f: File): Promise<void> {
-  accept(await f.text(), 'import');
-}
-

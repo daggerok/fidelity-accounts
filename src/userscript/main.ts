@@ -3,10 +3,10 @@
 // login page (optional automatic login) and the viewer (bridge to the page). READ ONLY on Fidelity: the script never
 // clicks or submits anything there except the login form with the owner's saved login
 import { buildDataset, type GridRow } from '../shared/parse';
-import { mergeDatasets, parseDataset, type Dataset } from '../shared/model';
+import { mergeDatasets, parseDataset } from '../shared/model';
 import { mountBadge, type Badge } from './badge';
 import { COMMAND_KEY, freshCommand } from './command';
-import { DATASET_KEY, RUN_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
+import { DATASET_KEY, RUN_KEY, SHEETS_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
 import { historyDue, pagePost, readHistory } from './history-sync';
@@ -16,7 +16,8 @@ import { EMPTY_STORE, readTransactions } from './transactions-sync';
 import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, marketOpen, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
-import { GOOGLE_KEY, gmFetch, usableHandoff, writeFromUserscript } from './sheets-gm';
+import { GOOGLE_KEY, gmFetch, usableHandoff, writeSets, type Prints } from './sheets-gm';
+import { createSheetsQueue } from './sheets-queue';
 import { isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
 
 declare const GM_xmlhttpRequest: Parameters<typeof gmFetch>[0] | undefined;
@@ -26,6 +27,7 @@ const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
 // Tampermonkey storage keys (this script only)
 const LOGIN_KEY = 'fidelity-accounts.login'; // { user, pass }: never leaves Tampermonkey storage
 const AUTO_KEY = 'fidelity-accounts.autoLogin'; // log in whenever the login page opens (default on, owner 2026-11-23)
+const PRINTS_KEY = 'fidelity-accounts.sheetsPrints'; // { id, prints }: each set's last write to that sheet (skip same content)
 const RESUME_KEY = 'fidelity-accounts.resume'; // { at }: a sync asked while logged out, go to Positions after the login
 const FLOW_KEY = 'fidelity-accounts.loginFlowAt';
 const PASS_KEY = 'fidelity-accounts.loginPassAt';
@@ -78,30 +80,28 @@ function onPortfolio(): void {
   const how = injectPageReader();
   badge.status(how === 'failed' ? '!could not start the page reader (Tampermonkey: allow GM_addElement)' : onPositions() ? 'waiting for the positions table…' : 'open Positions (or press ⬇): the script reads it by itself');
 
-  // the fidelity_* tabs are written from here after every read with the token the viewer handed over; without one
-  // the data waits and the viewer writes it when it is open and connected. One write at a time, the newest wins
-  let writing = false;
-  let pending: Dataset | null = null;
-  const writeSheets = async (first: Dataset) => {
-    if (writing) { pending = first; return; }
-    writing = true;
-    let ds: Dataset | null = first;
-    while (ds) {
-      pending = null;
+  // the fidelity_* tabs are written only from here (one way data flow, shared/sheets/sync.ts), by data set: summary and
+  // positions after a read of the grid, summary after the daily values, transactions after their daily read. Each write
+  // marks fidelity_updates and leaves a signal for the viewer, which then reads those sets back from the sheet. Without
+  // a Google token the sets wait until the viewer hands one over
+  const sheetsQueue = createSheetsQueue({
+    ready: () => !!usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now()) && typeof GM_xmlhttpRequest === 'function',
+    waiting: () => badge.sheets('sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'),
+    failed: (err) => badge.sheets(`sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200)),
+    write: async (sets) => {
       const g = usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now());
-      if (!g || typeof GM_xmlhttpRequest !== 'function') badge.sheets('sheets: waiting for ☁️ in the viewer (it writes when open)');
-      else {
-        try {
-          await writeFromUserscript(ds, g, gmFetch(GM_xmlhttpRequest), () => {});
-          badge.sheets(`sheets: written ${time()}`);
-        } catch (err) {
-          badge.sheets(`sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200));
-        }
-      }
-      ds = pending;
-    }
-    writing = false;
-  };
+      if (!g || typeof GM_xmlhttpRequest !== 'function') throw new Error('no Google sign-in');
+      const data = { ds: parseDataset(gmGet<string>(DATASET_KEY, '')), store: parseTxnStore(gmGet<string>(TXNS_KEY, '')) };
+      // prints belong to one spreadsheet: a new one gets every set
+      const kept = gmGet<{ id?: string; prints?: Prints }>(PRINTS_KEY, {});
+      const { done, prints } = await writeSets(sets, data, kept.id === g.spreadsheetId ? kept.prints ?? {} : {}, g, gmFetch(GM_xmlhttpRequest), () => {});
+      gmSet(PRINTS_KEY, { id: g.spreadsheetId, prints });
+      // the viewer is told only when something new is in the sheet
+      if (done.length) gmSet(SHEETS_KEY, JSON.stringify({ at: Date.now(), sets: done }));
+      badge.sheets(done.length ? `sheets: ${done.join(', ')} written ${time()}` : `sheets: nothing new ${time()}`);
+    },
+  });
+  gmWatch(GOOGLE_KEY, () => void sheetsQueue.retry());
 
   // the daily values for the chart (BalanceHistory), once a day after a read: 3Y the first time, then 1M
   let historyBusy = false;
@@ -117,8 +117,7 @@ function onPortfolio(): void {
         const next = { ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() };
         gmSet(DATASET_KEY, JSON.stringify(next));
         badge.status(`history: ${Object.keys(fresh).length} accounts updated ${time()}`);
-        lastWrite = Date.now();
-        void writeSheets(next);
+        void sheetsQueue.add(['summary']);
       }
     } catch (err) {
       badge.status(`!history: ${err instanceof Error ? err.message : String(err)}`);
@@ -139,6 +138,7 @@ function onPortfolio(): void {
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const { store, failed } = await readTransactions(stored.accounts, parseTxnStore(gmGet<string>(TXNS_KEY, '')) ?? EMPTY_STORE, stored.history, today, pagePost);
         gmSet(TXNS_KEY, JSON.stringify(store));
+        void sheetsQueue.add(['transactions']);
         badge.status(`transactions: ${store.rows.length} rows${failed.length ? `, !${failed.length} accounts wait for tomorrow` : ''} · ${time()}`);
       }
     } catch (err) {
@@ -166,7 +166,7 @@ function onPortfolio(): void {
       gmSet(DATASET_KEY, JSON.stringify(merged));
       gmSet(RUN_KEY, JSON.stringify({ status: 'done', at: Date.now(), accounts: merged.accounts.length, positions: merged.positions.length, message: ds.asOf }));
       badge.status(`read: ${ds.accounts.length} accounts, ${ds.positions.length} positions · ${time()}${watching() ? ' · watching' : ''}${ds.asOf ? `\n${ds.asOf}` : ''}`);
-      if (sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite })) { lastWrite = now; void writeSheets(merged); }
+      if (sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite })) { lastWrite = now; void sheetsQueue.add(['summary', 'positions']); }
       if (historyDue(merged.historyAt, new Date()) && !historyBusy) void syncHistory();
     } catch (err) {
       badge.status(`!read failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -280,24 +280,23 @@ function onViewer(): void {
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
-    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); post('fidelity-accounts:transactions', gmGet(TXNS_KEY, null)); }
+    if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
     // Fidelity login stays: 🔑 on Fidelity manages it)
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, SHEETS_KEY, PRINTS_KEY].forEach(gmDelete);
     if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); }
   });
-  post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null));
+  // no data crosses this bridge (one way data flow): only the signal that the sheet has new sets, the viewer reads them
+  // from the sheet; the run state, the login yes or no, 👀 and the contract report are status, not data
+  gmWatch(SHEETS_KEY, (v) => post('fidelity-accounts:sheets', v));
   post('fidelity-accounts:run', gmGet(RUN_KEY, null));
   post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) }));
-  gmWatch(DATASET_KEY, (v) => post('fidelity-accounts:dataset', v));
   gmWatch(RUN_KEY, (v) => post('fidelity-accounts:run', v));
   gmWatch(LOGIN_KEY, (v) => post('fidelity-accounts:login', JSON.stringify({ saved: !!v })));
   postWatch();
   gmWatch(WATCH_KEY, postWatch);
   post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null));
   gmWatch(CONTRACT_KEY, (v) => post('fidelity-accounts:contract', v));
-  post('fidelity-accounts:transactions', gmGet(TXNS_KEY, null));
-  gmWatch(TXNS_KEY, (v) => post('fidelity-accounts:transactions', v));
 }
 
 if (location.hostname === 'digital.fidelity.com' && isLoginPage(location.pathname)) onLogin();
