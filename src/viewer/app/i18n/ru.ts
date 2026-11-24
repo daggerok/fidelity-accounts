@@ -63,6 +63,7 @@ export const RU: Record<string, string> = {
   "Today's gain/loss": 'Изменение за сегодня',
   Today: 'Сегодня',
   'On average': 'В среднем',
+  'Sort by symbol': 'Сортировать по тикеру',
   Frequency: 'Частота',
   Account: 'Счёт',
   'Not settled yet: buys, sells and transfers in progress': 'Ещё не проведено: покупки, продажи и переводы в процессе',
