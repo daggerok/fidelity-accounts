@@ -9,6 +9,7 @@ import { COMMAND_KEY, freshCommand } from './command';
 import { DATASET_KEY, RUN_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
+import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, usableHandoff, writeFromUserscript } from './sheets-gm';
 import { isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
@@ -25,8 +26,6 @@ const FLOW_KEY = 'fidelity-accounts.loginFlowAt';
 const PASS_KEY = 'fidelity-accounts.loginPassAt';
 const REFUSED_KEY = 'fidelity-accounts.loginRefusedAt'; // the saved password was refused: no auto login until 🔑 Save
 const RESUME_MAX_AGE_MS = 30 * 60 * 1000;
-// quotes on the page update by themselves: a read nobody asked for is taken at most once per 10 minutes
-const AUTO_READ_GAP_MS = 10 * 60 * 1000;
 
 const time = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const onPositions = () => /\/portfolio\/positions/.test(location.pathname);
@@ -54,9 +53,13 @@ function loginHooks() {
 
 function onPortfolio(): void {
   let lastRead = 0;
-  const goPositions = () => { if (onPositions()) askGrid(); else location.href = POSITIONS_URL; };
+  let lastWrite = 0;
+  let asked = false; // the next copy of the grid was asked for (⬇, a command): taken at once, the sheet written at once
+  const watching = () => gmGet<boolean>(WATCH_KEY, false) === true;
+  const goPositions = () => { asked = true; if (onPositions()) askGrid(); else location.href = POSITIONS_URL; };
   const badge: Badge = mountBadge(VERSION, (a) => {
     if (a === 'read') { badge.status('reading the positions…'); goPositions(); }
+    if (a === 'watch') gmSet(WATCH_KEY, !watching());
     if (a === 'json') { const saved = gmGet<string | null>(DATASET_KEY, null); if (saved) download(`fidelity-accounts-${new Date().toISOString().slice(0, 10)}.json`, saved); }
   }, loginHooks());
   const how = injectPageReader();
@@ -91,20 +94,40 @@ function onPortfolio(): void {
     if (e.origin !== location.origin || !e.data || e.data.source !== PAGE_TAG) return;
     if (e.data.type === 'error') { badge.status(`!page reader: ${String(e.data.message)}`); return; }
     if (e.data.type !== 'grid' || typeof e.data.json !== 'string') return;
-    if (!e.data.forced && Date.now() - lastRead < AUTO_READ_GAP_MS) return;
-    lastRead = Date.now();
+    const now = Date.now();
+    const wasAsked = asked || e.data.forced === true;
+    if (!acceptRead({ asked: wasAsked, watching: watching(), now, lastRead })) return;
+    lastRead = now;
+    asked = false;
     try {
       const rows = JSON.parse(e.data.json) as GridRow[];
       const ds = buildDataset({ rows, sidebar: readSidebar(document), asOf: readAsOf(document), builtAt: new Date().toISOString() });
       const merged = mergeDatasets(parseDataset(gmGet<string>(DATASET_KEY, '')), ds);
       gmSet(DATASET_KEY, JSON.stringify(merged));
       gmSet(RUN_KEY, JSON.stringify({ status: 'done', at: Date.now(), accounts: merged.accounts.length, positions: merged.positions.length, message: ds.asOf }));
-      badge.status(`read: ${ds.accounts.length} accounts, ${ds.positions.length} positions · ${time()}${ds.asOf ? `\n${ds.asOf}` : ''}`);
-      void writeSheets(merged);
+      badge.status(`read: ${ds.accounts.length} accounts, ${ds.positions.length} positions · ${time()}${watching() ? ' · watching' : ''}${ds.asOf ? `\n${ds.asOf}` : ''}`);
+      if (sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite })) { lastWrite = now; void writeSheets(merged); }
     } catch (err) {
       badge.status(`!read failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
+
+  // 👀 Watch: press the page's own Refresh Positions every minute while it is on (a read, nothing changes on Fidelity)
+  let refreshTimer: ReturnType<typeof setInterval> | null = null;
+  const applyWatch = () => {
+    const on = watching();
+    badge.watching(on);
+    if (on && !onPositions()) { location.href = POSITIONS_URL; return; }
+    if (on && !refreshTimer) {
+      refreshTimer = setInterval(() => {
+        const b = findRefreshButton(document);
+        if (b) b.click(); else askGrid();
+      }, WATCH_REFRESH_MS);
+    }
+    if (!on && refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  };
+  applyWatch();
+  gmWatch(WATCH_KEY, applyWatch);
 
   // ⬇ Sync in the viewer: this tab was opened (or is reused) for it
   const takeCommand = (raw: unknown) => {
@@ -173,16 +196,18 @@ function onLogin(): void {
 function onViewer(): void {
   document.documentElement.dataset.fidelityAccountsUserscript = VERSION;
   const post = (type: string, json: unknown) => { if (typeof json === 'string') window.postMessage({ type, json }, location.origin); };
+  const postWatch = () => post('fidelity-accounts:watch', JSON.stringify({ on: gmGet<boolean>(WATCH_KEY, false) === true }));
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data) return;
     // the Google token after ☁️ and each silent renew: the Fidelity tab writes the fidelity_* tabs with it
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
+    if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
     if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null)); post('fidelity-accounts:run', gmGet(RUN_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
     // Fidelity login stays: 🔑 on Fidelity manages it)
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY].forEach(gmDelete);
-    if (e.data.type === 'fidelity-accounts:hello') post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) }));
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); }
   });
   post('fidelity-accounts:dataset', gmGet(DATASET_KEY, null));
   post('fidelity-accounts:run', gmGet(RUN_KEY, null));
@@ -190,6 +215,8 @@ function onViewer(): void {
   gmWatch(DATASET_KEY, (v) => post('fidelity-accounts:dataset', v));
   gmWatch(RUN_KEY, (v) => post('fidelity-accounts:run', v));
   gmWatch(LOGIN_KEY, (v) => post('fidelity-accounts:login', JSON.stringify({ saved: !!v })));
+  postWatch();
+  gmWatch(WATCH_KEY, postWatch);
 }
 
 if (location.hostname === 'digital.fidelity.com' && isLoginPage(location.pathname)) onLogin();

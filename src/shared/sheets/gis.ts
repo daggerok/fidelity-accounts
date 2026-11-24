@@ -252,6 +252,18 @@ export class GoogleAuth {
     });
   }
 
+  /**
+   * A token saved earlier and not expired yet (fidelity-accounts keeps it until it expires, owner 2026-11-23): used
+   * again with no Google window; false when it has less than the margin left
+   */
+  restore(t: Token): boolean {
+    if (!t || !t.value || t.expiresAt - this.now() <= MARGIN_MS) return false;
+    this.token = { value: t.value, expiresAt: t.expiresAt };
+    this.connectedOnce = true;
+    this.disabled = false;
+    return true;
+  }
+
   /** Disconnect: revoke and forget the token; get() fails until the next connect(). */
   disconnect(): void {
     const t = this.token;

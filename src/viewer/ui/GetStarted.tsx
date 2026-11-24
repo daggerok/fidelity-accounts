@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
-import { askSync, clearDemo, dataset, importFile, loginSaved, openFidelity, showDemo } from '../app/data';
+import { clearDemo, dataset, importFile, loginSaved, openFidelity, setWatch, showDemo } from '../app/data';
 import { APP_VERSION, isOlder } from '../app/version';
 import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
@@ -121,9 +121,9 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
     <div><button type="button" className="btn sm" onClick={openFidelity}>{t('Open Fidelity')}</button></div>
   </> });
   if (all || !s.data) steps.push({ key: 'sync', done: s.data, title: t('First sync'), body: <>
-    <span>{t('Press ⬇ Sync (here or in the navbar): Fidelity opens on Positions, the script reads it and the data appears here and in your sheet.')}</span>
+    <span>{t('Press 👀 Watch (here or in the navbar): Fidelity opens on Positions, the script reads it and the data appears here and in your sheet; while watching, the numbers follow the market.')}</span>
     <div className="flex flex-wrap gap-2">
-      <button type="button" className="btn sm primary" disabled={!s.script} onClick={askSync}>⬇ {t('Sync')}</button>
+      <button type="button" className="btn sm primary" disabled={!s.script} onClick={() => setWatch(true)}>👀 {t('Watch')}</button>
       <Needs when={!s.script} text={t('needs the script installed first')} />
       <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Look around with demo data')}</button>
     </div>
@@ -168,7 +168,7 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
           </ol>
           {!all && sheetsBox}
         </>
-      ) : <p className="text-sm text-slate-600 dark:text-slate-300">{t('All set: Sync whenever you want fresh numbers.')}</p>}
+      ) : <p className="text-sm text-slate-600 dark:text-slate-300">{t('All set: press 👀 to watch your numbers live.')}</p>}
     </div>
   );
 }

@@ -13,6 +13,23 @@ import { t } from './i18n';
 
 export const auth = new GoogleAuth({ config: loadConfig });
 
+// The Google sign-in is kept until the token expires (owner 2026-11-23: "google sso should be kept until its expired
+// then we will have to reconnect"): the access token (about 1 hour, scope spreadsheets) and its expiry live in
+// localStorage, so a reload reconnects with no Google window. Disconnect and Full reset remove it. A deviation from the
+// google-sheets-in-browser pattern (token in memory only), on the owner's request
+export const TOKEN_KEY = 'fidelity-accounts-google-token';
+function saveToken(): void {
+  const tok = auth.peek();
+  try { if (tok) localStorage.setItem(TOKEN_KEY, JSON.stringify(tok)); } catch { /* private window: memory only */ }
+}
+function savedToken(): { value: string; expiresAt: number } | null {
+  try {
+    const t = JSON.parse(localStorage.getItem(TOKEN_KEY) ?? 'null') as { value?: string; expiresAt?: number } | null;
+    return t && typeof t.value === 'string' && typeof t.expiresAt === 'number' ? { value: t.value, expiresAt: t.expiresAt } : null;
+  } catch { return null; }
+}
+const dropToken = (): void => { try { localStorage.removeItem(TOKEN_KEY); } catch { /* blocked storage */ } };
+
 export interface SheetsState { connected: boolean; busy: boolean; log: string[]; lastWritten: string | null; error: string | null }
 export const sheets = createStore<SheetsState>({ connected: false, busy: false, log: [], lastWritten: null, error: null });
 
@@ -38,6 +55,7 @@ export async function writeNow(ds: Dataset): Promise<void> {
 
 // the token for the userscript; renewed silently every 10 minutes while connected
 export function handOff(): void {
+  saveToken();
   const tok = auth.peek();
   const spreadsheetId = loadConfig().spreadsheetId;
   if (!tok || !spreadsheetId) return;
@@ -58,12 +76,25 @@ function keepFresh(): void {
 export async function connectGoogle(): Promise<void> {
   try {
     await auth.connect();
+    // the "consented once" mark: the next connects of this browser ask Google silently, no consent screen again
+    if (!loadConfig().email) saveConfig({ email: 'consented' });
+    await connected(t('connected to Google'));
+  } catch (err) {
+    sheets.set((s) => ({ ...s, connected: false, error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+async function connected(line: string): Promise<void> {
+  try {
     sheets.set((s) => ({ ...s, connected: true, error: null }));
-    add(t('connected to Google'));
+    add(line);
     handOff();
     keepFresh();
+    // connected = the data comes by itself (owner 2026-11-23: "without any other clicks"): nothing shown yet, or only
+    // the demo, reads the sheet; data already here goes to the sheet
     const { ds, source } = dataset.get();
-    if (worthWriting(ds, source)) { latest = ds; await drainWrites(); }
+    if (!ds || source === 'demo') await loadFromSheets();
+    else if (worthWriting(ds, source)) { latest = ds; await drainWrites(); }
   } catch (err) {
     sheets.set((s) => ({ ...s, connected: false, error: err instanceof Error ? err.message : String(err) }));
   }
@@ -71,6 +102,7 @@ export async function connectGoogle(): Promise<void> {
 
 export function disconnectGoogle(): void {
   auth.disconnect();
+  dropToken();
   window.postMessage({ type: 'fidelity-accounts:google', json: JSON.stringify({ token: '', expiresAt: 0, spreadsheetId: '' }) }, location.origin);
   sheets.set((s) => ({ ...s, connected: false }));
   add(t('disconnected'));
@@ -127,7 +159,12 @@ const markDeclined = (): void => { try { sessionStorage.setItem(DECLINED_KEY, '1
 
 export function autoConnectGoogle(doc: Document = document): void {
   const cfg = loadConfig();
-  if (!cfg.clientId || !cfg.spreadsheetId || declined() || sheets.get().connected) return;
+  if (!cfg.clientId || !cfg.spreadsheetId || sheets.get().connected) return;
+  // a saved token that has not expired: connected at once, no Google window
+  const saved = savedToken();
+  if (saved && auth.restore(saved)) { void connected(t('connected to Google (saved sign-in)')); return; }
+  dropToken();
+  if (declined()) return;
   const onGesture = () => {
     doc.removeEventListener('pointerdown', onGesture, true);
     doc.removeEventListener('keydown', onGesture, true);
@@ -135,17 +172,13 @@ export function autoConnectGoogle(doc: Document = document): void {
     void connectGoogle().then(() => { if (!sheets.get().connected) markDeclined(); });
   };
   void connectGoogle().then(() => {
-    if (sheets.get().connected) { void loadIfEmpty(); return; }
+    if (sheets.get().connected) return;
     sheets.set((s) => ({ ...s, error: null }));
     doc.addEventListener('pointerdown', onGesture, true);
     doc.addEventListener('keydown', onGesture, true);
   });
 }
 
-// another computer without the script: nothing shown yet, so read the sheet once after connecting
-async function loadIfEmpty(): Promise<void> {
-  if (!dataset.get().ds) await loadFromSheets();
-}
 
 /** ↻ the fidelity_accounts and fidelity_positions tabs back into the viewer */
 export async function loadFromSheets(): Promise<void> {

@@ -15,9 +15,9 @@ Script: https://daggerok.github.io/fidelity-accounts/fidelity-accounts-sync.user
 3. Google Sheet: press Create a spreadsheet, or paste the link of your own
 4. Install [Tampermonkey](https://www.tampermonkey.net/). In Chrome open its extension details, turn on Allow User Scripts and allow the sites `digital.fidelity.com` and `daggerok.github.io`. Open the script link above, press Install, reload the viewer
 5. Optional: open Fidelity, press 🔑 in the script's corner panel and save your username and password. The script then logs in by itself when Fidelity asks; a one-time code you type yourself
-6. Press ⬇ in the navbar: Fidelity opens on Positions, the script reads it, the data shows up in the viewer and in the sheet
+6. Press 👀 in the navbar: Fidelity opens on Positions, the script reads it, the data shows up in the viewer and in the sheet. While 👀 is on, Positions refresh every minute and the numbers in the viewer follow the market; press 👀 again to stop
 
-Later just press ⬇. On another computer: Connect Google and the viewer loads the data back from the sheet, no script needed. Demo data with made-up accounts is one click away in ⚙️ Settings
+Once Google is connected the data comes by itself: from the sheet, or with 👀 started for you when the sheet is empty. The Google sign-in is kept until it expires (about an hour), so a reload needs no click; ☁️ shows in the navbar only while Google is not connected, Disconnect is in ⚙️. On another computer: Connect Google and the data loads from the sheet, no script needed. Demo data with made-up accounts is one click away in ⚙️ Settings
 
 ## How it works
 
@@ -31,11 +31,11 @@ digital.fidelity.com (you are logged in)     daggerok.github.io/fidelity-account
 +-------------------------------+            +------------------------------+          +-------------------+
 ```
 
-- The Positions page keeps Fidelity's own answer (about 100 fields per position) in its grid. A tiny reader in the page copies those rows, nothing is clicked and no extra request is sent. Reads happen when you press ⬇, and by themselves at most every 10 minutes while the page is open
+- The Positions page keeps Fidelity's own answer (about 100 fields per position) in its grid. A tiny reader in the page copies those rows, no extra request is sent. It reads once when Positions opens and when you press ⬇ on the corner panel; with 👀 on it presses the page's own Refresh Positions button every minute (a read) and hands the changes to the viewer at most every 30 seconds, to the sheet at most every 10 minutes
 - The account list on the left gives the groups (Investment, Retirement) and balances
 - The viewer hands its Google token to the script, so the Fidelity tab writes the sheet right after a read. Without a token the data waits until the viewer is open and connected
 - At the bottom of ⚙️ Settings: Reset view (theme, language, account, tab, sort, columns, panels; the setup stays) and Full reset, off until its switch is ticked (also the Google setup and the cached data; the script forgets its data and Google token, the Fidelity login stays under 🔑)
-- What the browser keeps: the public Client ID and the spreadsheet id (localStorage), the last data (IndexedDB), your choices: account, tab, sort, columns, theme, language. The Google token stays in memory. The Fidelity login, if saved, lives only in the script's Tampermonkey storage
+- What the browser keeps: the public Client ID and the spreadsheet id (localStorage), the last data (IndexedDB), your choices: account, tab, sort, columns, theme, language. The Google token and its expiry stay in localStorage until it expires. The Fidelity login, if saved, lives only in the script's Tampermonkey storage
 
 Sheet tabs:
 

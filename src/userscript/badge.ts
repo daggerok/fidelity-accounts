@@ -6,11 +6,12 @@ export const MIN_KEY = 'fidelity-accounts-badge-minimized';
 // the saved user name shown on the panel: its first 3 characters and stars; short names show less
 export const maskUser = (u: string): string => `${u.slice(0, Math.min(3, Math.max(1, u.length - 2)))}****`;
 
-export type Action = 'read' | 'json';
+export type Action = 'read' | 'json' | 'watch';
 
 export interface Badge {
   status(line: string): void;
   sheets(note: string): void;
+  watching(on: boolean): void;
   host: HTMLElement;
 }
 
@@ -53,6 +54,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
         <button data-m="login" title="Optional: your Fidelity login, so the script logs in by itself">🔑</button>
         <button class="min" data-m="minimize" title="Minimize to a small icon">–</button></div>
       <div class="row">
+        <button data-a="watch" title="Watch: refresh Positions every minute and hand the changes to the viewer">👀 Watch</button>
         <button data-a="read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇ Read now</button>
         <button data-a="json" title="Download the last read as JSON">{} JSON</button>
       </div>
@@ -117,5 +119,11 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       q('.ml').textContent = /^read:/.test(line) ? '✓' : '';
     },
     sheets(note) { q('[data-sheets-line]').textContent = note; q('[data-sheets-line]').title = note; },
+    watching(on) {
+      const b = q('[data-a="watch"]');
+      b.textContent = on ? '⏸ Stop watching' : '👀 Watch';
+      b.style.background = on ? '#368727' : '';
+      host.dataset.watching = on ? 'yes' : 'no';
+    },
   };
 }
