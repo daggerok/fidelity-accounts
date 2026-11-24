@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { ALL_PERIODS, PERIODS, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
+import { ALL_PERIODS, PERIODS, periodLabel, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
 
 // weekdays only, like market closes, from 2025-10-15 to 2026-11-20 (a Friday), value = day number
 function closes(from: string, to: string): Point[] {
@@ -48,7 +48,9 @@ test('periods start at the right close', () => {
   expect(start('2W')).toBe('2026-11-06');
   expect(start('10M')).toBe('2026-01-20');
   expect(start('11M')).toBe('2025-12-19'); // Dec 20 2025 is a Saturday
-  expect(start('2Q')).toBe(start('6M'));
+  expect(periodLabel('6M')).toBe('6M/2Q');
+  expect(periodLabel('3Q')).toBe('9M/3Q');
+  expect(start('3Q')).toBe('2026-02-20'); // 9 months back
   expect(PERIODS.every((p) => (ALL_PERIODS as readonly string[]).includes(p))).toBe(true);
   // month ends clamp: from Mar 31 one month back is Feb 28
   const m = closes('2026-02-02', '2026-03-31');

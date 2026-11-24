@@ -1,4 +1,4 @@
-import { ALL_PERIODS, PERIODS, changeOf, periodSlice, type Period, type Point } from '../../shared/history';
+import { ALL_PERIODS, PERIODS, changeOf, periodLabel, periodSlice, type Period, type Point } from '../../shared/history';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { LineChart } from './LineChart';
@@ -30,7 +30,7 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
       {ALL_PERIODS.filter((p) => all || p === period || (PERIODS as readonly string[]).includes(p)).map((p) => (
         <button key={p} type="button" role="tab" aria-selected={p === period} onClick={() => setPrefs({ period: p as Period })}
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${p === period ? 'text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}
-          style={p === period ? { background: 'var(--brand)' } : undefined}>{p}</button>
+          style={p === period ? { background: 'var(--brand)' } : undefined}>{periodLabel(p)}</button>
       ))}
     </div>
   );

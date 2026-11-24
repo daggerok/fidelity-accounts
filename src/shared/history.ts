@@ -54,7 +54,13 @@ export function combine(history: History | undefined, accounts: string[]): Point
 // owner 2026-11-24: no 2D, 2W, 2M, 2Q, 2Y; 6M for half a year
 export const PERIODS = ['1D', '3D', 'WTD', '1W', '3W', 'MTD', '1M', '3M', 'QTD', '1Q', '3Q', '6M', 'YTD', '1Y', '3Y'] as const;
 /** the zoomed chart has room for every step (owner 2026-11-24: 2D 2W 2M 4M 5M 7M..11M 2Q 2Y too), shortest first */
-export const ALL_PERIODS = ['1D', '2D', '3D', 'WTD', '1W', '2W', '3W', 'MTD', '1M', '2M', '3M', 'QTD', '1Q', '4M', '5M', '2Q', '6M', '7M', '8M', '3Q', '9M', '10M', '11M', 'YTD', '1Y', '2Y', '3Y'] as const;
+// 2Q is 6M and 3Q is 9M: one chip each, 6M/2Q and 9M/3Q (owner 2026-11-24)
+export const ALL_PERIODS = ['1D', '2D', '3D', 'WTD', '1W', '2W', '3W', 'MTD', '1M', '2M', '3M', 'QTD', '1Q', '4M', '5M', '6M', '7M', '8M', '3Q', '10M', '11M', 'YTD', '1Y', '2Y', '3Y'] as const;
+const LABELS: Partial<Record<string, string>> = { '6M': '6M/2Q', '3Q': '9M/3Q' };
+/** the chip text of a period */
+export const periodLabel = (p: string): string => LABELS[p] ?? p;
+/** a period saved before the merge */
+export const periodAlias = (p: string): string => (p === '2Q' ? '6M' : p === '9M' ? '3Q' : p);
 export type Period = (typeof ALL_PERIODS)[number];
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
