@@ -14,7 +14,7 @@ const seed = () => {
   ['fidelity-accounts.prefs', 'fidelity-accounts-theme', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-gs-config', 'other-app.setting'].forEach((k) => localStorage.setItem(k, '1'));
 };
 
-test('Reset view clears the look and the choices, never the Google setup or a neighbour app's key', async () => {
+test('Reset view clears the look and the choices, never the Google setup or a neighbour app key', async () => {
   const { resetView } = await import('./prefs');
   seed();
   let reloaded = false;
@@ -27,7 +27,7 @@ test('Reset view clears the look and the choices, never the Google setup or a ne
   expect(localStorage.getItem('fidelity-accounts.lang')).toBeNull();
 });
 
-test('Full reset clears every key of this app (Google setup too), asks the script to forget, keeps a neighbour app's key', async () => {
+test('Full reset clears every key of this app (Google setup too), asks the script to forget, keeps a neighbour app key', async () => {
   const { fullReset } = await import('./reset');
   seed();
   sessionStorage.setItem('fidelity-accounts-setup-later', '1');
