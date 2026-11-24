@@ -4,7 +4,8 @@
 import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../fixtures/grid';
 import { buildDataset } from '../parse';
-import { balanceRows, changedSets, datasetFromTabs, dayOf, fingerprint, parseSignal, positionRows, syncedRows, txnStoreFromTabs, wideRows } from './sync';
+import { SheetsError } from './client';
+import { balanceRows, changedSets, readSets, datasetFromTabs, dayOf, fingerprint, parseSignal, positionRows, syncedRows, txnStoreFromTabs, wideRows } from './sync';
 import { ACCOUNTS, BALANCES, POSITIONS, TAB_NAMES, TRANSACTIONS, TXN_SYNCED } from './tabs';
 import type { TxnStore } from '../transactions';
 
@@ -78,4 +79,12 @@ test('a set with the same content has the same print, whatever the read time', (
   expect(fingerprint('positions', moved)).not.toBe(fingerprint('positions', data)!);
   expect(fingerprint('transactions', { ds, store: null })).toBeNull();
   expect(fingerprint('summary', { ds: null, store })).toBeNull();
+});
+
+test('a tab not created yet reads as empty, other errors still fail the read', async () => {
+  const fake = (failing: string, status: number) => ({
+    readRows: async <T,>(spec: { name: string }): Promise<T[]> => { if (spec.name === failing) throw new SheetsError(`Google Sheets ${status} on read ${spec.name}`, status); return []; },
+  });
+  expect(await readSets(fake(TXN_SYNCED.name, 400), ['transactions'])).toEqual({ txns: [], synced: [] });
+  await expect(readSets(fake(POSITIONS.name, 500), ['positions'])).rejects.toThrow('500');
 });
