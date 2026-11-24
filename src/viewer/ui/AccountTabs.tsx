@@ -6,7 +6,8 @@ import type { Scope } from '../app/prefs';
 import { EdgeScrollRow } from './EdgeScrollRow';
 import { signedPct, tone, usd } from './format';
 
-// The accounts strip (owner 2026-11-23): one line per chip. It lives in the navbar between the logo and the buttons and
+// The accounts strip (owner 2026-11-23): one line per chip. No view-transition names here (owner 2026-11-24 glitch): a
+// named chip leaves the strip's clip during a card transition and flashes past its right edge. It lives in the navbar between the logo and the buttons and
 // scrolls sideways with fading edges and ‹ › (owner 2026-11-24: like the gex Expirations panel). Accounts are the solid, bold chips and
 // the groups (All accounts, Investment, Retirement) light outlined ones (owner 2026-11-24: accounts look more permanent
 // than groups), so a section never looks like an account. A click on All accounts or a group folds or unfolds it (All
@@ -46,7 +47,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
   );
   const accountChip = (a: Account) => (
     <div key={a.number} role="button" tabIndex={0} className={`${chip('account', scope === `account:${a.number}`)} ${over === a.number ? 'outline-2 outline-dashed outline-[var(--brand)]' : ''} ${dragged?.number === a.number ? 'opacity-50' : ''}`}
-      title={t('{name} {number}: drag to move', { name: a.name, number: a.number })} style={{ viewTransitionName: `chip-${a.number}` } as React.CSSProperties}
+      title={t('{name} {number}: drag to move', { name: a.name, number: a.number })}
       draggable onDragStart={(e) => { setDragged({ number: a.number, group: a.group }); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', a.number); }}
       onDragEnd={() => { setDragged(null); setOver(null); }}
       onDragOver={(e) => { if (dragged && dragged.group === a.group && dragged.number !== a.number) { e.preventDefault(); setOver(a.number); } }}
@@ -83,7 +84,6 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
         };
         return (
           <div key={g.name} className={`flex flex-none items-center border-l border-slate-200 pl-1.5 dark:border-slate-700 ${overGroup === g.name ? 'rounded-lg outline-2 outline-dashed outline-[var(--brand)]' : ''} ${draggedGroup === g.name ? 'opacity-50' : ''}`}
-            style={{ viewTransitionName: `group-${g.name.replace(/\W/g, '')}` } as React.CSSProperties}
             onDragOver={(e) => { if (draggedGroup && draggedGroup !== g.name) { e.preventDefault(); setOverGroup(g.name); } }}
             onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverGroup((o) => (o === g.name ? null : o)); }}
             onDrop={(e) => { if (draggedGroup && draggedGroup !== g.name) { e.preventDefault(); onMoveGroup(draggedGroup, g.name); } setDraggedGroup(null); setOverGroup(null); }}>
