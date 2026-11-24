@@ -96,6 +96,13 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .dark .pos-table tr.cash-row{background:rgba(234,179,8,.08)}
 .dark .pos-table tr.total-row{background:#172033}
 
+/* accounts bar folds (owner 2026-11-24: slide left into the group and right out of it, no jumps): the width goes
+   from 0fr to 1fr; the inner padding keeps the chips' rings and the gap to the group chip inside the clip */
+.hslide{display:grid;grid-template-columns:0fr;opacity:0;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1),opacity .25s ease-out}
+.hslide.open{grid-template-columns:1fr;opacity:1}
+.hslide>div{display:flex;align-items:center;gap:.375rem;min-width:0;overflow:hidden;padding:2px 2px 2px .375rem;margin:-2px -2px -2px 0}
+@media (prefers-reduced-motion:reduce){.hslide{transition:none}}
+
 /* card morphs on layout changes (src/viewer/ui/animate.ts): boxes glide to their new size and place */
 ::view-transition-group(*) { animation-duration: 260ms; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
 ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 200ms; }
