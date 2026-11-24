@@ -157,21 +157,21 @@ export function App() {
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
-          <div className="flex flex-col gap-4 pt-1 lg:gap-6 lg:pt-3">
-            {/* the navbar to the tab label as far as the tab underline to the cards, equal to the page gutter: 16 px below lg,
-                24 px from lg (owner 2026-11-24: consistent, measured live): the tab carries about 12 px of its own above the letters */}
-            <main className="flex flex-col gap-4 lg:gap-6" data-tab={pr.tab}>
+          <div className="flex flex-col">
+            {/* the tabs live inside the gutter between the navbar and the cards (owner 2026-11-24: "text for tabs shouldn't be
+                counted at all, text simply should be rendered in between"): the row is exactly one gutter tall (16 px below
+                lg, 24 px from lg), the text is centered in it, the selected tab is told by its color, no underline */}
+            <main className="flex flex-col" data-tab={pr.tab}>
               {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
-                  time after it; only the current tab is underlined, no line across the row */}
-              <div className="flex flex-wrap items-end gap-x-6" role="tablist">
+                  time after it (ours: Fidelity's "As of" keeps the page load time after Refresh Positions); one line that never wraps,
+                  the title truncates instead */}
+              <div className="flex h-4 items-center gap-x-6 text-sm leading-none lg:h-6 lg:text-base" role="tablist">
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
-                {/* measured live (owner 2026-11-24: same space above and below): 5 px under it puts the name 27 px under the
-                    navbar and 27 px over the cards */}
-                <div className="ml-auto flex min-w-0 items-baseline gap-3 pb-[5px] pt-[0.6rem]" data-scope-title>
+                <div className="ml-auto flex min-w-0 items-baseline gap-3" data-scope-title>
                   <span className="truncate font-medium text-slate-900 dark:text-slate-100" title={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined}>{title}</span>
-                  <span className="flex-none text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
+                  <span className="flex-none text-xs leading-none text-slate-500 dark:text-slate-400">{t('read {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
                 </div>
               </div>
               {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
