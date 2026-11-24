@@ -19,9 +19,11 @@ export interface Prefs {
   hidden: string[]; // positions columns switched off
   period: Period; // the balance chart's period
   allocView: 'bars' | 'pie'; // the allocation cards
+  moversBy: 'pct' | 'usd'; // top and bottom movers by % or $
+  accountSort: 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', allocView: 'pie' };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', allocView: 'pie', moversBy: 'pct', accountSort: 'value' };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -35,6 +37,8 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
       period: (PERIODS as readonly string[]).indexOf(String(p.period)) >= 0 ? (p.period as Period) : '1Y',
       allocView: p.allocView === 'bars' ? 'bars' : 'pie',
+      moversBy: p.moversBy === 'usd' ? 'usd' : 'pct',
+      accountSort: ['value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'value',
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {

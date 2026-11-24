@@ -20,7 +20,24 @@ export function groupsOf(ds: Dataset): Group[] {
 export function accountsIn(ds: Dataset, scope: Scope): Account[] {
   if (scope.startsWith('group:')) return ds.accounts.filter((a) => a.group === scope.slice(6));
   if (scope.startsWith('account:')) return ds.accounts.filter((a) => a.number === scope.slice(8));
+  if (scope.startsWith('set:')) { const set = new Set(scope.slice(4).split(',')); return ds.accounts.filter((a) => set.has(a.number)); }
   return ds.accounts;
+}
+
+/** any set of accounts as the shortest scope: all of them = 'all', exactly a group = 'group:', one = 'account:' */
+export function scopeOf(ds: Dataset, numbers: string[]): Scope {
+  const set = new Set(numbers.filter((n) => ds.accounts.some((a) => a.number === n)));
+  if (!set.size || set.size === ds.accounts.length) return 'all';
+  if (set.size === 1) return `account:${Array.from(set)[0]}`;
+  const group = groupsOf(ds).find((g) => g.accounts.length === set.size && g.accounts.every((a) => set.has(a.number)));
+  if (group) return `group:${group.name}`;
+  return `set:${ds.accounts.filter((a) => set.has(a.number)).map((a) => a.number).join(',')}`;
+}
+
+/** the account checkbox (owner 2026-11-23: "only Elena and Elena ROTH IRA"): adds or removes one account */
+export function toggleAccount(ds: Dataset, scope: Scope, number: string): Scope {
+  const now = accountsIn(ds, scope).map((a) => a.number);
+  return scopeOf(ds, now.includes(number) ? now.filter((n) => n !== number) : now.concat(number));
 }
 
 /** a scope that no longer exists (account closed, other data) falls back to all accounts */
@@ -56,17 +73,31 @@ export function positionsIn(ds: Dataset, accounts: Account[]): Position[] {
 
 export const securities = (ps: Position[]): Position[] => ps.filter((p) => p.kind === 'position');
 
-/** top and bottom by today's gain % (one symbol held in several accounts counts once, with its summed dollars) */
-export function movers(ps: Position[], n = 5): { top: Position[]; bottom: Position[] } {
+/**
+ * Top and bottom movers of today by % or by $ (owner 2026-11-23: two modes, different tickers by $). One symbol held in
+ * several accounts counts once, its dollars summed. The top list goes from the best down; the bottom list ends with the
+ * one that lost most, so the worst sits at the very bottom of the card
+ */
+export function movers(ps: Position[], n = 5, by: 'pct' | 'usd' = 'pct'): { top: Position[]; bottom: Position[] } {
   const bySymbol = new Map<string, Position>();
   securities(ps).forEach((p) => {
     const cur = bySymbol.get(p.symbol);
     if (!cur) bySymbol.set(p.symbol, { ...p });
     else bySymbol.set(p.symbol, { ...cur, todayGl: (cur.todayGl ?? 0) + (p.todayGl ?? 0), currentValue: (cur.currentValue ?? 0) + (p.currentValue ?? 0) });
   });
-  const list = Array.from(bySymbol.values()).filter((p) => typeof p.todayGlPct === 'number');
-  list.sort((a, b) => (b.todayGlPct ?? 0) - (a.todayGlPct ?? 0));
-  return { top: list.slice(0, n).filter((p) => (p.todayGlPct ?? 0) > 0), bottom: list.slice(-n).reverse().filter((p) => (p.todayGlPct ?? 0) < 0) };
+  const key = (p: Position) => (by === 'usd' ? p.todayGl : p.todayGlPct) ?? 0;
+  const list = Array.from(bySymbol.values()).filter((p) => typeof (by === 'usd' ? p.todayGl : p.todayGlPct) === 'number');
+  list.sort((a, b) => key(b) - key(a));
+  return { top: list.slice(0, n).filter((p) => key(p) > 0), bottom: list.slice(-n).filter((p) => key(p) < 0) };
+}
+
+export const ACCOUNT_SORTS = ['value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
+export type AccountSort = (typeof ACCOUNT_SORTS)[number];
+
+/** the Accounts card order (owner 2026-11-23): by value, or by today's or total P&L in $ or %; largest first */
+export function sortAccounts(accounts: Account[], by: AccountSort): Account[] {
+  const v = (a: Account): number => (by === 'value' ? a.balance : by === 'todayUsd' ? a.todayGl : by === 'todayPct' ? a.todayGlPct : by === 'totalUsd' ? a.totalGl : a.totalGlPct) ?? -Infinity;
+  return accounts.slice().sort((a, b) => v(b) - v(a));
 }
 
 export interface Slice { name: string; value: number; pct: number }
@@ -85,15 +116,27 @@ export function allocation(ps: Position[], by: (p: Position) => string | undefin
   return out.sort((a, b) => b.value - a.value);
 }
 
-/** ex-dividend dates from today on, soonest first */
-export function upcomingDividends(ps: Position[], today: string, days = 30): Position[] {
+/**
+ * Ex-dividend dates from today on, soonest first; one line per symbol with `payout` = dividend per share times the
+ * shares held in the shown accounts (owner 2026-11-23: "my value of dividends, not per share"). An estimate: the shares
+ * held on the ex-date decide
+ */
+export type Upcoming = Position & { shares: number; payout?: number };
+export function upcomingDividends(ps: Position[], today: string, days = 30): Upcoming[] {
   const end = new Date(`${today}T00:00:00Z`);
   end.setUTCDate(end.getUTCDate() + days);
   const last = end.toISOString().slice(0, 10);
-  // one line per symbol (held in several accounts it shows once, with its earliest date)
-  const seen = new Set<string>();
-  return securities(ps).filter((p) => p.exDate && p.exDate >= today && p.exDate <= last).sort((a, b) => (a.exDate! < b.exDate! ? -1 : 1))
-    .filter((p) => (seen.has(p.symbol) ? false : (seen.add(p.symbol), true)));
+  const due = securities(ps).filter((p) => p.exDate && p.exDate >= today && p.exDate <= last);
+  const bySymbol = new Map<string, Upcoming>();
+  due.forEach((p) => {
+    const cur = bySymbol.get(p.symbol);
+    const shares = (cur?.shares ?? 0) + (p.quantity ?? 0);
+    const first = !cur || p.exDate! < cur.exDate! ? p : cur;
+    bySymbol.set(p.symbol, { ...first, shares });
+  });
+  return Array.from(bySymbol.values())
+    .map((u) => ({ ...u, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * u.shares * 100) / 100 : undefined }))
+    .sort((a, b) => (a.exDate! < b.exDate! ? -1 : a.exDate! > b.exDate! ? 1 : 0));
 }
 
 /** where the last price sits in the 52-week range, 0..1, or null */

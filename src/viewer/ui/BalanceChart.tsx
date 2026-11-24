@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PERIODS, changeOf, periodSlice, type Period, type Point } from '../../shared/history';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
-import { ChartZoom } from './ChartZoom';
+import { Zoom } from './Zoom';
 import { LineChart } from './LineChart';
 import { signedPct, signedUsd, tone } from './format';
 import { useStore } from './useStore';
@@ -35,11 +35,11 @@ export function BalanceChart({ series }: { series: Point[] }) {
       </div>
       <LineChart points={slice} up={up} height={180} />
       {chips}
-      <ChartZoom open={zoom} title={t('Balance')} onClose={() => setZoom(false)}>
+      <Zoom open={zoom} title={t('Balance')} onClose={() => setZoom(false)}>
         {head}
         <LineChart points={slice} up={up} height={Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6))} />
         {chips}
-      </ChartZoom>
+      </Zoom>
     </div>
   );
 }
