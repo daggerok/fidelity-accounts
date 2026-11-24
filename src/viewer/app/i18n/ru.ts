@@ -29,7 +29,6 @@ export const RU: Record<string, string> = {
   'received {paid} of {total}; coming {coming}': 'получено {paid} из {total}; ожидается {coming}',
   '{n} accounts': 'счетов: {n}',
   'Show {name}': 'Показать {name}',
-  'No accounts selected: tick some above': 'Счета не выбраны: отметь нужные выше',
 
   // summary
   Balance: 'Баланс',
