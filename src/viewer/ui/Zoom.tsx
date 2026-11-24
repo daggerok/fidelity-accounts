@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '../app/i18n';
+import { CORNER_BUTTON, CloseIcon } from './icons';
 
 // A card or a chart drawn big on top of the page (owner 2026-11-23: maximize and minimize for every plate where it makes
 // sense; ✕, a click anywhere outside or Esc puts it back). Zoom in and out (owner 2026-11-24: "I want to see some
@@ -54,7 +55,7 @@ export function Zoom({ open, title, onClose, children, tools, origin }: { open: 
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">{title}</h2>
           {tools && <span className="-my-1 flex items-center gap-1">{tools}</span>}
-          <button type="button" className="tb -my-1 -mr-2 ml-auto" title={t('Close')} onClick={onClose}>✕</button>
+          <button type="button" className={`${CORNER_BUTTON} ml-auto`} title={t('Close')} onClick={onClose}><CloseIcon /></button>
         </div>
         {children}
       </div>
