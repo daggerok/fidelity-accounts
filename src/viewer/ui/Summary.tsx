@@ -289,10 +289,12 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
             the total is in whole dollars; on a narrow card they wrap */}
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-3" data-income>
           {[{ key: 'Y', v: incY }, { key: 'Q', v: incQ }, { key: 'M', v: incM }].map(({ key, v }) => (
-            <div key={key} className="flex-auto" data-income-period={key} title={t('received {paid} of {total}; coming {coming}', { paid: usd(v.paid), total: usd(v.total), coming: usd(v.coming) })}>
+            // received so far is a fact only the transactions history gives (owner 2026-11-24: the estimate from today's
+            // shares overstated it): -- until it is read; the total is the plan at today's holdings
+            <div key={key} className="flex-auto" data-income-period={key} title={t('planned {total} at today\'s holdings; still to come {coming}', { total: usd(v.total), coming: usd(v.coming) })}>
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
-              <div className="num whitespace-nowrap"><span className="text-xl font-semibold sm:text-2xl">{usd(v.paid)}</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
-              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
+              <div className="num whitespace-nowrap"><span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history')}>--</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
+              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800" />
               {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
               {/* Fidelity's annual estimate spread over the quarter or the month (owner 2026-11-24: "On average", not under the
