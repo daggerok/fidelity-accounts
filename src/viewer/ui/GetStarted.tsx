@@ -69,6 +69,26 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
 
+  // the data part (owner 2026-11-23): where the data comes from, the script and the login, import and demo; it lives in
+  // the script step, so that step always shows (ticked once the script is installed)
+  const dataBlock = (
+    <div className="mt-1 flex flex-col gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700" data-data>
+      <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf && d.source !== 'demo' ? ` · ${d.ds.asOf}` : ''}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span>{t('Script')}: {userscript ? <b>{userscript}</b> : t('not seen on this page')}</span>
+        {userscript && isOlder(userscript, APP_VERSION) && <a className="btn sm primary" href="./fidelity-accounts-sync.user.js" data-update-script>{t('Update to {version}', { version: APP_VERSION })}</a>}
+        <span>{t('Fidelity login in the script')}: <b>{login === null ? '—' : login ? t('saved') : t('not saved')}</b></span>
+        <button type="button" className="btn sm" onClick={openFidelity}>{t('Open Fidelity')}</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
+        {d.source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Show demo data')}</button>}
+        <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
+      </div>
+      <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
+    </div>
+  );
+
   const steps: Array<{ key: string; title: string; optional?: boolean; done?: boolean; body: React.ReactNode }> = [];
   if (all || !s.clientId) steps.push({ key: 'client', done: s.clientId, title: t('Google OAuth Client ID'), body: <>
     <span>{t('In console.cloud.google.com: enable the Google Sheets API, set the OAuth consent screen to External with your email under Test users, then create an OAuth client ID of type Web application with this authorized JavaScript origin:')} {CODE(origin)}</span>
@@ -88,12 +108,13 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
     </div>
     <MaskedField label={t('Spreadsheet link or ID')} value={cfg.spreadsheetId} mask={(v) => (v.includes('/d/') ? maskSpreadsheetUrl(v) : mask(v))} placeholder="https://docs.google.com/spreadsheets/d/1abc…/edit" onChange={(v) => change({ spreadsheetId: v.trim() })} />
   </> });
-  if (all || !s.script) steps.push({ key: 'script', done: s.script, title: t('Tampermonkey and the sync script'), body: <>
+  steps.push({ key: 'script', done: s.script, title: t('Tampermonkey and the sync script'), body: <>
     <span>{t('Install Tampermonkey from tampermonkey.net. In Chrome open its extension details: turn on Allow User Scripts and give it site access to digital.fidelity.com and {host}. Then open the script and press Install, and reload this page.', { host: typeof location === 'undefined' ? '' : location.hostname })}</span>
     <div className="flex flex-wrap gap-2">
       <a className="btn sm" href="https://www.tampermonkey.net/" target="_blank" rel="noreferrer">Tampermonkey</a>
       <a className={`btn sm ${s.script ? '' : 'primary'}`} href="./fidelity-accounts-sync.user.js" data-install-script>{s.script ? t('Reinstall') : t('Install the script')}</a>
     </div>
+    {dataBlock}
   </> });
   if (all || (s.script && !s.login)) steps.push({ key: 'login', optional: true, done: s.login, title: t('Fidelity login in the script'), body: <>
     <span>{t('Open Fidelity: the script shows a small panel in the corner. Press 🔑 there and save your username and password: they stay in Tampermonkey storage only, and the script logs in by itself when Fidelity asks (a one-time code you type yourself). Skip it to log in yourself.')}</span>
@@ -143,27 +164,11 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
           <p className="text-sm text-slate-600 dark:text-slate-300">{all ? t('The setup steps; the ticked ones are done.') : t('Your Fidelity data stays yours: a Tampermonkey script reads the Positions page in your own logged-in browser (read only) and puts it into your own Google Sheet. Nothing goes anywhere else. What still needs setup:')}</p>
           {all && sheetsBox}
           <ol className="grid gap-5 lg:grid-cols-2">
-            {steps.map((st, i) => <Step key={st.key} n={i + 1} title={st.title} optional={st.optional} done={all && st.done}>{st.body}</Step>)}
+            {steps.map((st, i) => <Step key={st.key} n={i + 1} title={st.title} optional={st.optional} done={(all || st.key === 'script') && st.done}>{st.body}</Step>)}
           </ol>
           {!all && sheetsBox}
         </>
       ) : <p className="text-sm text-slate-600 dark:text-slate-300">{t('All set: Sync whenever you want fresh numbers.')}</p>}
-      {/* the data part is core setup too (owner 2026-11-23): where the data comes from, the script, the login, import */}
-      <div className="flex flex-col gap-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-700" data-data>
-        <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf && d.source !== 'demo' ? ` · ${d.ds.asOf}` : ''}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span>{t('Script')}: {userscript ? <b>{userscript}</b> : t('not seen on this page')}</span>
-          {userscript && <a className={`btn sm ${isOlder(userscript, APP_VERSION) ? 'primary' : ''}`} href="./fidelity-accounts-sync.user.js" data-install-script>{isOlder(userscript, APP_VERSION) ? t('Update to {version}', { version: APP_VERSION }) : t('Reinstall')}</a>}
-          <span>{t('Fidelity login in the script')}: <b>{login === null ? '—' : login ? t('saved') : t('not saved')}</b></span>
-          <button type="button" className="btn sm" onClick={openFidelity}>{t('Open Fidelity')}</button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
-          {d.source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Show demo data')}</button>}
-          <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
-        </div>
-        <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
-      </div>
     </div>
   );
 }
