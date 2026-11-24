@@ -8,15 +8,20 @@ import { useStore } from './useStore';
 // The value of the chosen accounts over a period (Fidelity's own daily values), the period chips under it. `big` is the
 // zoomed copy (the card's ⤢, top right like on every card): taller, with every period.
 // The change is the balance change: deposits and withdrawals are in it, it is not a return
-/** the chosen period's balance change line (owner 2026-11-24: right under Today in the card, no gap) */
-export function PeriodChange({ series }: { series: Point[] }) {
+/** the chosen period's balance change as a row of the card's Today table (owner 2026-11-24: under Today, aligned) */
+export function PeriodChangeRow({ series }: { series: Point[] }) {
   const pr = useStore(prefs);
   const ch = series.length < 2 ? null : changeOf(periodSlice(series, pr.period));
   if (!ch) return null;
-  return <div className={`num text-sm ${tone(ch.change)}`} data-period-change>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period: pr.period })}</span></div>;
+  return (
+    <tr data-period-change>
+      <td className={`num whitespace-nowrap pr-3 ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)})</td>
+      <td className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period: pr.period })}</td>
+    </tr>
+  );
 }
 
-// `big` shows the change line above the chart; the card shows it under the balance (PeriodChange)
+// `big` shows the change line above the chart; the card shows it under the balance (PeriodChangeRow)
 export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }) {
   const pr = useStore(prefs);
   if (series.length < 2) return null;
