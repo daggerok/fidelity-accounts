@@ -11,7 +11,7 @@ import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { t } from '../app/i18n';
-import { pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
+import { pct, qty, signedPct, signedUsd, siteDate, tone, usd, usd0 } from './format';
 
 // Summary: cards of information like the Fidelity summary page, for the chosen scope. Each card is as tall as its
 // content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
@@ -275,11 +275,13 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
           and month (received and still to come), with a bar of the received share. Dividends from each position's pay
           date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
       <Card id="income" title={t('Income')}>
-        <div className="grid grid-cols-3 gap-3" data-income>
+        {/* the tiles take the width their numbers need, never cut (owner 2026-11-24: "values without ...", the year wider);
+            the total is in whole dollars; on a narrow card they wrap */}
+        <div className="flex flex-wrap justify-between gap-x-6 gap-y-3" data-income>
           {[{ key: 'Y', v: incY }, { key: 'Q', v: incQ }, { key: 'M', v: incM }].map(({ key, v }) => (
-            <div key={key} className="min-w-0" data-income-period={key} title={t('received {paid} of {total}; coming {coming}', { paid: usd(v.paid), total: usd(v.total), coming: usd(v.coming) })}>
+            <div key={key} className="flex-auto" data-income-period={key} title={t('received {paid} of {total}; coming {coming}', { paid: usd(v.paid), total: usd(v.total), coming: usd(v.coming) })}>
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
-              <div className="num truncate"><span className="text-xl font-semibold sm:text-2xl">{usd(v.paid)}</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd(v.total)}</span></div>
+              <div className="num whitespace-nowrap"><span className="text-xl font-semibold sm:text-2xl">{usd(v.paid)}</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
             </div>
           ))}
