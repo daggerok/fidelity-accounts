@@ -1,14 +1,14 @@
 /// <reference lib="esnext" />
-// One Google connection for the viewer (code from mykplan-adp src/app/google.ts, pattern google-sheets-in-browser):
-// after ☁️ Connect every new dataset is written to the fidelity_* tabs by itself, the token is handed to the
-// userscript (the Fidelity tab writes right after a read), ↻ reads the tabs back on another computer
-import { parseDataset, DATASET_VERSION, type Dataset } from '../../shared/model';
+// One Google connection for the viewer (code from mykplan-adp src/app/google.ts, pattern google-sheets-in-browser).
+// One way data flow (shared/sheets/sync.ts): the viewer never writes the data tabs, it hands its token to the userscript
+// (the Fidelity tab is the only writer) and reads the sheet: every data set after ☁️ Connect, then the sets that
+// fidelity_updates marks newer. The sheet is watched with a small read of fidelity_updates every 10 minutes while the page
+// is visible (Google sends no change events to a browser) and at once when the script signals a write
 import { SheetsClient } from '../../shared/sheets/client';
 import { GoogleAuth, loadConfig, saveConfig } from '../../shared/sheets/gis';
-import { pushAll } from '../../shared/sheets/sync';
-import { ACCOUNTS, BALANCES, POSITIONS } from '../../shared/sheets/tabs';
+import { DATA_SETS, changedSets, datasetFromTabs, parseSignal, readSets, readUpdates, txnStoreFromTabs, type DataSet } from '../../shared/sheets/sync';
 import { createStore } from '../../shared/store';
-import { accept, dataset } from './data';
+import { accept, acceptTxns, dataset, requestSync } from './data';
 import { t } from './i18n';
 
 export const auth = new GoogleAuth({ config: loadConfig });
@@ -35,23 +35,6 @@ export const sheets = createStore<SheetsState>({ connected: false, busy: false, 
 
 const add = (line: string) => sheets.set((s) => ({ ...s, log: [...s.log.slice(-50), `${new Date().toLocaleTimeString()} ${line}`] }));
 const client = () => new SheetsClient({ fetch: window.fetch.bind(window), getToken: auth.getter(), spreadsheetId: loadConfig().spreadsheetId });
-
-export const worthWriting = (ds: Dataset | null, source: string | null): ds is Dataset =>
-  !!ds && source !== 'sheets' && (ds.accounts.length > 0 || ds.positions.length > 0);
-
-export async function writeNow(ds: Dataset): Promise<void> {
-  if (!loadConfig().spreadsheetId) { sheets.set((s) => ({ ...s, error: t('no spreadsheet: set it in ⚙️ Settings') })); return; }
-  sheets.set((s) => ({ ...s, busy: true, error: null }));
-  try {
-    await pushAll(client(), ds, add);
-    sheets.set((s) => ({ ...s, busy: false, lastWritten: ds.builtAt }));
-    add(t('written: data read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') }));
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    sheets.set((s) => ({ ...s, busy: false, error: msg }));
-    add(t('failed: {error}', { error: msg }));
-  }
-}
 
 // the token for the userscript; renewed silently every 10 minutes while connected
 export function handOff(): void {
@@ -90,11 +73,11 @@ async function connected(line: string): Promise<void> {
     add(line);
     handOff();
     keepFresh();
-    // connected = the data comes by itself (owner 2026-11-23: "without any other clicks"): nothing shown yet reads the
-    // sheet; data already here goes to the sheet
-    const { ds, source } = dataset.get();
-    if (!ds) await loadFromSheets();
-    else if (worthWriting(ds, source)) { latest = ds; await drainWrites(); }
+    watchSheet();
+    // connected = the data comes by itself (owner 2026-11-23: "without any other clicks"): the sets changed since the
+    // cached copy, or every set when nothing is shown yet
+    if (dataset.get().ds && Object.keys(seen).length) await checkSheet();
+    else await loadFromSheets();
   } catch (err) {
     sheets.set((s) => ({ ...s, connected: false, error: err instanceof Error ? err.message : String(err) }));
   }
@@ -120,36 +103,14 @@ export async function createSpreadsheet(): Promise<string | null> {
     sheets.set((s) => ({ ...s, busy: false }));
     add(t('created a spreadsheet'));
     handOff();
-    const { ds, source } = dataset.get();
-    if (worthWriting(ds, source)) { latest = ds; void drainWrites(); }
+    // the new sheet fills from the Fidelity tab: ask it for a read now
+    requestSync();
     return id;
   } catch (err) {
     sheets.set((s) => ({ ...s, busy: false, error: err instanceof Error ? err.message : String(err) }));
     return null;
   }
 }
-
-// one loop writes the newest dataset until it is the one written (mykplan-adp review 2026-11-22)
-let latest: Dataset | null = null;
-let draining = false;
-export async function drainWrites(): Promise<void> {
-  if (draining) return;
-  draining = true;
-  try {
-    while (latest && sheets.get().connected && latest.builtAt !== sheets.get().lastWritten) {
-      await writeNow(latest);
-      if (sheets.get().error) break;
-    }
-  } finally {
-    draining = false;
-  }
-}
-dataset.subscribe(() => {
-  const { ds, source } = dataset.get();
-  if (!worthWriting(ds, source)) return;
-  latest = ds;
-  void drainWrites();
-});
 
 // connect by itself on load when a client id and a spreadsheet are saved; a blocked Google window waits for the first
 // click or key; a declined one is not asked again in this browser session (mykplan-adp autoConnectGoogle)
@@ -180,26 +141,56 @@ export function autoConnectGoogle(doc: Document = document): void {
 }
 
 
-/** ↻ the fidelity_accounts and fidelity_positions tabs back into the viewer */
-export async function loadFromSheets(): Promise<void> {
-  if (!loadConfig().spreadsheetId || !sheets.get().connected) return;
+// the time of each set in fidelity_updates when it was last read here, kept with the cached data so a reload reads
+// only what changed meanwhile; `again`: a check came while a read ran
+export const SEEN_KEY = 'fidelity-accounts-sheet-seen';
+const loadSeen = (): Partial<Record<DataSet, string>> => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as Partial<Record<DataSet, string>>; } catch { return {}; } };
+const saveSeen = (): void => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch { /* private window */ } };
+let seen: Partial<Record<DataSet, string>> = typeof localStorage === 'undefined' ? {} : loadSeen();
+let again = false;
+
+/** ↻ read data sets from the sheet into the viewer (all of them by default) */
+export async function loadFromSheets(sets: readonly DataSet[] = DATA_SETS): Promise<void> {
+  if (!loadConfig().spreadsheetId || !sheets.get().connected || !sets.length) return;
   sheets.set((s) => ({ ...s, busy: true, error: null }));
   try {
     const c = client();
-    const [accounts, rows, days] = await Promise.all([c.readRows(ACCOUNTS), c.readRows(POSITIONS), c.readRows(BALANCES)]);
-    // the daily history back from fidelity_balances_daily, so another computer draws the balance chart too
-    const history: Record<string, Array<{ date: string; value: number }>> = {};
-    days.forEach((d) => { if (typeof d.balance === 'number' && /^\d{4}-\d{2}-\d{2}$/.test(d.date)) (history[d.account] = history[d.account] ?? []).push({ date: d.date, value: d.balance }); });
-    Object.keys(history).forEach((k) => history[k]!.sort((a, b) => (a.date < b.date ? -1 : 1)));
-    const builtAt = rows.reduce((m, r) => (r.asOf > m ? r.asOf : m), accounts.reduce((m, a) => (a.asOf > m ? a.asOf : m), ''));
-    const positions = rows.map(({ asOf: _asOf, ...p }) => p);
-    const ds = parseDataset(JSON.stringify({ version: DATASET_VERSION, builtAt: builtAt || new Date().toISOString(), asOf: null, accounts, positions, warnings: [], history: Object.keys(history).length ? history : undefined }));
-    if (ds && (accounts.length || positions.length)) accept(JSON.stringify(ds), 'sheets');
+    // the marks first: a write that lands during this read is picked up by the next check
+    const marks = await readUpdates(c).catch(() => ({} as Partial<Record<DataSet, string>>));
+    const tabs = await readSets(c, sets);
+    const ds = datasetFromTabs(dataset.get().ds, tabs);
+    if (ds) accept(JSON.stringify(ds), 'sheets');
+    if (tabs.txns && tabs.synced) { const store = txnStoreFromTabs(tabs.txns, tabs.synced); if (store) acceptTxns(JSON.stringify(store)); }
+    sets.forEach((d) => { if (marks[d]) seen[d] = marks[d]; });
+    saveSeen();
     sheets.set((s) => ({ ...s, busy: false }));
-    add(t('loaded from the sheet: {accounts} accounts, {positions} positions', { accounts: accounts.length, positions: positions.length }));
+    add(t('loaded from the sheet: {sets}', { sets: sets.join(', ') }));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     sheets.set((s) => ({ ...s, busy: false, error: msg }));
     add(t('load failed: {error}', { error: msg }));
   }
+  if (again) { again = false; void checkSheet(); }
+}
+
+/** read fidelity_updates and load the sets newer than the ones shown */
+export async function checkSheet(): Promise<void> {
+  if (!loadConfig().spreadsheetId || !sheets.get().connected) return;
+  if (sheets.get().busy) { again = true; return; }
+  try {
+    const changed = changedSets(await readUpdates(client()), seen);
+    if (changed.length) await loadFromSheets(changed);
+  } catch { /* no fidelity_updates yet (an older script): the next write of the Fidelity tab creates it */ }
+}
+
+export const CHECK_EVERY_MS = 10 * 60_000; // rare (owner 2026-11-24: "very not often" polling when no signal comes)
+let watchTimer: ReturnType<typeof setInterval> | null = null;
+function watchSheet(): void {
+  if (watchTimer || typeof window === 'undefined') return;
+  watchTimer = setInterval(() => { if (document.visibilityState === 'visible') void checkSheet(); }, CHECK_EVERY_MS);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void checkSheet(); });
+  // the script's signal after a write in the Fidelity tab of this computer: check at once
+  window.addEventListener('message', (e) => {
+    if (e.origin === location.origin && e.data?.type === 'fidelity-accounts:sheets' && parseSignal(e.data.json)) void checkSheet();
+  });
 }

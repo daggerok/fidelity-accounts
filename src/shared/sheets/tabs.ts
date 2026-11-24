@@ -4,6 +4,7 @@
 // account numbers as text), rows come back as UNFORMATTED_VALUE and text is parsed too (a hand-edited cell must not
 // break a read)
 import type { Account, Position } from '../model';
+import type { Txn } from '../transactions';
 export type Cell = string | number | boolean;
 
 // text: as is; cents: integer (rounded); num: any finite number; bool: TRUE/FALSE; json: an array or object
@@ -237,4 +238,35 @@ export function growHeader(stored: string[], keys: string[]): string[] {
   return base.concat(extra);
 }
 
-export const TAB_NAMES = [ACCOUNTS.name, POSITIONS.name, BALANCES.name, WIDE_TAB];
+// the transactions history (shared/transactions), rewritten as a whole after each daily read of it
+export const TRANSACTIONS = defineTab<Txn>('fidelity_transactions', [
+  { key: 'account', kind: 'text' },
+  { key: 'date', kind: 'text' },
+  { key: 'mnemonic', kind: 'text', optional: true },
+  { key: 'cat', kind: 'text', optional: true },
+  { key: 'sub', kind: 'text', optional: true },
+  { key: 'dir', kind: 'text', optional: true },
+  { key: 'symbol', kind: 'text', optional: true },
+  { key: 'qty', kind: 'num', optional: true },
+  { key: 'net', kind: 'num', optional: true },
+  { key: 'desc', kind: 'text', optional: true },
+  { key: 'cancelled', kind: 'bool', optional: true },
+], (r) => key(r.account, r.date, r.mnemonic, r.symbol, String(r.net)));
+
+// how far each account's transactions were read (TxnStore.synced) and when, one row per account
+export interface TxnSyncedRow { account: string; synced: string; at: string }
+export const TXN_SYNCED = defineTab<TxnSyncedRow>('fidelity_transactions_synced', [
+  { key: 'account', kind: 'text' },
+  { key: 'synced', kind: 'text' },
+  { key: 'at', kind: 'text' },
+], (r) => r.account);
+
+// when each data set was last written (one row per set: summary, positions, transactions): the viewer watches this
+// small tab and reads back only the sets that changed
+export interface UpdateRow { set: string; at: string }
+export const UPDATES = defineTab<UpdateRow>('fidelity_updates', [
+  { key: 'set', kind: 'text' },
+  { key: 'at', kind: 'text' },
+], (r) => r.set);
+
+export const TAB_NAMES = [ACCOUNTS.name, POSITIONS.name, BALANCES.name, WIDE_TAB, TRANSACTIONS.name, TXN_SYNCED.name, UPDATES.name];
