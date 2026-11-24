@@ -4,6 +4,9 @@ const usdFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'US
 
 export const DASH = '--';
 export const usd = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? usdFmt.format(n) : DASH);
+const usd0Fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+/** whole dollars, where the room is short */
+export const usd0 = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? usd0Fmt.format(n) : DASH);
 export const signedUsd = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n > 0 ? '+' : n < 0 ? '-' : ''}${usdFmt.format(Math.abs(n))}` : DASH);
 export const pct = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n.toFixed(2)}%` : DASH);
 export const signedPct = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : DASH);
