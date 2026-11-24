@@ -25,7 +25,7 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
       ))}
     </div>
   );
-  const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('balance change, {period}', { period })}</span></div>;
+  const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('balance change')}</span></div>;
   const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;
   return (
     <div className="flex flex-col gap-2" data-balance-chart={big ? 'big' : 'card'}>

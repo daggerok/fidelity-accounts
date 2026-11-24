@@ -45,10 +45,6 @@ function ViewSwitch({ id }: { id: string }) {
   );
 }
 
-const Row = ({ label, value, cls = '' }: { label: string; value: string; cls?: string }) => (
-  <div className="flex items-baseline justify-between gap-3 text-sm"><span className="text-slate-500 dark:text-slate-400">{label}</span><span className={`num whitespace-nowrap text-right font-medium ${cls}`}>{value}</span></div>
-);
-
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
 function Allocation({ id, slices }: { id: string; slices: { name: string; value: number; pct: number }[] }) {
@@ -197,15 +193,23 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
       <Card id="balance" title={t('Balance')} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
-        <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
-        <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
-        <BalanceChart series={balance} />
-        <div className="mt-2 flex flex-col gap-1.5">
-          <Row label={t('Total gain/loss')} value={`${signedUsd(tot.totalGl)} (${signedPct(tot.totalGlPct)})`} cls={tone(tot.totalGl)} />
-          <Row label={t('Cost basis')} value={usd(tot.costBasis)} />
-          <Row label={t('Cash (core)')} value={usd(tot.cash)} />
-          {tot.pending !== 0 && <Row label={t('Pending activity')} value={signedUsd(tot.pending)} cls={tone(tot.pending)} />}
+        {/* the balance and today's change on the left, the other facts in a compact table on the right (owner 2026-11-24:
+            "move that part to top right"); on a narrow card they wrap under */}
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0">
+            <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
+            <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
+          </div>
+          <table className="text-xs" data-balance-facts>
+            <tbody className="[&_td]:py-0.5">
+              <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Total gain/loss')}</td><td className={`num text-right font-medium ${tone(tot.totalGl)}`}>{signedUsd(tot.totalGl)} ({signedPct(tot.totalGlPct)})</td></tr>
+              <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cost basis')}</td><td className="num text-right font-medium">{usd(tot.costBasis)}</td></tr>
+              <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cash (core)')}</td><td className="num text-right font-medium">{usd(tot.cash)}</td></tr>
+              {tot.pending !== 0 && <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Pending activity')}</td><td className={`num text-right font-medium ${tone(tot.pending)}`}>{signedUsd(tot.pending)}</td></tr>}
+            </tbody>
+          </table>
         </div>
+        <BalanceChart series={balance} />
       </Card>
 
       <Card id="movers" title={t('Your top and bottom movers')} tools={(
