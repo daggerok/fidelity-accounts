@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, near52, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, periodBounds, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -180,6 +180,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
   const balance = combine(ds.history, accounts.map((a) => a.number));
+  const bounds = periodBounds(today);
+  const incQ = incomeIn(ps, bounds.quarter[0], bounds.quarter[1], today);
+  const incM = incomeIn(ps, bounds.month[0], bounds.month[1], today);
   const yieldOnValue = tot.balance > 0 ? (tot.estAnnualIncome / tot.balance) * 100 : null;
 
   return (
@@ -255,10 +258,27 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig id="sector" slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
       <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig id="type" slices={types} />}><Allocation id="type" slices={types} /></Card>
+      {/* Income 1Y | Income 1Q | Income 1M in one row (owner 2026-11-24): the year is Fidelity's estimate, the quarter and
+          the month are the dividends paid and still to come in the current calendar quarter and month; the estimate's
+          notes in one line at the bottom */}
       <Card id="income" title={t('Income')}>
-        <div className="num text-3xl font-semibold">{usd(tot.estAnnualIncome)}</div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</div>
-        <Row label={t('Per month, on average')} value={usd(tot.estAnnualIncome / 12)} />
+        <div className="grid grid-cols-3 gap-3" data-income>
+          {[
+            { key: '1Y', label: t('Income 1Y'), value: tot.estAnnualIncome, note: t('estimated') },
+            { key: '1Q', label: t('Income 1Q'), value: incQ.total, note: t('paid {paid} · coming {coming}', { paid: usd(incQ.paid), coming: usd(incQ.coming) }) },
+            { key: '1M', label: t('Income 1M'), value: incM.total, note: t('paid {paid} · coming {coming}', { paid: usd(incM.paid), coming: usd(incM.coming) }) },
+          ].map((x) => (
+            <div key={x.key} className="min-w-0" data-income-period={x.key}>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{x.label}</div>
+              <div className="num text-xl font-semibold sm:text-2xl">{usd(x.value)}</div>
+              <div className="truncate text-xs text-slate-500 dark:text-slate-400" title={x.note}>{x.note}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <span>{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</span>
+          <span>{t('Per month, on average')} · <span className="num">{usd(tot.estAnnualIncome / 12)}</span></span>
+        </div>
       </Card>
     </div>
   );

@@ -187,6 +187,49 @@ export function upcomingDividends(ps: Position[], today: string, days = 30): Upc
     .sort((a, b) => (a.exDate! < b.exDate! ? -1 : a.exDate! > b.exDate! ? 1 : 0));
 }
 
+const STEP_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
+
+/** an ISO date `n` months later (earlier for negative), the day clamped to the month's last day */
+export function addMonths(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  const first = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d, last));
+  return first.toISOString().slice(0, 10);
+}
+
+/** the calendar month and quarter around `today`, first and last day */
+export function periodBounds(today: string): { month: [string, string]; quarter: [string, string] } {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const q = Math.floor((m - 1) / 3) * 3 + 1;
+  const iso = (yy: number, mm: number, dd: number) => new Date(Date.UTC(yy, mm - 1, dd)).toISOString().slice(0, 10);
+  return { month: [iso(y, m, 1), iso(y, m + 1, 0)], quarter: [iso(y, q, 1), iso(y, q + 3, 0)] };
+}
+
+/**
+ * Dividends paid and still to come in [from, to] (owner 2026-11-24: Income 1Q and 1M, "will/was in total this current
+ * Q/month"). Fidelity gives one pay date per position (the last or the next) and the frequency; the other pay dates are
+ * that date stepped by the frequency, each paying the dividend per share times the shares held now. An estimate: past
+ * payments come from the shares held today until the transactions history is read
+ */
+export function incomeIn(ps: Position[], from: string, to: string, today: string): { paid: number; coming: number; total: number } {
+  let paid = 0;
+  let coming = 0;
+  securities(ps).forEach((p) => {
+    if (p.dividendAmount === undefined || !p.payDate || !p.quantity) return;
+    const amount = p.dividendAmount * p.quantity;
+    const step = STEP_MONTHS[p.paymentFrequency ?? ''];
+    const dates = step ? Array.from({ length: 2 * Math.ceil(24 / step) + 1 }, (_, i) => addMonths(p.payDate!, (i - Math.ceil(24 / step)) * step)) : [p.payDate];
+    dates.forEach((d) => {
+      if (d < from || d > to) return;
+      if (d <= today) paid += amount; else coming += amount;
+    });
+  });
+  const r = (x: number) => Math.round(x * 100) / 100;
+  return { paid: r(paid), coming: r(coming), total: r(paid + coming) };
+}
+
 /** where the last price sits in the 52-week range, 0..1, or null */
 export function rangePos(p: Position): number | null {
   if (p.low52 === undefined || p.high52 === undefined || p.lastPrice === undefined || p.high52 <= p.low52) return null;
