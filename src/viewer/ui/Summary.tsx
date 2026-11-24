@@ -183,6 +183,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const bounds = periodBounds(today);
   const incQ = incomeIn(ps, bounds.quarter[0], bounds.quarter[1], today);
   const incM = incomeIn(ps, bounds.month[0], bounds.month[1], today);
+  const incY = incomeIn(ps, bounds.year[0], bounds.year[1], today);
   const yieldOnValue = tot.balance > 0 ? (tot.estAnnualIncome / tot.balance) * 100 : null;
 
   return (
@@ -258,25 +259,21 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig id="sector" slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
       <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig id="type" slices={types} />}><Allocation id="type" slices={types} /></Card>
-      {/* Income 1Y | Income 1Q | Income 1M in one row (owner 2026-11-24): the year is Fidelity's estimate, the quarter and
-          the month are the dividends paid and still to come in the current calendar quarter and month; the estimate's
-          notes in one line at the bottom */}
+      {/* Income Y | Q | M (owner 2026-11-24): each shows received so far / the total of the current calendar year, quarter
+          and month (received and still to come), with a bar of the received share. Dividends from each position's pay
+          date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
       <Card id="income" title={t('Income')}>
         <div className="grid grid-cols-3 gap-3" data-income>
-          {[
-            { key: '1Y', label: t('Income 1Y'), value: tot.estAnnualIncome, note: t('estimated') },
-            { key: '1Q', label: t('Income 1Q'), value: incQ.total, note: t('paid {paid} · coming {coming}', { paid: usd(incQ.paid), coming: usd(incQ.coming) }) },
-            { key: '1M', label: t('Income 1M'), value: incM.total, note: t('paid {paid} · coming {coming}', { paid: usd(incM.paid), coming: usd(incM.coming) }) },
-          ].map((x) => (
-            <div key={x.key} className="min-w-0" data-income-period={x.key}>
-              <div className="text-xs text-slate-500 dark:text-slate-400">{x.label}</div>
-              <div className="num text-xl font-semibold sm:text-2xl">{usd(x.value)}</div>
-              <div className="truncate text-xs text-slate-500 dark:text-slate-400" title={x.note}>{x.note}</div>
+          {[{ key: 'Y', v: incY }, { key: 'Q', v: incQ }, { key: 'M', v: incM }].map(({ key, v }) => (
+            <div key={key} className="min-w-0" data-income-period={key} title={t('received {paid} of {total}; coming {coming}', { paid: usd(v.paid), total: usd(v.total), coming: usd(v.coming) })}>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('Income {period}', { period: key })}</div>
+              <div className="num truncate"><span className="text-xl font-semibold sm:text-2xl">{usd(v.paid)}</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd(v.total)}</span></div>
+              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
             </div>
           ))}
         </div>
         <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          <span>{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</span>
+          <span>{t('Estimated annual income')} · <span className="num">{usd(tot.estAnnualIncome)}</span>{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</span>
           <span>{t('Per month, on average')} · <span className="num">{usd(tot.estAnnualIncome / 12)}</span></span>
         </div>
       </Card>
