@@ -63,6 +63,8 @@ export const RU: Record<string, string> = {
   "Today's gain/loss": 'Изменение за сегодня',
   Today: 'Сегодня',
   'On average': 'В среднем',
+  Frequency: 'Частота',
+  Account: 'Счёт',
   'Not settled yet: buys, sells and transfers in progress': 'Ещё не проведено: покупки, продажи и переводы в процессе',
   '{n} payouts': '{n} выплат',
   'Columns: choose what the table shows': 'Колонки: что показывать в таблице',
