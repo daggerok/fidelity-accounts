@@ -4,6 +4,7 @@ import { ACCOUNT_SORTS, allocation, movers, near52, positionsIn, securities, sor
 import { BalanceChart } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
+import { animate } from './animate';
 import { useState } from 'react';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -14,10 +15,10 @@ import { pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
 // content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
 // `expand`: the card's full view, opened big over the page by ⤢ (owner 2026-11-23: maximize for every plate where it
 // makes sense, more rows and details there)
-function Card({ title, children, tools, expand }: { title: string; children: React.ReactNode; tools?: React.ReactNode; expand?: React.ReactNode }) {
+function Card({ id, title, children, tools, expand }: { id: string; title: string; children: React.ReactNode; tools?: React.ReactNode; expand?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="card mb-4 flex w-full break-inside-avoid flex-col gap-3">
+    <section className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         <span className="flex items-center gap-1">{tools}{expand && <button type="button" className="tb" style={{ width: '1.75rem', height: '1.75rem' }} title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
@@ -28,12 +29,14 @@ function Card({ title, children, tools, expand }: { title: string; children: Rea
   );
 }
 
-// bars or a donut for the allocation cards, remembered
-function ViewSwitch() {
+// bars or a donut, each card its own choice (remembered by card id), switched with the morph animation
+const viewOf = (views: Record<string, 'bars' | 'pie'>, id: string): 'bars' | 'pie' => views[id] ?? 'pie';
+function ViewSwitch({ id }: { id: string }) {
   const pr = useStore(prefs);
+  const now = viewOf(pr.views, id);
   const b = (v: 'bars' | 'pie', label: string, icon: string) => (
-    <button type="button" title={label} aria-pressed={pr.allocView === v} onClick={() => setPrefs({ allocView: v })}
-      className={`rounded px-1.5 py-0.5 text-xs ${pr.allocView === v ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{icon}</button>
+    <button type="button" title={label} aria-pressed={now === v} onClick={() => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: v } }))}
+      className={`rounded px-1.5 py-0.5 text-xs ${now === v ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{icon}</button>
   );
   return <span className="flex gap-0.5">{b('pie', t('Donut'), '◔')}{b('bars', t('Bars'), '☰')}</span>;
 }
@@ -44,9 +47,9 @@ const Row = ({ label, value, cls = '' }: { label: string; value: string; cls?: s
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
-function Allocation({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
+function Allocation({ id, slices }: { id: string; slices: { name: string; value: number; pct: number }[] }) {
   const pr = useStore(prefs);
-  return pr.allocView === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
+  return viewOf(pr.views, id) === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
 }
 
 function Bars({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
@@ -142,7 +145,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
-      <Card title={t('Balance')}>
+      <Card id="balance" title={t('Balance')}>
         <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
         <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
         <BalanceChart series={combine(ds.history, accounts.map((a) => a.number))} />
@@ -154,10 +157,10 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-      <Card title={t('Your top and bottom movers')} tools={(
+      <Card id="movers" title={t('Your top and bottom movers')} tools={(
         <span className="flex gap-0.5" role="group" aria-label={t('Sort movers by')}>
-          <button type="button" className={seg(pr.moversBy === 'pct')} aria-pressed={pr.moversBy === 'pct'} onClick={() => setPrefs({ moversBy: 'pct' })}>%</button>
-          <button type="button" className={seg(pr.moversBy === 'usd')} aria-pressed={pr.moversBy === 'usd'} onClick={() => setPrefs({ moversBy: 'usd' })}>$</button>
+          <button type="button" className={seg(pr.moversBy === 'pct')} aria-pressed={pr.moversBy === 'pct'} onClick={() => animate(() => setPrefs({ moversBy: 'pct' }))}>%</button>
+          <button type="button" className={seg(pr.moversBy === 'usd')} aria-pressed={pr.moversBy === 'usd'} onClick={() => animate(() => setPrefs({ moversBy: 'usd' }))}>$</button>
         </span>
       )} expand={mBig.top.length || mBig.bottom.length ? (
         <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers list={mBig.top} /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers list={mBig.bottom} /></div></div>
@@ -165,9 +168,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         {m.top.length || m.bottom.length ? <><Movers list={m.top} /><Movers list={m.bottom} /></> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
-      <Card title={t('Accounts')} tools={(
+      <Card id="accounts" title={t('Accounts')} tools={(
         <select className="rounded border border-slate-200 bg-transparent px-1 py-0.5 text-xs dark:border-slate-700" value={pr.accountSort} aria-label={t('Sort accounts by')}
-          onChange={(e) => setPrefs({ accountSort: e.target.value as AccountSort })}>
+          onChange={(e) => { const v = e.target.value as AccountSort; animate(() => setPrefs({ accountSort: v })); }}>
           {ACCOUNT_SORTS.map((k) => <option key={k} value={k}>{sortName[k]}</option>)}
         </select>
       )}>
@@ -181,13 +184,13 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-      <Card title={t('Income')}>
+      <Card id="income" title={t('Income')}>
         <div className="num text-3xl font-semibold">{usd(tot.estAnnualIncome)}</div>
         <div className="text-sm text-slate-500 dark:text-slate-400">{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</div>
         <Row label={t('Per month, on average')} value={usd(tot.estAnnualIncome / 12)} />
       </Card>
 
-      <Card title={t('Upcoming ex-dividend dates (30 days)')} expand={divs.length ? <DividendsTable ps={ps} today={today} /> : undefined}>
+      <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} expand={divs.length ? <DividendsTable ps={ps} today={today} /> : undefined}>
         {divs.length > 0 && <div className="text-sm text-slate-500 dark:text-slate-400">{t('About {sum} to you from {n} payouts', { sum: usd(divs.reduce((x, d) => x + (d.payout ?? 0), 0)), n: divs.length })}</div>}
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
@@ -204,7 +207,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         ) : <Empty text={t('No ex-dividend dates in the next 30 days')} />}
       </Card>
 
-      <Card title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable list={n52.highs.concat(n52.lows)} /> : undefined}>
+      <Card id="near52" title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable list={n52.highs.concat(n52.lows)} /> : undefined}>
         {n52.highs.length || n52.lows.length ? (
           <div className="flex flex-col gap-2 text-sm">
             {n52.highs.length > 0 && <div><span className="gain font-medium">{t('High')}: </span>{Array.from(new Set(n52.highs.map((p) => p.symbol))).join(', ')}</div>}
@@ -213,8 +216,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         ) : <Empty text={t('Nothing within 3% of its 52-week high or low')} />}
       </Card>
 
-      <Card title={t('Allocation by sector')} tools={<ViewSwitch />} expand={<AllocationBig slices={sectors} />}><Allocation slices={sectors} /></Card>
-      <Card title={t('Allocation by security type')} tools={<ViewSwitch />} expand={<AllocationBig slices={types} />}><Allocation slices={types} /></Card>
+      <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
+      <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig slices={types} />}><Allocation id="type" slices={types} /></Card>
     </div>
   );
 }

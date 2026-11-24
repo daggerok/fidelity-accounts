@@ -16,6 +16,7 @@ import { Positions } from './Positions';
 import { SettingsPanel } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
 import { Summary } from './Summary';
+import { animate } from './animate';
 import { useStore } from './useStore';
 import { useTheme } from './useTheme';
 
@@ -138,7 +139,7 @@ export function App() {
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <div className="flex flex-col gap-4 pt-4 lg:pt-6">
-            <AccountTabs ds={ds} scope={scope} onScope={(s) => setPrefs({ scope: s })} />
+            <AccountTabs ds={ds} scope={scope} onScope={(s) => animate(() => setPrefs({ scope: s }))} />
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               <div>
                 <h2 className="text-3xl font-semibold tracking-tight">{title}</h2>
