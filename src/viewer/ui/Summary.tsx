@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, near52, positionsIn, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, movers, near52, positionsIn, rangeRows, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -54,10 +54,10 @@ function Allocation({ id, slices }: { id: string; slices: { name: string; value:
   return viewOf(pr.views, id) === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
 }
 
-function Bars({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
+function Bars({ slices, all }: { slices: { name: string; value: number; pct: number }[]; all?: boolean }) {
   return (
-    <div className="flex flex-col gap-2">
-      {slices.slice(0, 8).map((s) => (
+    <div className={all ? 'gap-8 md:columns-2 [&>div]:mb-2 [&>div]:break-inside-avoid' : 'flex flex-col gap-2'}>
+      {(all ? slices : slices.slice(0, 8)).map((s) => (
         <div key={s.name} className="text-sm">
           <div className="flex justify-between gap-3"><span className="truncate">{s.name}</span><span className="num text-slate-500 dark:text-slate-400">{usd(s.value)} · {pct(s.pct)}</span></div>
           <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full" style={{ width: `${Math.max(1, s.pct)}%`, background: 'var(--brand)' }} /></div>
@@ -83,7 +83,11 @@ function Movers({ list, at }: { list: Position[]; at: 'card' | 'big' }) {
 }
 
 // the big views of the cards
-function AllocationBig({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
+// the zoomed card follows its own toggle (owner 2026-11-24 bug: bars had no effect in the big window): bars = every
+// slice as a bar, donut = the donut and the full table
+function AllocationBig({ id, slices }: { id: string; slices: { name: string; value: number; pct: number }[] }) {
+  const pr = useStore(prefs);
+  if (viewOf(pr.views, id) !== 'pie') return <Bars slices={slices} all />;
   return (
     <div className="grid items-start gap-6 md:grid-cols-2">
       <Donut slices={slices} otherName={t('Other')} />
@@ -121,14 +125,43 @@ function DividendsTable({ ps, today }: { ps: Position[]; today: string }) {
   );
 }
 
-function RangeTable({ list }: { list: Position[] }) {
-  const seen = new Set<string>();
-  const rows = list.filter((p) => (seen.has(p.symbol) ? false : (seen.add(p.symbol), true)));
+// the big 52-week table (owner 2026-11-24: "more info here"): highs and lows apart, where the price sits in its range,
+// how far from the high and the low, today's move and what is held in the shown accounts
+function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
+  const th = 'px-2 py-1.5 text-right font-medium';
+  const section = (title: string, cls: string, rows: RangeRow[], high: boolean) => rows.length > 0 && (
+    <tbody>
+      <tr><td colSpan={8} className={`px-2 pt-4 pb-1 text-sm font-semibold ${cls}`}>{title}</td></tr>
+      {rows.map((r) => (
+        <tr key={r.symbol} className="border-t border-slate-100 dark:border-slate-800 [&>td]:px-2 [&>td]:py-1.5">
+          <td className="max-w-[18rem]"><div><span className="font-semibold">{r.symbol}</span> <span className="text-xs text-slate-500">{r.sector ?? ''}</span></div><div className="truncate text-xs text-slate-500" title={r.description}>{r.description}</div></td>
+          <td>
+            <div className="flex items-center justify-end gap-2 num text-xs text-slate-500">
+              <span>{usd(r.low52)}</span>
+              <span className="relative h-1.5 w-24 flex-none rounded-full bg-slate-200 dark:bg-slate-700" title={pct(r.pos * 100)}>
+                <span className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${r.pos * 100}%`, background: high ? 'var(--gain)' : 'var(--loss)' }} />
+              </span>
+              <span>{usd(r.high52)}</span>
+            </div>
+          </td>
+          <td className="num text-right"><div className="font-medium">{usd(r.lastPrice)}</div><div className={`text-xs ${tone(r.dayPct)}`}>{signedPct(r.dayPct)}</div></td>
+          <td className="num text-right">{signedPct(r.fromHigh)}</td>
+          <td className="num text-right">{signedPct(r.fromLow)}</td>
+          <td className="num text-right">{qty(r.shares)}</td>
+          <td className="num text-right">{usd(r.value)}</td>
+          <td className={`num text-right ${tone(r.totalGl)}`}><div>{signedUsd(r.totalGl)}</div><div className="text-xs">{signedPct(r.totalGlPct)}</div></td>
+        </tr>
+      ))}
+    </tbody>
+  );
   return (
-    <table className="w-full text-sm [&_td]:px-2 [&_th]:px-2">
-      <thead><tr className="text-left text-xs text-slate-500"><th className="py-1.5">{t('Symbol')}</th><th className="text-right">{t('52-week low')}</th><th className="text-right">{t('Last price')}</th><th className="text-right">{t('52-week high')}</th></tr></thead>
-      <tbody>{rows.map((p) => <tr key={p.symbol} className="border-t border-slate-100 dark:border-slate-800"><td className="py-1.5"><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500">{p.description}</span></td><td className="num text-right">{usd(p.low52)}</td><td className="num text-right font-medium">{usd(p.lastPrice)}</td><td className="num text-right">{usd(p.high52)}</td></tr>)}</tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full whitespace-nowrap text-sm">
+        <thead><tr className="text-xs text-slate-500"><th className={`${th} text-left`}>{t('Symbol')}</th><th className={th}>{t('52-week range')}</th><th className={th}>{t('Last price')}</th><th className={th}>{t('From the high')}</th><th className={th}>{t('From the low')}</th><th className={th}>{t('Shares')}</th><th className={th}>{t('Value')}</th><th className={th}>{t('Total gain/loss')}</th></tr></thead>
+        {section(t('Near the high'), 'gain', rangeRows(highs).sort((a, b) => b.pos - a.pos), true)}
+        {section(t('Near the low'), 'loss', rangeRows(lows).sort((a, b) => a.pos - b.pos), false)}
+      </table>
+    </div>
   );
 }
 
@@ -207,7 +240,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         ) : <Empty text={t('No ex-dividend dates in the next 30 days')} />}
       </Card>
 
-      <Card id="near52" title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable list={n52.highs.concat(n52.lows)} /> : undefined}>
+      <Card id="near52" title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable highs={n52.highs} lows={n52.lows} /> : undefined}>
         {n52.highs.length || n52.lows.length ? (
           <div className="flex flex-col gap-2 text-sm">
             {n52.highs.length > 0 && <div><span className="gain font-medium">{t('High')}: </span>{Array.from(new Set(n52.highs.map((p) => p.symbol))).join(', ')}</div>}
@@ -216,8 +249,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         ) : <Empty text={t('Nothing within 3% of its 52-week high or low')} />}
       </Card>
 
-      <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
-      <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig slices={types} />}><Allocation id="type" slices={types} /></Card>
+      <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig id="sector" slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
+      <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig id="type" slices={types} />}><Allocation id="type" slices={types} /></Card>
       <Card id="income" title={t('Income')}>
         <div className="num text-3xl font-semibold">{usd(tot.estAnnualIncome)}</div>
         <div className="text-sm text-slate-500 dark:text-slate-400">{t('Estimated annual income')}{yieldOnValue !== null ? ` · ${t('{pct} of the balance', { pct: pct(yieldOnValue) })}` : ''}</div>
