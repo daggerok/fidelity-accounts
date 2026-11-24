@@ -72,7 +72,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
         {money(all.balance, all.todayGl, all.todayGlPct)}
       </div>
       <div className={`hslide min-w-0 flex-1 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
-      <EdgeScrollRow label={t('Accounts')} items="[data-scope]" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-1">
+      <EdgeScrollRow label={t('Accounts')} items="[data-scope]" storeKey="fidelity-accounts.strip-scroll" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-1">
       {groupsOf(ds).map((g) => {
         const open = !collapsed.includes(g.name);
         const gt = totalsOf(g.accounts);

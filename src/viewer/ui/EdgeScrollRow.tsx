@@ -21,14 +21,26 @@ function EdgeButton({ dir, label, onClick }: { dir: 1 | -1; label: string; onCli
   );
 }
 
-export function EdgeScrollRow({ prevLabel, nextLabel, items, label, className = '', children }: { prevLabel: string; nextLabel: string; items: string; label: string; className?: string; children: React.ReactNode }) {
+// `storeKey`: the scroll position is kept in localStorage and put back after a reload (owner 2026-11-24), once the strip
+// is wide enough to take it (the data may come a moment later)
+export function EdgeScrollRow({ prevLabel, nextLabel, items, label, storeKey, className = '', children }: { prevLabel: string; nextLabel: string; items: string; label: string; storeKey?: string; className?: string; children: React.ReactNode }) {
   const rowRef = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState<ScrollEdges>(NO_EDGES);
   useLayoutEffect(() => {
     const row = rowRef.current;
     if (!row) return undefined;
     let frame = 0;
+    let saved: number | null = null;
+    try { const v = storeKey ? Number(localStorage.getItem(storeKey)) : 0; saved = v > 0 ? v : null; } catch { /* private window */ }
+    const until = Date.now() + 3000; // the data comes in the first seconds; later a narrower strip keeps the user's scroll
     const measure = () => {
+      if (saved !== null && Date.now() > until) saved = null;
+      if (saved !== null && row.scrollWidth - row.clientWidth >= Math.min(saved, 1)) {
+        row.scrollLeft = saved;
+        if (row.scrollWidth - row.clientWidth >= saved) saved = null; // all of it fits: restored
+      } else if (storeKey && saved === null) {
+        try { localStorage.setItem(storeKey, String(Math.round(row.scrollLeft))); } catch { /* private window */ }
+      }
       const e = scrollEdges(row.scrollLeft, row.clientWidth, row.scrollWidth);
       setEdges((prev) => (prev.left === e.left && prev.right === e.right ? prev : e));
     };
@@ -50,7 +62,7 @@ export function EdgeScrollRow({ prevLabel, nextLabel, items, label, className = 
     mo.observe(row, { childList: true, subtree: true });
     row.addEventListener('transitionend', schedule);
     return () => { row.removeEventListener('scroll', schedule); row.removeEventListener('wheel', wheel); row.removeEventListener('transitionend', schedule); ro.disconnect(); mo.disconnect(); cancelAnimationFrame(frame); };
-  }, [items]);
+  }, [items, storeKey]);
   const step = useCallback((dir: 1 | -1) => {
     const row = rowRef.current;
     if (!row) return;
