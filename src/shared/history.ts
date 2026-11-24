@@ -117,6 +117,15 @@ export function changeOf(slice: Point[]): Change | null {
 /** the balance change of a period of a series; null when the series is too short */
 export const periodChange = (series: Point[], period: Period): Change | null => (series.length < 2 ? null : changeOf(periodSlice(series, period)));
 
+/** the value range a chart draws: a flat line gets 1 each way, then 5% of air on both sides */
+export function valueRange(values: number[]): { min: number; max: number } {
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (max === min) { max += 1; min -= 1; }
+  const span = max - min;
+  return { min: min - span * 0.05, max: max + span * 0.05 };
+}
+
 /**
  * `n` evenly spaced values along a line (linear between its points), so two lines of different lengths can be blended
  * point by point: the chart morphs from one period to the next (owner 2026-11-24: "smoother than a strict change")
