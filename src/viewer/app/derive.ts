@@ -1,6 +1,7 @@
 /// <reference lib="esnext" />
 // Numbers the screens show for the chosen scope (all accounts, a group, one account), computed from the dataset only
 import type { Account, Dataset, Position } from '../../shared/model';
+import { incomeReceived, type TxnStore } from '../../shared/transactions';
 import type { Scope } from './prefs';
 import { addDays, addMonths } from '../../shared/dates';
 
@@ -327,4 +328,21 @@ export function sortPositions(ps: Position[], key: string, dir: 1 | -1): Positio
 export function matches(p: Position, q: string): boolean {
   const s = q.trim().toLowerCase();
   return !s || p.symbol.toLowerCase().includes(s) || p.description.toLowerCase().includes(s);
+}
+
+/**
+ * Income of a period as facts and plan (owner 2026-11-24: "we want to know facts and what is planned and then see how
+ * facts aligned in progress with planned"): received = the dividends and interest paid in, from the transactions
+ * history (null until every shown account was read); planned = received + what still comes at today's holdings.
+ * ETFs or Stocks keep the rows whose symbol is held as that kind; a symbol no longer held counts for every security only
+ */
+export interface IncomeFacts { received: number | null; coming: number; planned: number }
+export function incomeFacts(store: TxnStore | null, accounts: Account[], ps: Position[], kind: Kind, from: string, to: string, today: string): IncomeFacts {
+  const coming = incomeIn(ofKind(ps, kind), from, to, today).coming;
+  const nums = accounts.map((a) => a.number);
+  if (!store || !nums.length || nums.some((n) => !store.synced[n])) return { received: null, coming, planned: coming };
+  const kinds = new Map(securities(ps).map((p) => [p.symbol, kindOf(p)] as [string, ReturnType<typeof kindOf>]));
+  const keep = kind === 'etf' || kind === 'stock' ? (t: { symbol: string }) => kinds.get(t.symbol) === kind : () => true;
+  const received = incomeReceived(store.rows, new Set(nums), from, today < to ? today : to, keep);
+  return { received, coming, planned: Math.round((received + coming) * 100) / 100 };
 }

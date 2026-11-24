@@ -10,6 +10,8 @@ declare const GM_addValueChangeListener: ((key: string, fn: (name: string, oldVa
 export const DATASET_KEY = 'fidelity-accounts.dataset';
 // state of the last read for the viewer: { status, message, at, accounts, positions }
 export const RUN_KEY = 'fidelity-accounts.run';
+// the transactions history (shared/transactions TxnStore): read once a day, handed to the viewer
+export const TXNS_KEY = 'fidelity-accounts.transactions';
 
 export function gmGet<T>(key: string, def: T): T {
   try { return typeof GM_getValue === 'function' ? (GM_getValue(key, def) as T) : def; } catch { return def; }
