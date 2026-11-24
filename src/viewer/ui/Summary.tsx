@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, incomeIn, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -203,7 +203,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const m = movers(moverPs, 5, pr.moversBy);
   const mBig = movers(moverPs, 20, pr.moversBy);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const divPs = ofKind(ps, pr.dividendsOf);
   const divs = upcomingDividends(divPs, today);
   const n52 = near52(ps);
