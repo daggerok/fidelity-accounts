@@ -31,14 +31,14 @@ function Card({ id, title, children, tools, expand }: { id: string; title: strin
 
 // bars or a donut, each card its own choice (remembered by card id), switched with the morph animation
 const viewOf = (views: Record<string, 'bars' | 'pie'>, id: string): 'bars' | 'pie' => views[id] ?? 'pie';
+// one toggle, not two buttons (owner 2026-11-24: only one view at a time): it shows the view a click switches to
 function ViewSwitch({ id }: { id: string }) {
   const pr = useStore(prefs);
-  const now = viewOf(pr.views, id);
-  const b = (v: 'bars' | 'pie', label: string, icon: string) => (
-    <button type="button" title={label} aria-pressed={now === v} onClick={() => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: v } }))}
-      className={`rounded px-1.5 py-0.5 text-xs ${now === v ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{icon}</button>
+  const next = viewOf(pr.views, id) === 'pie' ? 'bars' : 'pie';
+  return (
+    <button type="button" className="tb" title={next === 'bars' ? t('Show as bars') : t('Show as donut')} data-view-toggle={next}
+      onClick={() => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: next } }))}>{next === 'bars' ? '☰' : '◔'}</button>
   );
-  return <span className="flex gap-0.5">{b('pie', t('Donut'), '◔')}{b('bars', t('Bars'), '☰')}</span>;
 }
 
 const Row = ({ label, value, cls = '' }: { label: string; value: string; cls?: string }) => (
