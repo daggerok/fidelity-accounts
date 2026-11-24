@@ -323,7 +323,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800" />
               {/* On average first, then the share of the balance (owner 2026-11-24); the year has no average, an empty line
                   keeps its share level with the others */}
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{key === 'Y' ? '\u00a0' : <>{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></>}</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{key === 'Y' ? '\u00a0' : <>{t('On average')}: <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></>}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
             </div>
           ))}
