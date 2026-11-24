@@ -101,7 +101,7 @@ export function App() {
       <div className="shrink-0 px-4 pt-4 lg:px-6 lg:pt-6">
           {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
-          <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+          <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
             <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
@@ -112,9 +112,12 @@ export function App() {
               onMove={(moved, target) => animate(() => setPrefs({ accountOrder: moveAccount(ds.accounts, moved, target) }))}
               onMoveGroup={(moved, target) => animate(() => setPrefs({ groupOrder: moveGroup(groupsOf(ds).map((g) => g.name), moved, target) }))} />}
             <div className={`hidden flex-1 sm:block ${ds ? 'lg:hidden' : ''}`} />
-            <div className="flex w-full items-center justify-evenly gap-1 sm:w-auto sm:justify-end">
+            {/* one gap everywhere (owner 2026-11-24: consistent): 20 px of air between the logo, the accounts strip, the script
+                update pill and each icon. A .tb box is 36 px around an 18 px icon (9 px each side), so icons sit 2 px apart
+                and the group starts 9 px early when its first item is an icon */}
+            <div className={`flex w-full items-center justify-evenly gap-0.5 sm:w-auto sm:justify-end ${isOlder(userscript, APP_VERSION) ? '' : 'sm:-ml-[9px]'}`}>
               {isOlder(userscript, APP_VERSION) && (
-                <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
+                <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-[9px] rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>
               )}
               {/* 👀 watch the data (owner 2026-11-23), instead of a one-off ⬇; watching shows only as the green dot, the button
