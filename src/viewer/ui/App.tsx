@@ -79,7 +79,9 @@ export function App() {
   const accounts = ds ? accountsIn(ds, scope) : [];
   const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
-  const title = !ds ? '' : scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one?.name ?? '';
+  // a chosen set of accounts is named by its accounts (up to three), else counted
+  const title = !ds ? '' : scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
+    : accounts.length <= 3 ? accounts.map((a) => a.name).join(' + ') : t('{n} accounts', { n: accounts.length });
   const year = new Date().getFullYear();
 
   return (

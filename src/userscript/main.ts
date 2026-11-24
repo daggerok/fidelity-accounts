@@ -103,7 +103,7 @@ function onPortfolio(): void {
         const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
         const next = { ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() };
         gmSet(DATASET_KEY, JSON.stringify(next));
-        badge.sheets(`history: ${Object.keys(fresh).length} accounts updated ${time()}`);
+        badge.status(`history: ${Object.keys(fresh).length} accounts updated ${time()}`);
         lastWrite = Date.now();
         void writeSheets(next);
       }

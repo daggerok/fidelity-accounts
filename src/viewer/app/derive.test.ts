@@ -4,7 +4,7 @@
 import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -30,7 +30,7 @@ test('totals and movers', () => {
 test('allocation, dividends, 52-week, sort and search', () => {
   const ps = positionsIn(ds, ds.accounts);
   expect(allocation(ps, (p) => p.sector).map((s) => s.name)).toEqual(['Energy', 'Other', 'Cash']);
-  expect(upcomingDividends(ps, '2026-11-20').map((p) => p.symbol)).toEqual(['AAAA']);
+  expect(upcomingDividends(ps, '2026-11-20').map((p) => [p.symbol, p.shares, p.payout])).toEqual([['AAAA', 2.5, 0.63]]); // 0.25 x 2.5 shares
   expect(upcomingDividends(ps, '2026-12-13')).toEqual([]);
   expect(rangePos(ps[1]!)).toBeCloseTo(100 / 110);
   expect(near52(ps, 0.1).highs.map((p) => p.symbol)).toEqual(['AAAA']);
@@ -39,4 +39,31 @@ test('allocation, dividends, 52-week, sort and search', () => {
   expect(sortPositions(ps, 'symbol', 1)[0]!.symbol).toBe('AAAA');
   expect(matches(ps[1]!, 'alpha')).toBe(true);
   expect(matches(ps[1]!, 'zzz')).toBe(false);
+});
+
+test('any set of accounts: checkbox toggles, the shortest scope name', () => {
+  const three = { ...ds, accounts: ds.accounts.concat({ number: 'X3', name: 'Kid', group: 'Investment', asOf: 't' }) };
+  expect(scopeOf(three, ['X10000001', '200000002', 'X3'])).toBe('all');
+  expect(scopeOf(three, ['X10000001', 'X3'])).toBe('group:Investment');
+  expect(scopeOf(three, ['200000002'])).toBe('account:200000002');
+  expect(scopeOf(three, ['X3', '200000002'])).toBe('set:200000002,X3');
+  expect(accountsIn(three, 'set:200000002,X3').map((a) => a.number)).toEqual(['200000002', 'X3']);
+  // from one account, tick another: a set; untick it again: back to one; untick from all: the rest
+  expect(toggleAccount(three, 'account:X3', '200000002')).toBe('set:200000002,X3');
+  expect(toggleAccount(three, 'set:200000002,X3', '200000002')).toBe('account:X3');
+  expect(toggleAccount(three, 'all', '200000002')).toBe('group:Investment');
+  expect(validScope(three, 'set:gone')).toBe('all');
+});
+
+test('movers by % or $: the worst loser last; accounts sorted by the chosen measure', () => {
+  const p = (symbol: string, todayGl: number, todayGlPct: number) => ({ account: 'A', kind: 'position' as const, symbol, description: '', todayGl, todayGlPct, fields: {} });
+  const ps = [p('BIGUSD', 50, 1), p('BIGPCT', 2, 30), p('LOSS1', -1, -9), p('LOSS2', -20, -2), p('MID', 5, 5)];
+  expect(movers(ps, 2, 'pct').top.map((x) => x.symbol)).toEqual(['BIGPCT', 'MID']);
+  expect(movers(ps, 2, 'usd').top.map((x) => x.symbol)).toEqual(['BIGUSD', 'MID']);
+  expect(movers(ps, 2, 'pct').bottom.map((x) => x.symbol)).toEqual(['LOSS2', 'LOSS1']); // -2% then -9% at the very bottom
+  expect(movers(ps, 2, 'usd').bottom.map((x) => x.symbol)).toEqual(['LOSS1', 'LOSS2']); // -$1 then -$20 at the very bottom
+  const accs = [{ number: '1', name: 'a', group: 'g', balance: 10, todayGl: 5, todayGlPct: 50, totalGl: -1, totalGlPct: -10, asOf: 't' }, { number: '2', name: 'b', group: 'g', balance: 20, todayGl: 1, todayGlPct: 5, totalGl: 3, totalGlPct: 15, asOf: 't' }];
+  expect(sortAccounts(accs, 'value').map((a) => a.number)).toEqual(['2', '1']);
+  expect(sortAccounts(accs, 'todayUsd').map((a) => a.number)).toEqual(['1', '2']);
+  expect(sortAccounts(accs, 'totalPct').map((a) => a.number)).toEqual(['2', '1']);
 });
