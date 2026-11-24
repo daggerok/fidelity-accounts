@@ -202,6 +202,30 @@ export function near52(ps: Position[], within = 0.03): { highs: Position[]; lows
   };
 }
 
+/**
+ * The big 52-week table (owner 2026-11-24: "more info here"): one row per symbol over the shown accounts, shares, value
+ * and total gain summed; where the price sits in the range and how far it is from the high and the low, in %
+ */
+export interface RangeRow { symbol: string; description: string; sector?: string; low52: number; high52: number; lastPrice: number; dayPct?: number; pos: number; fromHigh: number; fromLow: number; shares: number; value: number; totalGl: number; totalGlPct: number | null }
+export function rangeRows(ps: Position[]): RangeRow[] {
+  const by = new Map<string, RangeRow & { cost: number }>();
+  ps.forEach((p) => {
+    const pos = rangePos(p);
+    if (pos === null) return;
+    const cur = by.get(p.symbol);
+    if (cur) {
+      cur.shares += p.quantity ?? 0; cur.value += p.currentValue ?? 0; cur.totalGl += p.totalGl ?? 0; cur.cost += p.costBasisTotal ?? 0;
+      return;
+    }
+    by.set(p.symbol, {
+      symbol: p.symbol, description: p.description, sector: p.sector, low52: p.low52!, high52: p.high52!, lastPrice: p.lastPrice!, dayPct: p.lastPriceChangePct,
+      pos, fromHigh: (p.lastPrice! / p.high52! - 1) * 100, fromLow: p.low52! > 0 ? (p.lastPrice! / p.low52! - 1) * 100 : 0,
+      shares: p.quantity ?? 0, value: p.currentValue ?? 0, totalGl: p.totalGl ?? 0, cost: p.costBasisTotal ?? 0, totalGlPct: null,
+    });
+  });
+  return Array.from(by.values()).map(({ cost, ...r }) => ({ ...r, totalGlPct: cost > 0 ? (r.totalGl / cost) * 100 : null }));
+}
+
 /** the positions table order; text columns sort by text, the rest by number, empty last */
 export function sortPositions(ps: Position[], key: string, dir: 1 | -1): Position[] {
   const val = (p: Position): string | number | undefined => (p as unknown as Record<string, string | number | undefined>)[key] ?? (p.fields[key] as string | number | undefined);

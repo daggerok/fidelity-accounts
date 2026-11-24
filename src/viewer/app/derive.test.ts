@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -34,6 +34,10 @@ test('allocation, dividends, 52-week, sort and search', () => {
   expect(upcomingDividends(ps, '2026-12-13')).toEqual([]);
   expect(rangePos(ps[1]!)).toBeCloseTo(100 / 110);
   expect(near52(ps, 0.1).highs.map((p) => p.symbol)).toEqual(['AAAA']);
+  const [row] = rangeRows(near52(ps, 0.1).highs);
+  expect(row!.pos).toBeCloseTo(100 / 110);
+  expect(row!.fromHigh).toBeCloseTo((ps[1]!.lastPrice! / ps[1]!.high52! - 1) * 100);
+  expect(rangeRows(ps.concat(ps)).find((r) => r.symbol === 'AAAA')!.shares).toBe(2 * ps[1]!.quantity!); // one row per symbol, shares summed
   const secs = ps.filter((p) => p.kind === 'position');
   expect(sortPositions(secs, 'todayGlPct', -1).map((p) => p.symbol)).toEqual(['AAAA', 'BBBB']);
   expect(sortPositions(ps, 'symbol', 1)[0]!.symbol).toBe('AAAA');
