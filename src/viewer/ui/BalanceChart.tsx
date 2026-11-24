@@ -1,4 +1,4 @@
-import { ALL_PERIODS, PERIODS, changeOf, periodLabel, periodSlice, type Point } from '../../shared/history';
+import { ALL_PERIODS, cardPeriods, changeOf, periodLabel, periodSlice, type Period, type Point } from '../../shared/history';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { LineChart } from './LineChart';
@@ -32,8 +32,8 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
   const up = (ch?.change ?? 0) >= 0;
   // the card keeps the short list (plus the one picked in the zoom), the zoom shows every period
   const chips = (all: boolean) => (
-    <Pills items={ALL_PERIODS.filter((p) => all || p === period || (PERIODS as readonly string[]).includes(p))} value={period} label={t('Period')}
-      labelOf={periodLabel} onChange={(p) => setPrefs({ period: p })} />
+    <Pills items={(all ? [...ALL_PERIODS] : cardPeriods(period)) as Period[]} value={period} label={t('Period')}
+      labelOf={(p) => periodLabel(p, !all)} onChange={(p) => setPrefs({ period: p })} />
   );
   const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period })}</span></div>;
   const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;
