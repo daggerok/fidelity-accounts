@@ -2,22 +2,41 @@ import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
 import { allocation, movers, near52, positionsIn, totalsOf, upcomingDividends } from '../app/derive';
 import { BalanceChart } from './BalanceChart';
+import { Donut } from './Donut';
+import { prefs, setPrefs } from '../app/prefs';
+import { useStore } from './useStore';
 import { t } from '../app/i18n';
 import { pct, signedPct, signedUsd, siteDate, tone, usd } from './format';
 
-// Summary: squares of information like the Fidelity summary page, for the chosen scope
-const Card = ({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) => (
-  <section className={`card flex flex-col gap-3 ${wide ? 'md:col-span-2' : ''}`}>
-    <h2 className="text-lg font-semibold">{title}</h2>
+// Summary: cards of information like the Fidelity summary page, for the chosen scope. Each card is as tall as its
+// content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
+const Card = ({ title, children, tools }: { title: string; children: React.ReactNode; tools?: React.ReactNode }) => (
+  <section className="card mb-4 flex w-full break-inside-avoid flex-col gap-3">
+    <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-semibold">{title}</h2>{tools}</div>
     {children}
   </section>
 );
+
+// bars or a donut for the allocation cards, remembered
+function ViewSwitch() {
+  const pr = useStore(prefs);
+  const b = (v: 'bars' | 'pie', label: string, icon: string) => (
+    <button type="button" title={label} aria-pressed={pr.allocView === v} onClick={() => setPrefs({ allocView: v })}
+      className={`rounded px-1.5 py-0.5 text-xs ${pr.allocView === v ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{icon}</button>
+  );
+  return <span className="flex gap-0.5">{b('pie', t('Donut'), '◔')}{b('bars', t('Bars'), '☰')}</span>;
+}
 
 const Row = ({ label, value, cls = '' }: { label: string; value: string; cls?: string }) => (
   <div className="flex items-baseline justify-between gap-3 text-sm"><span className="text-slate-500 dark:text-slate-400">{label}</span><span className={`num whitespace-nowrap text-right font-medium ${cls}`}>{value}</span></div>
 );
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
+
+function Allocation({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
+  const pr = useStore(prefs);
+  return pr.allocView === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
+}
 
 function Bars({ slices }: { slices: { name: string; value: number; pct: number }[] }) {
   return (
@@ -36,9 +55,9 @@ function Movers({ list }: { list: Position[] }) {
   return (
     <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
       {list.map((p) => (
-        <div key={p.symbol} className="flex items-center justify-between gap-3 py-2 text-sm">
-          <div className="min-w-0"><div className="font-semibold">{p.symbol}</div><div className="truncate text-xs text-slate-500 dark:text-slate-400">{p.description}</div></div>
-          <div className="text-right"><div className={`num ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</div><div className="num text-xs text-slate-500">{usd(p.lastPrice)}</div></div>
+        <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+          <div className="min-w-0"><span className="font-semibold">{p.symbol}</span> <span className="truncate text-xs text-slate-500 dark:text-slate-400">{p.description}</span></div>
+          <div className={`num whitespace-nowrap text-right ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</div>
         </div>
       ))}
     </div>
@@ -57,7 +76,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const yieldOnValue = tot.balance > 0 ? (tot.estAnnualIncome / tot.balance) * 100 : null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-summary>
+    <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
       <Card title={t('Balance')}>
         <div className="num text-4xl font-semibold tracking-tight">{usd(tot.balance)}</div>
         <div className={`num text-sm ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)}) <span className="text-slate-500 dark:text-slate-400">{t("Today's gain/loss")}</span></div>
@@ -113,8 +132,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         ) : <Empty text={t('Nothing within 3% of its 52-week high or low')} />}
       </Card>
 
-      <Card title={t('Allocation by sector')}><Bars slices={sectors} /></Card>
-      <Card title={t('Allocation by security type')}><Bars slices={types} /></Card>
+      <Card title={t('Allocation by sector')} tools={<ViewSwitch />}><Allocation slices={sectors} /></Card>
+      <Card title={t('Allocation by security type')} tools={<ViewSwitch />}><Allocation slices={types} /></Card>
     </div>
   );
 }

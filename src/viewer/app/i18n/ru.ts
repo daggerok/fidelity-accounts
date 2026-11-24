@@ -28,6 +28,9 @@ export const RU: Record<string, string> = {
   // summary
   Balance: 'Баланс',
   Period: 'Период',
+  Donut: 'Кольцо',
+  Bars: 'Полосы',
+  Other: 'Прочее',
   'balance change, {period}': 'изменение баланса, {period}',
   'Zoom the chart': 'Увеличить график',
   "Today's gain/loss": 'Изменение за сегодня',

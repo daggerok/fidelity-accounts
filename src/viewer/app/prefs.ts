@@ -18,9 +18,10 @@ export interface Prefs {
   search: string;
   hidden: string[]; // positions columns switched off
   period: Period; // the balance chart's period
+  allocView: 'bars' | 'pie'; // the allocation cards
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y' };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', allocView: 'pie' };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -33,6 +34,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
       period: (PERIODS as readonly string[]).indexOf(String(p.period)) >= 0 ? (p.period as Period) : '1Y',
+      allocView: p.allocView === 'bars' ? 'bars' : 'pie',
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {
