@@ -32,7 +32,8 @@ function Card({ id, title, children, tools, lead, expand }: { id: string; title:
         <span className="-my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
       </div>
       {children}
-      {expand && <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand}</Zoom>}
+      {/* always mounted: a list that empties under an open window (a pill switched) must not drop the window; it shows the card's own view then */}
+      <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
     </section>
   );
 }
