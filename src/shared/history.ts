@@ -3,6 +3,7 @@
 // { range, acctList: [{ acctNum, acctType }] } -> { balHistoryDetail: { balances: [{ value, date: "MM/DD/YYYY" }] } }.
 // Range 3Y = since the account opened (seen live 2026-11-23), 1M for the daily top-up. One series per account; a scope
 // of several accounts is their sum by date. Periods (owner 2026-11-23): 1D..3Y, cut from the daily series
+import { addDays, addMonths } from './dates';
 export interface Point { date: string; value: number } // ISO date, dollars
 export type History = Record<string, Point[]>; // account number -> points, oldest first
 
@@ -73,22 +74,7 @@ export function cardPeriods(current: string): string[] {
 export const periodAlias = (p: string): string => (p === '2Q' ? '6M' : p === '9M' ? '3Q' : p);
 export type Period = (typeof ALL_PERIODS)[number];
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const utc = (s: string) => new Date(`${s}T00:00:00Z`);
-// months and years keep the day of the month, clamped to the month's length (Mar 31 minus 1M = Feb 28)
-function shift(s: string, days = 0, months = 0, years = 0): string {
-  const d = utc(s);
-  if (months || years) {
-    const total = d.getUTCFullYear() * 12 + d.getUTCMonth() + months + years * 12;
-    const y = Math.floor(total / 12);
-    const m = total - y * 12;
-    const dim = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    d.setUTCFullYear(y, m, Math.min(d.getUTCDate(), dim));
-  }
-  if (days) d.setUTCDate(d.getUTCDate() + days);
-  return iso(d);
-}
-
 /**
  * The points of a period, starting at its base point (the close the change is measured from): nD = the last n+1
  * closes; 1W..3Y = the last close on or before that many days, weeks, months, quarters or years back; WTD, MTD, QTD,
@@ -102,15 +88,15 @@ export function periodSlice(series: Point[], period: Period): Point[] {
   if (nd) return series.slice(Math.max(0, series.length - 1 - Number(nd[1])));
   let before: string; // base = the last point with date < before
   const d = utc(lastDate);
-  if (period === 'WTD') before = shift(lastDate, -((d.getUTCDay() + 6) % 7));
+  if (period === 'WTD') before = addDays(lastDate, -((d.getUTCDay() + 6) % 7));
   else if (period === 'MTD') before = `${lastDate.slice(0, 8)}01`;
   else if (period === 'QTD') before = `${lastDate.slice(0, 5)}${String(Math.floor(d.getUTCMonth() / 3) * 3 + 1).padStart(2, '0')}-01`;
   else if (period === 'YTD') before = `${lastDate.slice(0, 4)}-01-01`;
   else {
     const n = Number(period.slice(0, -1));
     const unit = period.slice(-1);
-    const back = unit === 'W' ? shift(lastDate, -7 * n) : unit === 'M' ? shift(lastDate, 0, -n) : unit === 'Q' ? shift(lastDate, 0, -3 * n) : shift(lastDate, 0, 0, -n);
-    before = shift(back, 1); // on or before `back`
+    const back = unit === 'W' ? addDays(lastDate, -7 * n) : unit === 'M' ? addMonths(lastDate, -n) : unit === 'Q' ? addMonths(lastDate, -3 * n) : addMonths(lastDate, -12 * n);
+    before = addDays(back, 1); // on or before `back`
   }
   let base = 0;
   for (let i = series.length - 1; i >= 0; i--) { if (series[i]!.date < before) { base = i; break; } }
