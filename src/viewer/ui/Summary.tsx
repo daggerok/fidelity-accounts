@@ -254,9 +254,13 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
         expand={divs.length ? <DividendsTable ps={divPs} today={today} /> : undefined}>
-        {divs.length > 0 && <div className="text-sm text-slate-500 dark:text-slate-400">{t('About {sum} to you from {n} payouts', { sum: usd(divs.reduce((x, d) => x + (d.payout ?? 0), 0)), n: divs.length })}</div>}
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {/* the total on top, as the first row (owner 2026-11-24) */}
+            <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
+              <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
+              <div className="num font-semibold">{usd(divs.reduce((x, d) => x + (d.payout ?? 0), 0))}</div>
+            </div>
             {divs.slice(0, 8).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                 <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
