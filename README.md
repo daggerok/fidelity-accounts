@@ -34,6 +34,7 @@ digital.fidelity.com (you are logged in)     daggerok.github.io/fidelity-account
 - The Positions page keeps Fidelity's own answer (about 100 fields per position) in its grid. A tiny reader in the page copies those rows, nothing is clicked and no extra request is sent. Reads happen when you press ⬇, and by themselves at most every 10 minutes while the page is open
 - The account list on the left gives the groups (Investment, Retirement) and balances
 - The viewer hands its Google token to the script, so the Fidelity tab writes the sheet right after a read. Without a token the data waits until the viewer is open and connected
+- At the bottom of ⚙️ Settings: Reset view (theme, language, account, tab, sort, columns, panels; the setup stays) and Full reset, off until its switch is ticked (also the Google setup and the cached data; the script forgets its data and Google token, the Fidelity login stays under 🔑)
 - What the browser keeps: the public Client ID and the spreadsheet id (localStorage), the last data (IndexedDB), your choices: account, tab, sort, columns, theme, language. The Google token stays in memory. The Fidelity login, if saved, lives only in the script's Tampermonkey storage
 
 Sheet tabs:

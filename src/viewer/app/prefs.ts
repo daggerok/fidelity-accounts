@@ -44,10 +44,11 @@ prefs.subscribe(() => {
 
 export const setPrefs = (p: Partial<Prefs>): void => prefs.set({ ...prefs.get(), ...p });
 
-/** every remembered choice back to its default (⚙️ Reset view); theme and language too */
-export function resetPrefs(): void {
-  prefs.set(DEFAULT_PREFS);
-  try {
-    ['fidelity-accounts-theme', 'fidelity-accounts.lang'].forEach((k) => globalThis.localStorage?.removeItem(k));
-  } catch { /* private window */ }
+// what "Reset view" clears: the look and the remembered choices, never the setup (owner 2026-11-23)
+export const VIEW_KEYS = [KEY, 'fidelity-accounts-theme', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-badge-minimized'];
+
+/** Reset view: account, tab, sort, columns, theme, language and open panels back to their defaults; the page reloads */
+export function resetView(storage: Pick<Storage, 'removeItem'> | undefined = globalThis.localStorage, reload: () => void = () => location.reload()): void {
+  try { VIEW_KEYS.forEach((k) => storage?.removeItem(k)); } catch { /* private window */ }
+  reload();
 }

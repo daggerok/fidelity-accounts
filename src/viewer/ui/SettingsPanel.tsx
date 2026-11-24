@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearDemo, dataset, importFile, loginSaved, openFidelity, showDemo } from '../app/data';
 import { t } from '../app/i18n';
-import { resetPrefs } from '../app/prefs';
+import { resetView } from '../app/prefs';
+import { fullReset } from '../app/reset';
 import { APP_VERSION, isOlder } from '../app/version';
 import { GetStarted } from './GetStarted';
 import { Section } from './Section';
@@ -18,6 +19,8 @@ export function SettingsPanel({ userscript, done, expand, onDemo }: { userscript
   const file = useRef<HTMLInputElement>(null);
   const { ds, source } = useStore(dataset);
   const login = useStore(loginSaved);
+  // Full reset is off by default and needs its own switch first (owner 2026-11-23); Reset view always works
+  const [fullOn, setFullOn] = useState(false);
   const sourceName: Record<string, string> = { userscript: t('the script'), sheets: t('Google Sheets'), import: t('a JSON file'), cache: t('this browser'), demo: t('demo data') };
 
   return (
@@ -39,12 +42,22 @@ export function SettingsPanel({ userscript, done, expand, onDemo }: { userscript
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
           {source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={showDemo}>{t('Show demo data')}</button>}
-          <button type="button" className="btn sm danger" onClick={resetPrefs} title={t('Selected account, tab, sort, columns, theme and language back to their defaults')}>{t('Reset view')}</button>
           <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
         </div>
         <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
       </div>
       </Section>
+    {/* always the very bottom of settings (owner 2026-11-23) */}
+    <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700" data-resets>
+      <button type="button" className="btn sm" onClick={() => resetView()} title={t('Selected account, tab, sort, columns, theme and language back to their defaults; the setup stays')}>{t('Reset view')}</button>
+      <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+        <input type="checkbox" checked={fullOn} onChange={(e) => setFullOn(e.target.checked)} data-full-reset-switch />{t('Enable full reset')}
+      </label>
+      <button type="button" className="btn sm danger" disabled={!fullOn} data-full-reset onClick={() => void fullReset()}
+        title={t('Everything this app keeps in this browser: the Google setup, the cached data and the view; the script forgets its data and Google token')}>
+        {t('Full reset')}
+      </button>
+    </div>
     </div>
   );
 }
