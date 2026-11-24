@@ -5,7 +5,8 @@ import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
 import { signedPct, tone, usd } from './format';
 
-// The accounts bar (owner 2026-11-23): one line per chip, so the bar stays low. Accounts are the solid, bold chips and
+// The accounts bar (owner 2026-11-23): one line per chip, so the bar stays low. Same box as the navbar: width, border,
+// background, side padding and height (owner 2026-11-24: consistent). Accounts are the solid, bold chips and
 // the groups (All accounts, Investment, Retirement) light outlined ones (owner 2026-11-24: accounts look more permanent
 // than groups), so a section never looks like an account. A click on All accounts or a group folds or unfolds it (All
 // accounts unfolds every group); a click on an account shows only it. Checkboxes alone choose: All accounts ticks or
@@ -58,7 +59,7 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
     </div>
   );
   return (
-    <nav className="flex items-center overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-950" aria-label={t('Accounts')}>
+    <nav className="flex items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-900" aria-label={t('Accounts')}>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
         onClick={() => onFold(ALL_FOLD)} onKeyDown={(e) => { if (e.key === 'Enter') onFold(ALL_FOLD); }} data-scope="all">
         {chev(!allFolded)}
