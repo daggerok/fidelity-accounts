@@ -11,7 +11,7 @@ export const RU: Record<string, string> = {
   'Language: English (click for Russian)': 'Язык: русский (нажми для английского)',
   'Get started': 'Начало работы',
   'Get started: the setup steps': 'Начало работы: шаги настройки',
-  'Watching Fidelity: Positions refresh every minute and the numbers here follow (last read {at}). Click to stop': 'Наблюдение за Fidelity: позиции обновляются каждую минуту, цифры здесь следуют за ними (последнее чтение {at}). Нажми, чтобы остановить',
+  'Watching Fidelity: Positions refresh every 10 minutes while the market is open and the numbers here follow (last read {at}). Click to stop': 'Наблюдение за Fidelity: при открытом рынке Positions обновляются каждые 10 минут, и цифры здесь следуют за ними (последнее чтение {at}). Клик - остановить',
   'Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)': 'Наблюдать: открывает Fidelity на позициях и держит цифры здесь живыми, пока рынок открыт (только чтение)',
   'Install the script first (🚀 Get started)': 'Сначала установи скрипт (🚀 Начало работы)',
   'Connect Google Sheets': 'Подключить Google Sheets',

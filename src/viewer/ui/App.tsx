@@ -124,7 +124,7 @@ export function App() {
                   itself looks the same on and off (owner 2026-11-24) */}
               <button type="button" className="tb" data-watch={watch ? 'on' : 'off'} disabled={!userscript}
                 title={!userscript ? t('Install the script first (🚀 Get started)') : watch
-                  ? t('Watching Fidelity: Positions refresh every minute and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' })
+                  ? t('Watching Fidelity: Positions refresh every 10 minutes while the market is open and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' })
                   : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)')}
                 onClick={() => setWatch(!watch)}>
                 <span className="relative inline-flex">👀{watch && <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-emerald-500" />}</span>
