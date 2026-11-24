@@ -13,6 +13,8 @@ export const signedPct = (n: number | undefined | null): string => (typeof n ===
 /** "+$12.30 (+1.25%)" */
 export const signedUsdPct = (usd: number | undefined | null, pct: number | undefined | null): string => `${signedUsd(usd)} (${signedPct(pct)})`;
 export const qty = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? String(Math.round(n * 1000) / 1000) : DASH);
+/** "+0.14", "-0.76", "0": a number of shares with its sign */
+export const signedQty = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n > 0 ? '+' : ''}${qty(n)}` : DASH);
 export const tone = (n: number | undefined | null): string => (typeof n === 'number' && n > 0 ? 'gain' : typeof n === 'number' && n < 0 ? 'loss' : '');
 /** "2026-12-12" -> "Dec-12-2026" (the site's own way) */
 export const siteDate = (iso: string | undefined): string => {

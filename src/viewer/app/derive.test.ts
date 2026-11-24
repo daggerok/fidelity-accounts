@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -216,4 +216,24 @@ test('income facts: received from the transactions, planned adds what still come
   expect(incomeFacts({ ...store, synced: {} }, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24')).toEqual({ received: null, coming: 0, planned: 0.63 }); // the October payment at today's shares
   expect(incomeFacts(null, accts, ps, 'all', '2026-10-01', '2026-12-31', '2026-11-24').received).toBeNull();
   expect(incomeFacts(store, accts, ps, 'etf', '2026-10-01', '2026-12-31', '2026-11-24').received).toBe(0); // AAAA is not held as an ETF
+});
+
+test('DRIP: shares or dollars to buy so the next payout buys 0.001 share, minus when it already does', () => {
+  const pos = (extra: Partial<Position>): Position => ({ account: 'A', kind: 'position', symbol: 'X', description: '', lastPrice: 52.3, dividendAmount: 0.25, quantity: 0.1, fields: {}, ...extra });
+  // 0.001 x $52.30 = $0.0523 -> 6 cents; 0.06 / 0.25 = 0.24 shares needed, 0.1 held
+  expect(dripGap(pos({}))).toEqual({ shares: 0.14, usd: 7.33 }); // 0.14 x 52.30 = 7.322, up to a cent
+  expect(dripGap(pos({ quantity: 1 }))).toEqual({ shares: -0.76, usd: -39.75 });
+  expect(dripGap(pos({ quantity: 0.24 }))).toEqual({ shares: 0, usd: 0 }); // exactly enough
+  expect(dripGap(pos({ lastPrice: 50, quantity: 0 }))).toEqual({ shares: 0.2, usd: 10 }); // $0.05 exactly, not 6 cents
+  expect(dripGap(pos({ quantity: 0.2391 }))).toEqual({ shares: 0.001, usd: 0.05 }); // a tiny gap still rounds up
+  expect(dripGap(pos({ dividendAmount: undefined }))).toBeNull();
+  expect(dripGap(pos({ lastPrice: undefined }))).toBeNull();
+  expect(dripGap(pos({ kind: 'core' }))).toBeNull();
+  // no per-payment amount: the annual estimate split by the payments a year
+  expect(perPayment(pos({ dividendAmount: undefined, estAnnualIncome: 4, quantity: 2, paymentFrequency: 'Quarterly' }))).toBe(0.5);
+  expect(perPayment(pos({ dividendAmount: undefined, estAnnualIncome: 4, quantity: 2, paymentFrequency: 'Unknown' }))).toBeUndefined();
+  // sorting by DRIP: the biggest buy first, no dividend last
+  const ps = [pos({ symbol: 'ON', quantity: 1 }), pos({ symbol: 'NONE', dividendAmount: undefined }), pos({ symbol: 'BUY' })];
+  expect(sortPositions(ps, 'drip', -1).map((p) => p.symbol)).toEqual(['BUY', 'ON', 'NONE']);
+  expect(sortPositions(ps, 'dripUsd', 1).map((p) => p.symbol)).toEqual(['ON', 'BUY', 'NONE']);
 });

@@ -18,6 +18,7 @@ export interface Prefs {
   sort: { key: string; dir: 1 | -1 };
   search: string;
   hidden: string[]; // positions columns switched off
+  columns: string[]; // the owner's order of the positions columns (src/viewer/app/columns.ts)
   period: Period; // the balance chart's period
   views: Record<string, 'bars' | 'pie'>; // each allocation card its own view (owner 2026-11-23: not one global switch)
   moversBy: 'pct' | 'usd'; // top and bottom movers by % or $
@@ -30,7 +31,7 @@ export interface Prefs {
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -44,6 +45,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       search: typeof p.search === 'string' ? p.search : '',
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
+      columns: Array.isArray(p.columns) ? p.columns.filter((x): x is string => typeof x === 'string') : [],
       period: (ALL_PERIODS as readonly string[]).indexOf(periodAlias(String(p.period))) >= 0 ? (periodAlias(String(p.period)) as Period) : '1Y',
       views: p.views && typeof p.views === 'object' && !Array.isArray(p.views) ? p.views : {},
       moversBy: p.moversBy === 'usd' ? 'usd' : 'pct',
