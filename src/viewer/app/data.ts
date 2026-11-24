@@ -1,8 +1,10 @@
 /// <reference lib="esnext" />
 // Where the dataset comes from in the viewer: the userscript bridge (window message 'fidelity-accounts:dataset'),
 // Google Sheets (↻), Import JSON, and IndexedDB of the viewer origin for the next visit
+import { mergeHistory } from '../../shared/history';
 import { parseDataset, type Dataset } from '../../shared/model';
 import { createStore } from '../../shared/store';
+import type { Report } from '../../shared/contract';
 import { POSITIONS_URL } from '../../userscript/header';
 import { cacheGet, cacheSet } from './cache';
 import { t } from './i18n';
@@ -18,6 +20,8 @@ export const runState = createStore<RunState | null>(null);
 export const loginSaved = createStore<boolean | null>(null);
 // 👀 Watch on or off (kept in the script's storage, so the Fidelity tab and every viewer tab agree)
 export const watching = createStore<boolean>(false);
+// the script's live check of the contract with Fidelity (src/shared/contract.ts)
+export const contract = createStore<Report | null>(null);
 
 const CACHE_KEY = 'dataset';
 
@@ -27,8 +31,11 @@ export function accept(json: string, source: Source): boolean {
   if (!ds) { dataset.set((s) => ({ ...s, error: t('could not read the data (another version?)') })); return false; }
   const cur = dataset.get();
   if (cur.ds && cur.ds.builtAt > ds.builtAt) return false;
-  dataset.set({ ds, source, error: null });
-  void cacheSet(CACHE_KEY, json);
+  // the daily history only grows: a copy that lacks it (the sheet, an older script) keeps the one already shown
+  // (owner 2026-11-24: the balance chart vanished when the sheet copy of the same time replaced the script's)
+  const next = cur.ds?.history ? { ...ds, history: mergeHistory(cur.ds.history, ds.history), historyAt: [cur.ds.historyAt, ds.historyAt].filter(Boolean).sort().pop() } : ds;
+  dataset.set({ ds: next, source, error: null });
+  void cacheSet(CACHE_KEY, next === ds ? json : JSON.stringify(next));
   return true;
 }
 
@@ -38,6 +45,9 @@ export function startData(): void {
     if (e.data.type === 'fidelity-accounts:dataset') accept(e.data.json, 'userscript');
     if (e.data.type === 'fidelity-accounts:run') {
       try { runState.set(JSON.parse(e.data.json) as RunState); } catch { /* ignore */ }
+    }
+    if (e.data.type === 'fidelity-accounts:contract') {
+      try { contract.set(JSON.parse(e.data.json) as Report); } catch { /* ignore */ }
     }
     if (e.data.type === 'fidelity-accounts:watch') {
       try { watching.set(!!(JSON.parse(e.data.json) as { on?: boolean }).on); } catch { /* ignore */ }

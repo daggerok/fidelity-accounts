@@ -118,8 +118,8 @@ export function App() {
               {!done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
               <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
-              <button type="button" className="tb" style={{ width: 'auto', padding: '0 .4rem' }} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
-                <span className="flex items-center gap-1"><span aria-hidden="true">{LANG_FLAGS[language]}</span><span className="text-[10px] font-semibold uppercase">{language}</span></span>
+              <button type="button" className="tb" aria-label={t('Language: English (click for Russian)')} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
+                <span aria-hidden="true" className="text-base leading-none">{LANG_FLAGS[language]}</span>
               </button>
               <button type="button" onClick={theme.cycle} title={themeTitle(theme.mode, theme.systemDark)} data-theme-button={theme.mode} className="tb sun">
                 <span className="relative inline-flex">{icon.icon}{icon.auto && <span className="absolute -right-2 -top-1.5 text-[8px] font-bold leading-none">A</span>}</span>

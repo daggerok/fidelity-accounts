@@ -168,12 +168,15 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         {m.top.length || m.bottom.length ? <><Movers list={m.top} /><Movers list={m.bottom} /></> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
-      <Card id="accounts" title={t('Accounts')} tools={(
-        <select className="rounded border border-slate-200 bg-transparent px-1 py-0.5 text-xs dark:border-slate-700" value={pr.accountSort} aria-label={t('Sort accounts by')}
-          onChange={(e) => { const v = e.target.value as AccountSort; animate(() => setPrefs({ accountSort: v })); }}>
-          {ACCOUNT_SORTS.map((k) => <option key={k} value={k}>{sortName[k]}</option>)}
-        </select>
-      )}>
+      <Card id="accounts" title={t('Accounts')}>
+        {/* the order as pills in one row (owner 2026-11-24: buttons in line, like Fidelity's 1M YTD 1Y 3Y) */}
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t('Sort accounts by')}>
+          {ACCOUNT_SORTS.map((k) => (
+            <button key={k} type="button" aria-pressed={pr.accountSort === k} onClick={() => animate(() => setPrefs({ accountSort: k }))}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${pr.accountSort === k ? 'text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}
+              style={pr.accountSort === k ? { background: 'var(--brand)' } : undefined}>{sortName[k]}</button>
+          ))}
+        </div>
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
           {sortAccounts(accounts, pr.accountSort).map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
