@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { PERIODS, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Point } from './history';
+import { ALL_PERIODS, PERIODS, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
 
 // weekdays only, like market closes, from 2025-10-15 to 2026-11-20 (a Friday), value = day number
 function closes(from: string, to: string): Point[] {
@@ -30,7 +30,7 @@ test('merge by date (new value wins) and combine accounts: each counts from its 
 
 test('periods start at the right close', () => {
   const s = closes('2025-10-15', '2026-11-20'); // last = Fri 2026-11-20
-  const start = (p: (typeof PERIODS)[number]) => periodSlice(s, p)[0]!.date;
+  const start = (p: Period) => periodSlice(s, p)[0]!.date;
   expect(periodSlice(s, '1D').map((p) => p.date)).toEqual(['2026-11-19', '2026-11-20']);
   expect(periodSlice(s, '3D')).toHaveLength(4);
   expect(start('WTD')).toBe('2026-11-13'); // the Friday before this Monday
@@ -44,6 +44,12 @@ test('periods start at the right close', () => {
   expect(start('YTD')).toBe('2025-12-31');
   expect(start('1Y')).toBe('2025-11-20');
   expect(start('3Y')).toBe('2025-10-15'); // shorter history: from its first point
+  expect(periodSlice(s, '2D')).toHaveLength(3);
+  expect(start('2W')).toBe('2026-11-06');
+  expect(start('10M')).toBe('2026-01-20');
+  expect(start('11M')).toBe('2025-12-19'); // Dec 20 2025 is a Saturday
+  expect(start('2Q')).toBe(start('6M'));
+  expect(PERIODS.every((p) => (ALL_PERIODS as readonly string[]).includes(p))).toBe(true);
   // month ends clamp: from Mar 31 one month back is Feb 28
   const m = closes('2026-02-02', '2026-03-31');
   expect(periodSlice(m, '1M')[0]!.date).toBe('2026-02-27'); // Feb 28 2026 is a Saturday: the close before it

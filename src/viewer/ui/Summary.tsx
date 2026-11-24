@@ -5,7 +5,8 @@ import { BalanceChart } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Toggle } from './Toggle';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { t } from '../app/i18n';
@@ -17,27 +18,26 @@ import { pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
 // makes sense, more rows and details there)
 function Card({ id, title, children, tools, expand }: { id: string; title: string; children: React.ReactNode; tools?: React.ReactNode; expand?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const box = useRef<HTMLElement>(null);
   return (
-    <section className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
+    <section ref={box} className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         <span className="flex items-center gap-1">{tools}{expand && <button type="button" className="tb" style={{ width: '1.75rem', height: '1.75rem' }} title={t('Open big')} onClick={() => setOpen(true)} data-expand>⤢</button>}</span>
       </div>
       {children}
-      {expand && <Zoom open={open} title={title} onClose={() => setOpen(false)}>{tools && <div className="flex justify-end">{tools}</div>}{expand}</Zoom>}
+      {expand && <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand}</Zoom>}
     </section>
   );
 }
 
 // bars or a donut, each card its own choice (remembered by card id), switched with the morph animation
 const viewOf = (views: Record<string, 'bars' | 'pie'>, id: string): 'bars' | 'pie' => views[id] ?? 'pie';
-// one toggle, not two buttons (owner 2026-11-24: only one view at a time): it shows the view a click switches to
 function ViewSwitch({ id }: { id: string }) {
   const pr = useStore(prefs);
-  const next = viewOf(pr.views, id) === 'pie' ? 'bars' : 'pie';
   return (
-    <button type="button" className="tb" title={next === 'bars' ? t('Show as bars') : t('Show as donut')} data-view-toggle={next}
-      onClick={() => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: next } }))}>{next === 'bars' ? '☰' : '◔'}</button>
+    <Toggle value={viewOf(pr.views, id)} label={t('Chart view')} a={{ value: 'pie', text: '◔', title: t('Show as donut') }} b={{ value: 'bars', text: '☰', title: t('Show as bars') }}
+      onChange={(v) => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: v } }))} />
   );
 }
 
@@ -65,11 +65,13 @@ function Bars({ slices }: { slices: { name: string; value: number; pct: number }
   );
 }
 
-function Movers({ list }: { list: Position[] }) {
+// each row has its own transition name, so on % and $ the rows glide to their new places; `at` keeps the card's and
+// the big window's names apart (a name used twice cancels the whole transition)
+function Movers({ list, at }: { list: Position[]; at: 'card' | 'big' }) {
   return (
     <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
       {list.map((p) => (
-        <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+        <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
           <div className="min-w-0"><span className="font-semibold">{p.symbol}</span> <span className="truncate text-xs text-slate-500 dark:text-slate-400">{p.description}</span></div>
           <div className={`num whitespace-nowrap text-right ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</div>
         </div>
@@ -135,7 +137,6 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const m = movers(ps, 5, pr.moversBy);
   const mBig = movers(ps, 20, pr.moversBy);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
-  const seg = (on: boolean) => `rounded px-1.5 py-0.5 text-xs ${on ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`;
   const today = new Date().toISOString().slice(0, 10);
   const divs = upcomingDividends(ps, today);
   const n52 = near52(ps);
@@ -158,14 +159,12 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       </Card>
 
       <Card id="movers" title={t('Your top and bottom movers')} tools={(
-        <span className="flex gap-0.5" role="group" aria-label={t('Sort movers by')}>
-          <button type="button" className={seg(pr.moversBy === 'pct')} aria-pressed={pr.moversBy === 'pct'} onClick={() => animate(() => setPrefs({ moversBy: 'pct' }))}>%</button>
-          <button type="button" className={seg(pr.moversBy === 'usd')} aria-pressed={pr.moversBy === 'usd'} onClick={() => animate(() => setPrefs({ moversBy: 'usd' }))}>$</button>
-        </span>
+        <Toggle value={pr.moversBy} label={t('Sort movers by')} a={{ value: 'pct', text: '%', title: t('Movers by %') }} b={{ value: 'usd', text: '$', title: t('Movers by $') }}
+          onChange={(v) => animate(() => setPrefs({ moversBy: v }))} />
       )} expand={mBig.top.length || mBig.bottom.length ? (
-        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers list={mBig.top} /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers list={mBig.bottom} /></div></div>
+        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers list={mBig.top} at="big" /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers list={mBig.bottom} at="big" /></div></div>
       ) : undefined}>
-        {m.top.length || m.bottom.length ? <><Movers list={m.top} /><Movers list={m.bottom} /></> : <Empty text={t('No price changes yet today')} />}
+        {m.top.length || m.bottom.length ? <><Movers list={m.top} at="card" /><Movers list={m.bottom} at="card" /></> : <Empty text={t('No price changes yet today')} />}
       </Card>
 
       <Card id="accounts" title={t('Accounts')}>

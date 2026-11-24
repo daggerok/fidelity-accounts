@@ -53,7 +53,9 @@ export function combine(history: History | undefined, accounts: string[]): Point
 
 // owner 2026-11-24: no 2D, 2W, 2M, 2Q, 2Y; 6M for half a year
 export const PERIODS = ['1D', '3D', 'WTD', '1W', '3W', 'MTD', '1M', '3M', 'QTD', '1Q', '3Q', '6M', 'YTD', '1Y', '3Y'] as const;
-export type Period = (typeof PERIODS)[number];
+/** the zoomed chart has room for every step (owner 2026-11-24: 2D 2W 2M 4M 5M 7M..11M 2Q 2Y too), shortest first */
+export const ALL_PERIODS = ['1D', '2D', '3D', 'WTD', '1W', '2W', '3W', 'MTD', '1M', '2M', '3M', 'QTD', '1Q', '4M', '5M', '2Q', '6M', '7M', '8M', '3Q', '9M', '10M', '11M', 'YTD', '1Y', '2Y', '3Y'] as const;
+export type Period = (typeof ALL_PERIODS)[number];
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const utc = (s: string) => new Date(`${s}T00:00:00Z`);
@@ -80,7 +82,7 @@ function shift(s: string, days = 0, months = 0, years = 0): string {
 export function periodSlice(series: Point[], period: Period): Point[] {
   if (series.length < 2) return series.slice();
   const lastDate = series[series.length - 1]!.date;
-  const nd = /^(\d)D$/.exec(period);
+  const nd = /^(\d+)D$/.exec(period);
   if (nd) return series.slice(Math.max(0, series.length - 1 - Number(nd[1])));
   let before: string; // base = the last point with date < before
   const d = utc(lastDate);
@@ -89,8 +91,8 @@ export function periodSlice(series: Point[], period: Period): Point[] {
   else if (period === 'QTD') before = `${lastDate.slice(0, 5)}${String(Math.floor(d.getUTCMonth() / 3) * 3 + 1).padStart(2, '0')}-01`;
   else if (period === 'YTD') before = `${lastDate.slice(0, 4)}-01-01`;
   else {
-    const n = Number(period[0]);
-    const unit = period[1];
+    const n = Number(period.slice(0, -1));
+    const unit = period.slice(-1);
     const back = unit === 'W' ? shift(lastDate, -7 * n) : unit === 'M' ? shift(lastDate, 0, -n) : unit === 'Q' ? shift(lastDate, 0, -3 * n) : shift(lastDate, 0, 0, -n);
     before = shift(back, 1); // on or before `back`
   }
