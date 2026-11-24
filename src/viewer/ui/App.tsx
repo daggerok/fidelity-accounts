@@ -117,8 +117,9 @@ export function App() {
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>
               )}
-              {/* 👀 watch the data while markets are open (owner 2026-11-23), instead of a one-off ⬇ */}
-              <button type="button" className={`tb ${watch ? 'on' : ''}`} data-watch={watch ? 'on' : 'off'} disabled={!userscript}
+              {/* 👀 watch the data (owner 2026-11-23), instead of a one-off ⬇; watching shows only as the green dot, the button
+                  itself looks the same on and off (owner 2026-11-24) */}
+              <button type="button" className="tb" data-watch={watch ? 'on' : 'off'} disabled={!userscript}
                 title={!userscript ? t('Install the script first (🚀 Get started)') : watch
                   ? t('Watching Fidelity: Positions refresh every minute and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' })
                   : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)')}
