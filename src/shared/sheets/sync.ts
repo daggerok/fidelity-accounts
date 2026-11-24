@@ -8,7 +8,8 @@
 // Accounts, positions and transactions are the state now (rewritten), balances_daily is history (upsert by date|account)
 import { DATASET_VERSION, parseDataset, type Account, type Dataset } from '../model';
 import type { Txn, TxnStore } from '../transactions';
-import type { SheetsClient } from './client';
+import { statusOf, type SheetsClient } from './client';
+import type { TabSpec } from './tabs';
 import { ACCOUNTS, BALANCES, POSITIONS, TRANSACTIONS, TXN_SYNCED, UPDATES, WIDE_FIRST, WIDE_TAB, growHeader, wideSpec, type BalanceRow, type PositionRow, type TxnSyncedRow, type UpdateRow } from './tabs';
 
 export type DataSet = 'summary' | 'positions' | 'transactions';
@@ -118,7 +119,7 @@ export async function markUpdated(client: SheetsClient, sets: readonly DataSet[]
 
 /** the time of each set in fidelity_updates */
 export async function readUpdates(client: SheetsClient): Promise<Partial<Record<DataSet, string>>> {
-  const rows: UpdateRow[] = await client.readRows(UPDATES);
+  const rows: UpdateRow[] = await readTab(client, UPDATES);
   const out: Partial<Record<DataSet, string>> = {};
   rows.forEach((r) => { if ((DATA_SETS as readonly string[]).includes(r.set)) out[r.set as DataSet] = r.at; });
   return out;
@@ -131,12 +132,22 @@ export function changedSets(sheet: Partial<Record<DataSet, string>>, seen: Parti
 
 /** what the viewer reads back for some sets; a set left out stays undefined */
 export interface SheetTabs { accounts?: Account[]; positions?: PositionRow[]; days?: BalanceRow[]; txns?: Txn[]; synced?: TxnSyncedRow[] }
-export async function readSets(client: SheetsClient, sets: readonly DataSet[]): Promise<SheetTabs> {
+/** the rows of a tab; a tab not created yet (400 "Unable to parse range") reads as empty, other errors surface */
+export async function readTab<T>(client: Pick<SheetsClient, 'readRows'>, spec: TabSpec<T>): Promise<T[]> {
+  try {
+    return await client.readRows(spec);
+  } catch (err) {
+    if (statusOf(err) === 400) return [];
+    throw err;
+  }
+}
+
+export async function readSets(client: Pick<SheetsClient, 'readRows'>, sets: readonly DataSet[]): Promise<SheetTabs> {
   const out: SheetTabs = {};
   await Promise.all([
-    sets.includes('summary') ? Promise.all([client.readRows(ACCOUNTS), client.readRows(BALANCES)]).then(([a, d]) => { out.accounts = a; out.days = d; }) : null,
-    sets.includes('positions') ? client.readRows(POSITIONS).then((p) => { out.positions = p; }) : null,
-    sets.includes('transactions') ? Promise.all([client.readRows(TRANSACTIONS), client.readRows(TXN_SYNCED)]).then(([t, s]) => { out.txns = t; out.synced = s; }) : null,
+    sets.includes('summary') ? Promise.all([readTab(client, ACCOUNTS), readTab(client, BALANCES)]).then(([a, d]) => { out.accounts = a; out.days = d; }) : null,
+    sets.includes('positions') ? readTab(client, POSITIONS).then((p) => { out.positions = p; }) : null,
+    sets.includes('transactions') ? Promise.all([readTab(client, TRANSACTIONS), readTab(client, TXN_SYNCED)]).then(([t, s]) => { out.txns = t; out.synced = s; }) : null,
   ]);
   return out;
 }
