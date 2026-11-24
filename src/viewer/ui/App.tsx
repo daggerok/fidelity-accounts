@@ -89,11 +89,11 @@ export function App() {
                 onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>
               {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
               {!done && <button type="button" className={`tb ${showSetup ? 'on' : ''}`} title={t('Get started: the setup steps')} onClick={toggleSetup} aria-expanded={showSetup} data-get-started-button>🚀</button>}
+              {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
+              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" className="tb" style={{ width: 'auto', padding: '0 .4rem' }} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
                 <span className="flex items-center gap-1"><span aria-hidden="true">{LANG_FLAGS[language]}</span><span className="text-[10px] font-semibold uppercase">{language}</span></span>
               </button>
-              {/* settings sit right before the theme, the theme is the last one on the right (owner 2026-11-23) */}
-              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" onClick={theme.cycle} title={themeTitle(theme.mode, theme.systemDark)} data-theme-button={theme.mode} className="tb sun">
                 <span className="relative inline-flex">{icon.icon}{icon.auto && <span className="absolute -right-2 -top-1.5 text-[8px] font-bold leading-none">A</span>}</span>
               </button>
