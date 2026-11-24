@@ -216,7 +216,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Total gain/loss')}</td><td className={`num text-right font-medium ${tone(tot.totalGl)}`}>{signedUsd(tot.totalGl)} ({signedPct(tot.totalGlPct)})</td></tr>
               <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cost basis')}</td><td className="num text-right font-medium">{usd(tot.costBasis)}</td></tr>
               <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cash (core)')}</td><td className="num text-right font-medium">{usd(tot.cash)}</td></tr>
-              {tot.pending !== 0 && <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Pending activity')}</td><td className={`num text-right font-medium ${tone(tot.pending)}`}>{signedUsd(tot.pending)}</td></tr>}
+              {tot.pending !== 0 && <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Pending activity')}</td><td className="num text-right font-medium" title={t('Not settled yet: buys, sells and transfers in progress')}>{signedUsd(tot.pending)}</td></tr>}
             </tbody>
           </table>
         </div>
