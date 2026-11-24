@@ -10,6 +10,8 @@ export const usd0 = (n: number | undefined | null): string => (typeof n === 'num
 export const signedUsd = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n > 0 ? '+' : n < 0 ? '-' : ''}${usdFmt.format(Math.abs(n))}` : DASH);
 export const pct = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n.toFixed(2)}%` : DASH);
 export const signedPct = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? `${n > 0 ? '+' : ''}${n.toFixed(2)}%` : DASH);
+/** "+$12.30 (+1.25%)" */
+export const signedUsdPct = (usd: number | undefined | null, pct: number | undefined | null): string => `${signedUsd(usd)} (${signedPct(pct)})`;
 export const qty = (n: number | undefined | null): string => (typeof n === 'number' && Number.isFinite(n) ? String(Math.round(n * 1000) / 1000) : DASH);
 export const tone = (n: number | undefined | null): string => (typeof n === 'number' && n > 0 ? 'gain' : typeof n === 'number' && n < 0 ? 'loss' : '');
 /** "2026-12-12" -> "Dec-12-2026" (the site's own way) */

@@ -6,6 +6,7 @@ import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
 import { useRef, useState } from 'react';
+import { GainLoss } from './GainLoss';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
@@ -82,7 +83,7 @@ function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' }) {
             <tr key={p.symbol} style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
               <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
               <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
-              <td className={`num whitespace-nowrap py-1 pl-3 text-right align-baseline ${tone(p.todayGl)}`}>{signedUsd(p.todayGl)} ({signedPct(p.todayGlPct)})</td>
+              <td className="whitespace-nowrap py-1 pl-3 text-right align-baseline"><GainLoss usd={p.todayGl} pct={p.todayGlPct} /></td>
             </tr>
           ))}
         </tbody>
@@ -229,13 +230,13 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
             {/* Today and the period's change as a table with no borders (owner 2026-11-24): values in one column, words in
                 the next */}
             <table className="text-sm"><tbody>
-              <tr><td className={`num whitespace-nowrap pr-3 ${tone(tot.todayGl)}`}>{signedUsd(tot.todayGl)} ({signedPct(tot.todayGlPct)})</td><td className="text-slate-500 dark:text-slate-400">{t('Today')}</td></tr>
+              <tr><td className="whitespace-nowrap pr-3"><GainLoss usd={tot.todayGl} pct={tot.todayGlPct} /></td><td className="text-slate-500 dark:text-slate-400">{t('Today')}</td></tr>
               <PeriodChangeRow series={balance} />
             </tbody></table>
           </div>
           <table className="text-xs" data-balance-facts>
             <tbody className="[&_td]:py-0.5">
-              <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Total gain/loss')}</td><td className={`num text-right font-medium ${tone(tot.totalGl)}`}>{signedUsd(tot.totalGl)} ({signedPct(tot.totalGlPct)})</td></tr>
+              <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Total gain/loss')}</td><td className="text-right font-medium"><GainLoss usd={tot.totalGl} pct={tot.totalGlPct} /></td></tr>
               <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cost basis')}</td><td className="num text-right font-medium">{usd(tot.costBasis)}</td></tr>
               <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Cash (core)')}</td><td className="num text-right font-medium">{usd(tot.cash)}</td></tr>
               {tot.pending !== 0 && <tr><td className="pr-4 text-slate-500 dark:text-slate-400">{t('Pending activity')}</td><td className="num text-right font-medium" title={t('Not settled yet: buys, sells and transfers in progress')}>{signedUsd(tot.pending)}</td></tr>}
@@ -267,7 +268,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
           {shownAccounts.map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="min-w-0"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
-              <div className="text-right"><div className="num">{usd(a.balance)}</div><div className={`num text-xs ${tone(a.todayGl)}`}>{signedUsd(a.todayGl)} ({signedPct(a.todayGlPct)})</div></div>
+              <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs"><GainLoss usd={a.todayGl} pct={a.todayGlPct} /></div></div>
             </div>
           ))}
         </div>

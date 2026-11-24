@@ -3,7 +3,7 @@ import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { LineChart } from './LineChart';
 import { Pills } from './Pills';
-import { signedPct, signedUsd, tone } from './format';
+import { GainLoss } from './GainLoss';
 import { useStore } from './useStore';
 
 /** the chosen period's balance change as a row of the card's Today table (owner 2026-11-24: under Today, aligned) */
@@ -13,7 +13,7 @@ export function PeriodChangeRow({ series }: { series: Point[] }) {
   if (!ch) return null;
   return (
     <tr data-period-change>
-      <td className={`num whitespace-nowrap pr-3 ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)})</td>
+      <td className="whitespace-nowrap pr-3"><GainLoss usd={ch.change} pct={ch.pct} /></td>
       <td className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period: periodLabel(pr.period, true) })}</td>
     </tr>
   );
@@ -35,7 +35,7 @@ export function BalanceChart({ series, big }: { series: Point[]; big?: boolean }
     <Pills items={(all ? [...ALL_PERIODS] : cardPeriods(period)) as Period[]} value={period} label={t('Period')}
       labelOf={(p) => periodLabel(p, !all)} dense onChange={(p) => setPrefs({ period: p })} />
   );
-  const head = ch && <div className={`num text-sm ${tone(ch.change)}`}>{signedUsd(ch.change)} ({signedPct(ch.pct)}) <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period: periodLabel(period) })}</span></div>;
+  const head = ch && <div className="text-sm"><GainLoss usd={ch.change} pct={ch.pct} /> <span className="text-slate-500 dark:text-slate-400">{t('{period} balance change', { period: periodLabel(period) })}</span></div>;
   const height = big ? Math.round(Math.min(560, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6)) : 180;
   return (
     <div className="flex flex-col gap-2" data-balance-chart={big ? 'big' : 'card'}>
