@@ -150,7 +150,9 @@ export function App() {
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
-          <div className="flex flex-col gap-4 pt-4 lg:pt-6">
+          {/* the navbar to the tab labels as far as the tab line to the cards, 16 px (owner 2026-11-24: consistent): the
+              tabs carry 10 px of their own padding above the text */}
+          <div className="flex flex-col gap-4 pt-1.5">
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
                   time after it */}
