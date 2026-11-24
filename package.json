@@ -1,0 +1,62 @@
+{
+  "name": "fidelity-accounts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Own viewer of your Fidelity accounts: a Tampermonkey script reads your positions (read only) into your Google Sheet",
+  "source": "src/viewer/index.html",
+  "scripts": {
+    "clean": "rimraf -rf dist",
+    "build-github-pages": "npm run build -- --public-url=/fidelity-accounts/",
+    "preserve": "bun src/build/build-userscript.ts --dev",
+    "serve": "parcel --port 1237 --no-cache --no-source-maps --dist-dir ./dist",
+    "prebuild": "npm run clean",
+    "build": "APP_VERSION=$npm_package_version parcel build --no-cache --no-source-maps --dist-dir ./dist",
+    "postbuild": "bun src/build/postbuild.ts",
+    "userscript": "bun src/build/build-userscript.ts",
+    "start": "pm2 start 'npm run serve' --name app",
+    "restart": "pm2 restart app",
+    "ps": "pm2 ps",
+    "logs": "pm2 logs",
+    "stop": "pm2 kill",
+    "test": "bun test"
+  },
+  "keywords": [
+    "tailwind",
+    "parcel",
+    "react",
+    "rimraf",
+    "pm2",
+    "bun",
+    "tampermonkey",
+    "userscript",
+    "google-sheets",
+    "fidelity",
+    "portfolio"
+  ],
+  "author": "Maksim Kostromin / daggerok",
+  "license": "MIT",
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "21.0.4",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/bun": "1.4.5",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "buffer": "6.0.3",
+    "happy-dom": "21.0.4",
+    "parcel": "2.16.4",
+    "pm2": "7.1.2",
+    "process": "0.11.10",
+    "rimraf": "6.1.3",
+    "tailwindcss": "4.3.3"
+  },
+  "postcss": {
+    "plugins": {
+      "@tailwindcss/postcss": {}
+    }
+  }
+}
