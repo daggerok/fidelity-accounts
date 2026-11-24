@@ -10,7 +10,8 @@ import { CORNER_BUTTON, CloseIcon } from './icons';
 const EASE = 'cubic-bezier(.2,.8,.2,1)';
 const MS = 280;
 
-export function Zoom({ open, title, onClose, children, tools, origin }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode; tools?: React.ReactNode; origin?: React.RefObject<HTMLElement | null> }) {
+// `narrow`: a window of controls (the positions columns), not a chart that wants the whole width
+export function Zoom({ open, title, onClose, children, tools, origin, narrow }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode; tools?: React.ReactNode; origin?: React.RefObject<HTMLElement | null>; narrow?: boolean }) {
   const [mounted, setMounted] = useState(open);
   const panel = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export function Zoom({ open, title, onClose, children, tools, origin }: { open: 
   return createPortal((
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title} data-chart-zoom>
       <div ref={back} className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
-      <div ref={panel} className="card relative flex max-h-full w-full max-w-[min(96vw,100rem)] flex-col gap-3 overflow-auto" style={{ transformOrigin: 'top left' }}>
+      <div ref={panel} className={`card relative flex max-h-full w-full ${narrow ? 'max-w-4xl' : 'max-w-[min(96vw,100rem)]'} flex-col gap-3 overflow-auto`} style={{ transformOrigin: 'top left' }}>
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">{title}</h2>
           {tools && <span className="-my-1 flex items-center gap-1">{tools}</span>}

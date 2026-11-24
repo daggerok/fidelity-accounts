@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
-import { matches, positionsIn, rangePos, sortPositions, totalsOf } from '../app/derive';
+import { dripGap, matches, positionsIn, rangePos, sortPositions, totalsOf } from '../app/derive';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
-import { DASH, bigUsd, pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
+import { Zoom } from './Zoom';
+import { ColumnPicker } from './ColumnPicker';
+import { shownKeys } from '../app/columns';
+import { DASH, bigUsd, pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
-// grand total when several accounts are shown. Columns can be switched off (remembered)
-interface Col { key: string; label: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
+// grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
+// Fidelity's. Columns are chosen in a window like the ⤢ of the cards and remembered
+interface Col { key: string; label: string; group: string; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
 
 const sum = (ps: Position[], f: (p: Position) => number | undefined) => ps.reduce((s, p) => s + (f(p) ?? 0), 0);
 const glCell = (v: number | undefined, text: string) => <span className={tone(v)}>{text}</span>;
@@ -26,25 +30,38 @@ function Range({ p }: { p: Position }) {
   );
 }
 
+// DRIP: minus (green) means the next payout already buys 0.001 share, plus is what is still to buy
+const dripCell = (v: number, text: string) => <span className={v <= 0 ? 'gain' : ''}>{text}</span>;
+const dripOf = (p: Position, f: (d: { shares: number; usd: number }) => React.ReactNode) => { const d = dripGap(p); return d ? f(d) : DASH; };
+
+// the groups of the columns window, in Fidelity's words where it has them
+const OURS = () => t('Our columns');
+const GL = () => t('Gain/loss');
+const ACCT = () => t('Account specifics');
+const QUOTE = () => t('Quote data');
+const DIV = () => t('Dividends and yield');
+
 export const COLUMNS = (): Col[] => [
-  { key: 'todayGlPct', label: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
-  { key: 'todayGl', label: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
-  { key: 'totalGlPct', label: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
-  { key: 'totalGl', label: t('Total gain/loss $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
-  { key: 'costBasisTotal', label: t('Cost basis total'), cell: (p) => usd(p.costBasisTotal) },
-  { key: 'currentValue', label: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
-  { key: 'quantity', label: t('Quantity'), cell: (p) => qty(p.quantity) },
-  { key: 'lastPrice', label: t('Last price'), cell: (p) => usd(p.lastPrice) },
-  { key: 'percentOfAccount', label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
-  { key: 'distRate', label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
-  { key: 'secYield', label: t('SEC yield'), cell: (p) => pct(p.secYield) },
-  { key: 'estAnnualIncome', label: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
-  { key: 'paymentFrequency', label: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
-  { key: 'marketCap', label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
-  { key: 'high52', label: t('52-week range'), cell: (p) => <Range p={p} /> },
-  { key: 'exDate', label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
-  { key: 'payDate', label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
-  { key: 'sector', label: t('Sector'), cell: (p) => p.sector ?? DASH },
+  { key: 'drip', label: 'DRIP', group: OURS(), hint: t('Shares to buy so the next dividend buys 0.001 share by DRIP; minus: it already does'), cell: (p) => dripOf(p, (d) => dripCell(d.shares, signedQty(d.shares))) },
+  { key: 'dripUsd', label: 'DRIP $', group: OURS(), hint: t('Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP; minus: it already does'), cell: (p) => dripOf(p, (d) => dripCell(d.usd, signedUsd(d.usd))) },
+  { key: 'todayGlPct', group: GL(), label: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
+  { key: 'todayGl', group: GL(), label: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
+  { key: 'totalGlPct', group: GL(), label: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
+  { key: 'totalGl', group: GL(), label: t('Total gain/loss $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
+  { key: 'costBasisTotal', group: ACCT(), label: t('Cost basis total'), cell: (p) => usd(p.costBasisTotal) },
+  { key: 'currentValue', group: ACCT(), label: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
+  { key: 'quantity', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
+  { key: 'lastPrice', group: QUOTE(), label: t('Last price'), cell: (p) => usd(p.lastPrice) },
+  { key: 'percentOfAccount', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
+  { key: 'distRate', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
+  { key: 'secYield', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield) },
+  { key: 'estAnnualIncome', group: DIV(), label: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
+  { key: 'paymentFrequency', group: DIV(), label: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
+  { key: 'marketCap', group: QUOTE(), label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
+  { key: 'high52', group: QUOTE(), label: t('52-week range'), cell: (p) => <Range p={p} /> },
+  { key: 'exDate', group: DIV(), label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
+  { key: 'payDate', group: DIV(), label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
+  { key: 'sector', group: QUOTE(), label: t('Sector'), cell: (p) => p.sector ?? DASH },
 ];
 
 // Only the rows in view are drawn (owner 2026-11-24: Positions lagged and the tabs stopped answering): 1,100 positions
@@ -59,7 +76,10 @@ interface Line { key: string; cls: string; cells: () => React.ReactNode }
 export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }) {
   const pr = useStore(prefs);
   const [showCols, setShowCols] = useState(false);
-  const cols = COLUMNS().filter((c) => pr.hidden.indexOf(c.key) < 0);
+  const colsButton = useRef<HTMLButtonElement>(null);
+  const every = COLUMNS();
+  const byKey = new Map(every.map((c) => [c.key, c]));
+  const cols = shownKeys(every.map((c) => c.key), pr.columns, pr.hidden).map((k) => byKey.get(k)!);
   const colKeys = cols.map((c) => c.key).join(',');
   const all = useMemo(() => positionsIn(ds, accounts).filter((p) => matches(p, pr.search)), [ds, accounts, pr.search]);
   const sortBy = (key: string) => setPrefs({ sort: { key, dir: pr.sort.key === key ? (pr.sort.dir === 1 ? -1 : 1) : key === 'symbol' ? 1 : -1 } });
@@ -105,7 +125,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     return () => { cancelAnimationFrame(frame); el.removeEventListener('scroll', on); ro.disconnect(); };
   }, []);
   // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
-  // height is the room between its top and the footer, measured again on a resize or when the columns panel opens
+  // height is the room between its top and the footer, measured again on a resize
   const [fill, setFill] = useState<number | null>(null);
   useEffect(() => {
     const el = box.current;
@@ -119,7 +139,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     const ro = new ResizeObserver(measure);
     if (el.parentElement) ro.observe(el.parentElement);
     return () => { window.removeEventListener('resize', measure); ro.disconnect(); };
-  }, [showCols]);
+  }, []);
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
   const count = all.filter((p) => p.kind === 'position').length;
@@ -127,15 +147,9 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
-      {showCols && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
-          {COLUMNS().map((c) => (
-            <label key={c.key} className="flex items-center gap-1.5">
-              <input type="checkbox" checked={pr.hidden.indexOf(c.key) < 0} onChange={(e) => setPrefs({ hidden: e.target.checked ? pr.hidden.filter((k) => k !== c.key) : pr.hidden.concat(c.key) })} />{c.label}
-            </label>
-          ))}
-        </div>
-      )}
+      <Zoom open={showCols} title={t('Columns')} origin={colsButton} narrow onClose={() => setShowCols(false)}>
+        <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} onChange={setPrefs} />
+      </Zoom>
       <div ref={box} className="min-h-0 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
           <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
@@ -152,10 +166,10 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
                   </div>
                   <button type="button" className="rounded px-1 text-slate-500 hover:text-slate-900 dark:hover:text-white" title={t('Sort by symbol')} onClick={() => sortBy('symbol')}>{arrow('symbol').trim() || '⇅'}</button>
                   {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
-                  <button type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols((v) => !v)} aria-expanded={showCols} data-columns-button><SlidersIcon /></button>
+                  <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
                 </div>
               </th>
-              {cols.map((c) => <th key={c.key} onClick={() => sortBy(c.key)} className="whitespace-normal">{c.label}{arrow(c.key)}</th>)}
+              {cols.map((c) => <th key={c.key} onClick={() => sortBy(c.key)} className="whitespace-normal" title={c.hint}>{c.label}{arrow(c.key)}</th>)}
             </tr>
           </thead>
           <tbody>

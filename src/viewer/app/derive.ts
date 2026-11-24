@@ -227,6 +227,32 @@ export const payoutTotal = (rows: Upcoming[]): number => Math.round(rows.reduce(
 
 const STEP_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
 
+/** the smallest piece DRIP buys: Fidelity reinvests in fractional shares to 3 decimal places */
+export const DRIP_MIN = 0.001;
+/** the dividend per share of one payment: Fidelity's own, else the estimated annual income split by the payments a year */
+export function perPayment(p: Position): number | undefined {
+  if (p.dividendAmount !== undefined) return p.dividendAmount;
+  const step = STEP_MONTHS[p.paymentFrequency ?? ''];
+  return step && p.estAnnualIncome && p.quantity ? p.estAnnualIncome / p.quantity / (12 / step) : undefined;
+}
+/**
+ * DRIP and DRIP $ of the positions table (owner 2026-11-24): how many shares, or dollars at the last price, to buy so the
+ * next dividend of this position buys at least 0.001 share by DRIP. Plus: buy that much; minus: the next payout already
+ * buys 0.001 share or more, the number is how far above that it is. The payout is taken in whole cents rounded down and
+ * the need is rounded up (to 0.001 share, to a cent), so a plus bought is always enough. null: no dividend or no price
+ */
+export interface Drip { shares: number; usd: number }
+export function dripGap(p: Position): Drip | null {
+  const price = p.lastPrice;
+  const per = perPayment(p);
+  if (p.kind !== 'position' || !price || price <= 0 || !per || per <= 0) return null;
+  const cash = Math.ceil(DRIP_MIN * price * 100 - 1e-9) / 100; // the cents that buy 0.001 share
+  const gap = cash / per - (p.quantity ?? 0);
+  const up = (x: number, k: number) => Math.ceil(x * k - 1e-9) / k;
+  const near = (x: number, k: number) => Math.round(x * k) / k || 0; // || 0: no "-0"
+  return gap > 0 ? { shares: up(gap, 1000), usd: up(gap * price, 100) } : { shares: near(gap, 1000), usd: near(gap * price, 100) };
+}
+
 /** the calendar month, quarter and year around `today`, first and last day */
 export function periodBounds(today: string): { month: [string, string]; quarter: [string, string]; year: [string, string] } {
   const y = Number(today.slice(0, 4));
@@ -313,8 +339,13 @@ export function rangeRows(ps: Position[]): RangeRow[] {
 }
 
 /** the positions table order; text columns sort by text, the rest by number, empty last */
-/** columns that sort by a computed value, not by their own field: the 52-week range sorts by where the price sits in it */
-const SORT_VALUES: Record<string, (p: Position) => number | undefined> = { high52: (p) => rangePos(p) ?? undefined };
+/** columns that sort by a computed value, not by their own field: the 52-week range sorts by where the price sits in it,
+ * DRIP and DRIP $ by the gap */
+const SORT_VALUES: Record<string, (p: Position) => number | undefined> = {
+  high52: (p) => rangePos(p) ?? undefined,
+  drip: (p) => dripGap(p)?.shares,
+  dripUsd: (p) => dripGap(p)?.usd,
+};
 
 export function sortPositions(ps: Position[], key: string, dir: 1 | -1): Position[] {
   const computed = SORT_VALUES[key];
