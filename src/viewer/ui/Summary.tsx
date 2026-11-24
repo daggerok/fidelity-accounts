@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -52,12 +52,12 @@ function ViewSwitch({ id }: { id: string }) {
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
-function Allocation({ id, slices }: { id: string; slices: { name: string; value: number; pct: number }[] }) {
+function Allocation({ id, slices }: { id: string; slices: Slice[] }) {
   const pr = useStore(prefs);
   return viewOf(pr.views, id) === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
 }
 
-function Bars({ slices, all }: { slices: { name: string; value: number; pct: number }[]; all?: boolean }) {
+function Bars({ slices, all }: { slices: Slice[]; all?: boolean }) {
   return (
     <div className={all ? 'gap-8 md:columns-2 [&>div]:mb-2 [&>div]:break-inside-avoid' : 'flex flex-col gap-2'}>
       {(all ? slices : slices.slice(0, 8)).map((s) => (
@@ -96,7 +96,7 @@ function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' }) {
 // the big views of the cards
 // the zoomed card follows its own toggle (owner 2026-11-24 bug: bars had no effect in the big window): bars = every
 // slice as a bar, donut = the donut and the full table
-function AllocationBig({ id, slices }: { id: string; slices: { name: string; value: number; pct: number }[] }) {
+function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
   const pr = useStore(prefs);
   if (viewOf(pr.views, id) !== 'pie') return <Bars slices={slices} all />;
   return (
@@ -273,7 +273,6 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-
       <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
@@ -307,9 +306,10 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="sector" title={t('Allocation by sector')} tools={<ViewSwitch id="sector" />} expand={<AllocationBig id="sector" slices={sectors} />}><Allocation id="sector" slices={sectors} /></Card>
       <Card id="type" title={t('Allocation by security type')} tools={<ViewSwitch id="type" />} expand={<AllocationBig id="type" slices={types} />}><Allocation id="type" slices={types} /></Card>
-      {/* YTD / Y | QTD / Q | MTD / M (owner 2026-11-24): each shows received so far / the total of the current calendar year, quarter
-          and month (received and still to come), with a bar of the received share. Dividends from each position's pay
-          date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
+      {/* YTD / Y | QTD / Q | MTD / M (owner 2026-11-24): each is meant to show received so far / the total of the current
+          calendar year, quarter and month (received and still to come), with a bar of the received share. Received so far
+          is `--` and the bar an empty track until the transactions history is read; the total is the dividends from each
+          position's pay date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
       <Card id="income" title={t('Income')} tools={<KindFilter value={pr.incomeOf} label={t('Income of')} onChange={(v) => animate(() => setPrefs({ incomeOf: v }))} />}>
         {/* the tiles take the width their numbers need, never cut (owner 2026-11-24: "values without ...", the year wider);
             the total is in whole dollars; on a narrow card they wrap */}
