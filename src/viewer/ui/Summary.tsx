@@ -6,7 +6,9 @@ import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
 import { useRef, useState } from 'react';
-import { Segmented, Toggle, type ToggleOption } from './Toggle';
+import { Toggle } from './Toggle';
+import { KindFilter } from './KindFilter';
+import { Pills } from './Pills';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -178,11 +180,10 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const moverPs = ofKind(ps, pr.moversOf);
   const m = movers(moverPs, 5, pr.moversBy);
   const mBig = movers(moverPs, 20, pr.moversBy);
-  // All, ETFs or Stocks (owner 2026-11-24), for the movers and the income
-  const kinds: ToggleOption<'all' | 'etf' | 'stock'>[] = [{ value: 'all', text: t('All'), title: t('Every security') }, { value: 'etf', text: t('ETFs'), title: t('Only ETFs') }, { value: 'stock', text: t('Stocks'), title: t('Only stocks') }];
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
   const today = new Date().toISOString().slice(0, 10);
-  const divs = upcomingDividends(ps, today);
+  const divPs = ofKind(ps, pr.dividendsOf);
+  const divs = upcomingDividends(divPs, today);
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
@@ -224,7 +225,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
 
       <Card id="movers" title={t('Your top and bottom movers')} tools={(
         <span className="flex flex-wrap items-center justify-end gap-2">
-        <Segmented value={pr.moversOf} label={t('Movers of')} options={kinds} onChange={(v) => animate(() => setPrefs({ moversOf: v }))} />
+        <KindFilter value={pr.moversOf} label={t('Movers of')} onChange={(v) => animate(() => setPrefs({ moversOf: v }))} />
         <Toggle value={pr.moversBy} label={t('Sort movers by')} a={{ value: 'pct', text: '%', title: t('Movers by %') }} b={{ value: 'usd', text: '$', title: t('Movers by $') }}
           onChange={(v) => animate(() => setPrefs({ moversBy: v }))} />
         </span>
@@ -237,13 +238,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       {/* the order as pills in one row on the right of the title row (owner 2026-11-24: buttons in line, like Fidelity's
           1M YTD 1Y 3Y; then "move to the right" for some air after the title); on a narrow card they wrap under it */}
       <Card id="accounts" title={t('Accounts')} tools={(
-        <div className="flex flex-wrap gap-1" role="group" aria-label={t('Sort accounts by')}>
-          {ACCOUNT_SORTS.map((k) => (
-            <button key={k} type="button" aria-pressed={pr.accountSort === k} onClick={() => animate(() => setPrefs({ accountSort: k }))}
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${pr.accountSort === k ? 'text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}
-              style={pr.accountSort === k ? { background: 'var(--brand)' } : undefined}>{sortName[k]}</button>
-          ))}
-        </div>
+        <Pills items={ACCOUNT_SORTS} value={pr.accountSort} label={t('Sort accounts by')} labelOf={(k) => sortName[k]} className="-mr-2.5 justify-end"
+          onChange={(k) => animate(() => setPrefs({ accountSort: k }))} />
       )}>
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
           {sortAccounts(accounts, pr.accountSort).map((a) => (
@@ -256,7 +252,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       </Card>
 
 
-      <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} expand={divs.length ? <DividendsTable ps={ps} today={today} /> : undefined}>
+      <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
+        expand={divs.length ? <DividendsTable ps={divPs} today={today} /> : undefined}>
         {divs.length > 0 && <div className="text-sm text-slate-500 dark:text-slate-400">{t('About {sum} to you from {n} payouts', { sum: usd(divs.reduce((x, d) => x + (d.payout ?? 0), 0)), n: divs.length })}</div>}
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
@@ -287,7 +284,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       {/* YTD / Y | QTD / Q | MTD / M (owner 2026-11-24): each shows received so far / the total of the current calendar year, quarter
           and month (received and still to come), with a bar of the received share. Dividends from each position's pay
           date stepped by its frequency (incomeIn); Fidelity's own annual estimate in the bottom line */}
-      <Card id="income" title={t('Income')} tools={<Segmented value={pr.incomeOf} label={t('Income of')} options={kinds} onChange={(v) => animate(() => setPrefs({ incomeOf: v }))} />}>
+      <Card id="income" title={t('Income')} tools={<KindFilter value={pr.incomeOf} label={t('Income of')} onChange={(v) => animate(() => setPrefs({ incomeOf: v }))} />}>
         {/* the tiles take the width their numbers need, never cut (owner 2026-11-24: "values without ...", the year wider);
             the total is in whole dollars; on a narrow card they wrap */}
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-3" data-income>

@@ -22,13 +22,14 @@ export interface Prefs {
   moversBy: 'pct' | 'usd'; // top and bottom movers by % or $
   moversOf: 'all' | 'etf' | 'stock'; // the movers of every security, only ETFs or only stocks
   incomeOf: 'all' | 'etf' | 'stock'; // the income of every security, only ETFs or only stocks
+  dividendsOf: 'all' | 'etf' | 'stock'; // the upcoming ex-dividend dates of every security, ETFs or stocks
   accountSort: 'mine' | 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -45,6 +46,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       moversBy: p.moversBy === 'usd' ? 'usd' : 'pct',
       moversOf: p.moversOf === 'etf' || p.moversOf === 'stock' ? p.moversOf : 'all',
       incomeOf: p.incomeOf === 'etf' || p.incomeOf === 'stock' ? p.incomeOf : 'all',
+      dividendsOf: p.dividendsOf === 'etf' || p.dividendsOf === 'stock' ? p.dividendsOf : 'all',
       accountSort: ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'mine',
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
