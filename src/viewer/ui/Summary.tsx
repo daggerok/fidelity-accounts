@@ -324,7 +324,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
             <div key={key} className="flex-auto" data-income-period={key} title={v.received === null ? t('planned {total} at today\'s holdings; still to come {coming}', { total: usd(v.planned), coming: usd(v.coming) }) : t('received {received} of the planned {total}; still to come {coming}', { received: usd(v.received), total: usd(v.planned), coming: usd(v.coming) })}>
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
               <div className="num whitespace-nowrap">{v.received === null
-                ? <span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history')}>--</span>
+                ? <span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history: update the script (the button in the navbar), then open Fidelity once')}>--</span>
                 : <span className="text-xl font-semibold sm:text-2xl">{usd(v.received)}</span>} <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.planned)}</span></div>
               {/* progress of the facts towards the plan */}
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.received !== null && v.planned > 0 ? Math.min(100, (v.received / v.planned) * 100) : 0}%`, background: 'var(--brand)' }} /></div>

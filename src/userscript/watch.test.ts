@@ -35,3 +35,13 @@ test('the refresh button is found by its accessible name only', async () => {
   document.body.innerHTML = '<button aria-label="Buy">Buy</button>';
   expect(findRefreshButton(document)).toBeNull();
 });
+
+test('market open: 9:30 to 16:00 New York on weekdays', async () => {
+  const { marketOpen } = await import('./watch');
+  expect(marketOpen(new Date('2026-11-24T14:30:00Z'))).toBe(true); // Tue 9:30 EST
+  expect(marketOpen(new Date('2026-11-24T14:29:00Z'))).toBe(false); // 9:29
+  expect(marketOpen(new Date('2026-11-24T20:59:00Z'))).toBe(true); // 15:59
+  expect(marketOpen(new Date('2026-11-24T21:00:00Z'))).toBe(false); // 16:00
+  expect(marketOpen(new Date('2026-11-28T15:00:00Z'))).toBe(false); // Saturday
+  expect(marketOpen(new Date('2026-07-06T13:30:00Z'))).toBe(true); // Mon 9:30 EDT
+});
