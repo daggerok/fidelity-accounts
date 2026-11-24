@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
 import { matches, positionsIn, rangePos, sortPositions, totalsOf } from '../app/derive';
 import { t } from '../app/i18n';
@@ -128,7 +129,8 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
         <input className="inp max-w-xs" placeholder={t('Search symbol or name')} value={pr.search} onChange={(e) => setPrefs({ search: e.target.value })} />
         <span className="text-sm text-slate-500">{t('{n} positions', { n: all.filter((p) => p.kind === 'position').length })}</span>
         <div className="flex-1" />
-        <button type="button" className={`btn sm ${showCols ? 'active' : ''}`} onClick={() => setShowCols((v) => !v)} aria-expanded={showCols}>{t('Columns')}</button>
+        {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
+        <button type="button" className={`tb ${showCols ? 'on' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols((v) => !v)} aria-expanded={showCols} data-columns-button><SlidersIcon /></button>
       </div>
       {showCols && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
