@@ -52,13 +52,23 @@ export function combine(history: History | undefined, accounts: string[]): Point
 }
 
 // owner 2026-11-24: no 2D, 2W, 2M, 2Q, 2Y; 6M for half a year
-export const PERIODS = ['1D', '3D', 'WTD', '1W', '3W', 'MTD', '1M', '3M', 'QTD', '1Q', '3Q', '6M', 'YTD', '1Y', '3Y'] as const;
+// the card's short list, in its order (owner 2026-11-24: no 1Q there, 3M is the same; QTD between 1M and 3M)
+export const PERIODS = ['1D', '3D', 'WTD', '1W', '3W', 'MTD', '1M', 'QTD', '3M', '6M', '3Q', 'YTD', '1Y', '3Y'] as const;
 /** the zoomed chart has room for every step (owner 2026-11-24: 2D 2W 2M 4M 5M 7M..11M 2Q 2Y too), shortest first */
 // 2Q is 6M and 3Q is 9M: one chip each, 6M/2Q and 9M/3Q (owner 2026-11-24)
 export const ALL_PERIODS = ['1D', '2D', '3D', 'WTD', '1W', '2W', '3W', 'MTD', '1M', '2M', '3M', 'QTD', '1Q', '4M', '5M', '6M', '7M', '8M', '3Q', '10M', '11M', 'YTD', '1Y', '2Y', '3Y'] as const;
 const LABELS: Partial<Record<string, string>> = { '6M': '6M/2Q', '3Q': '9M/3Q' };
-/** the chip text of a period */
-export const periodLabel = (p: string): string => LABELS[p] ?? p;
+/** the chip text of a period: the big chart names both (6M/2Q), the card the months only (6M, 9M) */
+export const periodLabel = (p: string, short = false): string => (short ? (p === '3Q' ? '9M' : p) : LABELS[p] ?? p);
+/** the card's chips: the short list, plus the period picked in the big chart when it is not on it, at its place */
+export function cardPeriods(current: string): string[] {
+  const list: string[] = [...PERIODS];
+  if (list.includes(current)) return list;
+  const at = ALL_PERIODS.indexOf(current as (typeof ALL_PERIODS)[number]);
+  const next = list.findIndex((p) => ALL_PERIODS.indexOf(p as (typeof ALL_PERIODS)[number]) > at);
+  list.splice(next < 0 ? list.length : next, 0, current);
+  return list;
+}
 /** a period saved before the merge */
 export const periodAlias = (p: string): string => (p === '2Q' ? '6M' : p === '9M' ? '3Q' : p);
 export type Period = (typeof ALL_PERIODS)[number];
