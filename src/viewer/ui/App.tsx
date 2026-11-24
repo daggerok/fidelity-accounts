@@ -157,10 +157,10 @@ export function App() {
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
-          <div className="flex flex-col gap-4 pt-1">
-            {/* the navbar to the tab label as far as the tab underline to the cards, 16 px (owner 2026-11-24: consistent,
-                measured live): the tab carries about 12 px of its own above the letters */}
-            <main className="flex flex-col gap-4" data-tab={pr.tab}>
+          <div className="flex flex-col gap-4 pt-1 lg:gap-6 lg:pt-3">
+            {/* the navbar to the tab label as far as the tab underline to the cards, equal to the page gutter: 16 px below lg,
+                24 px from lg (owner 2026-11-24: consistent, measured live): the tab carries about 12 px of its own above the letters */}
+            <main className="flex flex-col gap-4 lg:gap-6" data-tab={pr.tab}>
               {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
                   time after it; only the current tab is underlined, no line across the row */}
               <div className="flex flex-wrap items-end gap-x-6" role="tablist">
