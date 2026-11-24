@@ -3,9 +3,9 @@
 /// <reference lib="esnext" />
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
-import type { Position } from '../../shared/model';
+import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -156,4 +156,44 @@ test('estAnnualOf: both pills on or off use the accounts estimate, one pill sums
   expect(estAnnualOf('none', 99, ps)).toBe(99);
   expect(estAnnualOf('etf', 99, ps)).toBe(10);
   expect(estAnnualOf('stock', 99, ps)).toBe(5);
+});
+
+test('asKind keeps a known kind and falls back to all', () => {
+  ['etf', 'stock', 'none'].forEach((k) => expect<string>(asKind(k)).toBe(k));
+  ['all', undefined, 5, 'junk'].forEach((k) => expect(asKind(k)).toBe('all'));
+});
+
+const acct = (number: string, extra: Partial<Account> = {}): Account => ({ number, name: number, group: 'G', asOf: 't', ...extra });
+
+test('totalsOf: a zero balance or a missing cost basis gives no percent', () => {
+  const a = totalsOf([acct('A', { balance: 0, todayGl: 5, totalGl: 3 })]);
+  expect(a.todayGlPct).toBeNull();
+  expect(a.totalGlPct).toBeNull();
+  const b = totalsOf([acct('B', { balance: 110, todayGl: 10, totalGl: 20, costBasis: 100 })]);
+  expect(b.todayGlPct).toBeCloseTo(10);
+  expect(b.totalGlPct).toBeCloseTo(20);
+});
+
+test('incomeIn steps the pay date by the frequency; no frequency counts the pay date only', () => {
+  const pos = (extra: Partial<Position>): Position => ({ account: 'A', kind: 'position', symbol: 'X', description: '', dividendAmount: 1, quantity: 2, payDate: '2026-11-15', fields: {}, ...extra });
+  expect(incomeIn([pos({ paymentFrequency: 'Monthly' })], '2026-01-01', '2026-12-31', '2026-11-24')).toEqual({ paid: 22, coming: 2, total: 24 });
+  expect(incomeIn([pos({})], '2026-01-01', '2026-12-31', '2026-11-24')).toEqual({ paid: 2, coming: 0, total: 2 });
+});
+
+test('upcomingDividends: one row per symbol across accounts, shares summed, earlier ex-date kept', () => {
+  const pos = (account: string, exDate: string, quantity: number): Position => ({ account, kind: 'position', symbol: 'X', description: '', dividendAmount: 1, quantity, exDate, fields: {} });
+  const rows = upcomingDividends([pos('A', '2026-11-28', 3), pos('B', '2026-11-26', 2)], '2026-11-24');
+  expect(rows).toHaveLength(1);
+  expect(rows[0]!.shares).toBe(5);
+  expect(rows[0]!.exDate).toBe('2026-11-26');
+});
+
+test('sortAccounts puts an account with no today gain last for todayUsd', () => {
+  const list = [acct('A'), acct('B', { todayGl: -5 }), acct('C', { todayGl: 7 })];
+  expect(sortAccounts(list, 'todayUsd').map((a) => a.number)).toEqual(['C', 'B', 'A']);
+});
+
+test('moveGroup and moveAccount append at the end for an unknown target', () => {
+  expect(moveGroup(['a', 'b', 'c'], 'a', 'gone')).toEqual(['b', 'c', 'a']);
+  expect(moveAccount([acct('A'), acct('B'), acct('C')], 'A', 'gone')).toEqual(['B', 'C', 'A']);
 });

@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { ALL_PERIODS, PERIODS, cardPeriods, periodLabel, resample, changeOf, periodChange, valueRange, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
+import { ALL_PERIODS, PERIODS, cardPeriods, periodAlias, periodLabel, resample, changeOf, periodChange, valueRange, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
 
 // weekdays only, like market closes, from 2025-10-15 to 2026-11-20 (a Friday), value = day number
 function closes(from: string, to: string): Point[] {
@@ -87,4 +87,18 @@ test('valueRange adds 5% of air and widens a flat line', () => {
   const f = valueRange([5, 5]);
   expect(f.min).toBeCloseTo(3.9);
   expect(f.max).toBeCloseTo(6.1);
+});
+
+test('periodAlias maps the merged periods and keeps the rest', () => {
+  expect(periodAlias('2Q')).toBe('6M');
+  expect(periodAlias('9M')).toBe('3Q');
+  expect(periodAlias('1Y')).toBe('1Y');
+});
+
+test('cardPeriods: the short list, or the picked period at its place', () => {
+  expect(cardPeriods('1Y')).toEqual([...PERIODS]);
+  const two = cardPeriods('2M');
+  expect(two[two.indexOf('1M') + 1]).toBe('2M');
+  const y = cardPeriods('2Y');
+  expect(y.slice(y.indexOf('1Y'), y.indexOf('1Y') + 3)).toEqual(['1Y', '2Y', '3Y']);
 });
