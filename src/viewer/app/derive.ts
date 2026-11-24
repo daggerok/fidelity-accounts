@@ -187,6 +187,11 @@ export function allocation(ps: Position[], by: (p: Position) => string | undefin
   return out.sort((a, b) => b.value - a.value);
 }
 
+/** the owner's calendar date (local time), ISO */
+export function localToday(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 /**
  * Ex-dividend dates from today on, soonest first; one line per symbol with `payout` = dividend per share times the
  * shares held in the shown accounts (owner 2026-11-23: "my value of dividends, not per share"). An estimate: the shares

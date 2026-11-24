@@ -4,7 +4,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, addMonths, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, kindOf, ofKind, toggleKind, kindOn, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -139,4 +139,9 @@ describe('toggleFold', () => {
     expect(toggleFold([ALL_FOLD], ALL_FOLD)).toEqual([]);
     expect(toggleFold(['Retirement'], ALL_FOLD)).toEqual([]);
   });
+});
+
+test('localToday is the date in local time, not UTC', () => {
+  expect(localToday(new Date(2026, 10, 30, 21, 30))).toBe('2026-11-30');
+  expect(localToday(new Date(2026, 0, 5, 0, 10))).toBe('2026-01-05');
 });
