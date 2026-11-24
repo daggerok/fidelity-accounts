@@ -29,7 +29,9 @@ export function Zoom({ open, title, onClose, children, tools, origin }: { open: 
     const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const opts: KeyframeAnimationOptions = { duration: reduced ? 0 : MS, easing: EASE, fill: 'both' };
     const end: Keyframe = { transform: 'none', opacity: 1 };
-    const grow = p.animate(open ? [start, end] : [end, start], opts);
+    // the window stays solid while it moves and only fades in the quarter next to the card (owner 2026-11-24: it was too
+    // transparent while shrinking on Esc); opacity has its own keyframe at 25% or 75%, the transform runs straight through
+    const grow = p.animate(open ? [start, { opacity: 1, offset: 0.25 }, end] : [end, { opacity: 1, offset: 0.75 }, start], opts);
     const dim = b.animate(open ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], opts);
     let done = false;
     grow.onfinish = () => {
