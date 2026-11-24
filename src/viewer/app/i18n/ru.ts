@@ -25,6 +25,7 @@ export const RU: Record<string, string> = {
   'All accounts': 'Все счета',
   '{n} accounts': 'счетов: {n}',
   'Show {name}': 'Показать {name}',
+  'No accounts selected: tick some above': 'Счета не выбраны: отметь нужные выше',
 
   // summary
   Balance: 'Баланс',

@@ -81,7 +81,7 @@ export function App() {
   const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
   // a chosen set of accounts is named by its accounts (up to three), else counted
-  const title = !ds ? '' : scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
+  const title = !ds ? '' : scope === 'none' ? t('No accounts selected: tick some above') : scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
     : accounts.length <= 3 ? accounts.map((a) => a.name).join(' + ') : t('{n} accounts', { n: accounts.length });
   const year = new Date().getFullYear();
 
@@ -152,7 +152,7 @@ export function App() {
                 <div className="flex-1" />
                 <span className="pb-2 text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
               </div>
-              {pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
+              {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
           </div>
         ) : null}

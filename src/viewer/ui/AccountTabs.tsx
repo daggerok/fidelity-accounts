@@ -44,6 +44,9 @@ export function AccountTabs({ ds, scope, onScope }: { ds: Dataset; scope: Scope;
   return (
     <nav className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-950" aria-label={t('Accounts')}>
       <div role="button" tabIndex={0} className={chip('all', scope === 'all')} onClick={() => onScope('all')} onKeyDown={(e) => { if (e.key === 'Enter') onScope('all'); }} data-scope="all">
+        {/* like the groups (owner 2026-11-24): ticked = every account, partly = some; a click ticks all or clears all */}
+        <Check checked={shown.size === ds.accounts.length} mixed={shown.size > 0} label={t('Show {name}', { name: t('All accounts') })}
+          onChange={() => onScope(shown.size === ds.accounts.length ? 'none' : 'all')} />
         <span>{t('All accounts')}</span>
         {money(all.balance, all.todayGl, all.todayGlPct)}
       </div>

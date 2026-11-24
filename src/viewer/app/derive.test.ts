@@ -52,6 +52,11 @@ test('any set of accounts: checkbox toggles, the shortest scope name', () => {
   expect(toggleAccount(three, 'account:X3', '200000002')).toBe('set:200000002,X3');
   expect(toggleAccount(three, 'set:200000002,X3', '200000002')).toBe('account:X3');
   expect(toggleAccount(three, 'all', '200000002')).toBe('group:Investment');
+  // the All accounts checkbox can clear everything; then single accounts are ticked one by one
+  expect(scopeOf(three, [])).toBe('none');
+  expect(accountsIn(three, 'none')).toEqual([]);
+  expect(toggleAccount(three, 'none', 'X3')).toBe('account:X3');
+  expect(validScope(three, 'none')).toBe('none');
   expect(validScope(three, 'set:gone')).toBe('all');
 });
 
