@@ -152,16 +152,16 @@ export function App() {
         {ds ? (
           <div className="flex flex-col gap-4 pt-4 lg:pt-6">
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
-              <div>
-                <h2 className="text-3xl font-semibold tracking-tight">{title}</h2>
-                {one && <p className="text-sm text-slate-500 dark:text-slate-400">{[one.type, one.number].filter(Boolean).join(': ')}</p>}
-              </div>
-              <div className="flex items-end gap-6 border-b border-slate-200 dark:border-slate-700" role="tablist">
+              {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
+                  time after it */}
+              <div className="flex flex-wrap items-end gap-x-6 border-b border-slate-200 dark:border-slate-700" role="tablist">
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
-                <div className="flex-1" />
-                <span className="pb-2 text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
+                <div className="ml-auto flex min-w-0 items-baseline gap-3 py-[0.6rem]" data-scope-title>
+                  <span className="truncate font-medium text-slate-900 dark:text-slate-100" title={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined}>{title}</span>
+                  <span className="flex-none text-xs text-slate-500 dark:text-slate-400">{ds.asOf ?? t('read {at}', { at: ds.builtAt.slice(0, 16).replace('T', ' ') })}</span>
+                </div>
               </div>
               {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
