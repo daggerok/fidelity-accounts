@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
 import { accountsIn, validScope } from '../app/derive';
-import { askSync, dataset, loginSaved } from '../app/data';
+import { dataset, loginSaved, runState, setWatch, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -32,6 +32,8 @@ export function App() {
   const { ds, source, error } = useStore(dataset);
   const g = useStore(sheets);
   useStore(loginSaved);
+  const watch = useStore(watching);
+  const run = useStore(runState);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
   const [userscript, setUserscript] = useState<string | null>(() => userscriptVersion(document.documentElement));
@@ -50,6 +52,14 @@ export function App() {
   const [expandSetup, setExpandSetup] = useState(0); // 🚀: open settings with Get started expanded
   const rememberPanel = (open: boolean) => { try { localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed'); } catch { /* private window */ } };
   const done = setupDone(setupState(userscript));
+  // Google connected, the sheet read and still no data, the script installed: start watching by itself, so the first
+  // data comes with no other click (owner 2026-11-23); once per page
+  const autoWatched = useRef(false);
+  useEffect(() => {
+    if (!g.connected || g.busy || ds || !userscript || watch || autoWatched.current) return;
+    autoWatched.current = true;
+    setWatch(true);
+  }, [g.connected, g.busy, ds, userscript, watch]);
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater() && dataset.get().source !== 'demo') { autoOpened.current = true; setShowSettings(true); }
@@ -89,11 +99,18 @@ export function App() {
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>
               )}
-              <button type="button" className="tb font-bold" style={{ color: 'var(--brand)' }} data-sync disabled={!userscript}
-                title={userscript ? t('Sync: opens Fidelity on Positions, the script reads it (read only)') : t('Install the script first (🚀 Get started)')} onClick={askSync}>⬇</button>
-              <button type="button" className={`tb ${g.connected ? 'on' : ''}`} data-google disabled={g.connected || g.busy || !loadConfig().clientId}
-                title={g.connected ? t('Google Sheets connected: new data is written by itself') : loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
-                onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>
+              {/* 👀 watch the data while markets are open (owner 2026-11-23), instead of a one-off ⬇ */}
+              <button type="button" className={`tb ${watch ? 'on' : ''}`} data-watch={watch ? 'on' : 'off'} disabled={!userscript}
+                title={!userscript ? t('Install the script first (🚀 Get started)') : watch
+                  ? t('Watching Fidelity: Positions refresh every minute and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' })
+                  : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)')}
+                onClick={() => setWatch(!watch)}>
+                <span className="relative inline-flex">👀{watch && <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-emerald-500" />}</span>
+              </button>
+              {/* ☁️ only until Google is connected, like 🚀; disconnecting lives in ⚙️ Settings (owner 2026-11-23) */}
+              {!g.connected && <button type="button" className="tb" data-google disabled={g.busy || !loadConfig().clientId}
+                title={loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
+                onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>}
               {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
               {!done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}

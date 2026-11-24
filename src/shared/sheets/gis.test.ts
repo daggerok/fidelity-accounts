@@ -87,6 +87,20 @@ describe('GoogleAuth', () => {
 
   const cfg = (c: Partial<GsConfig> = {}) => (): GsConfig => ({ clientId: 'client.example', spreadsheetId: SHEET_ID, email: '', ...c });
 
+  test('a saved token is used again until it expires, with no Google window', async () => {
+    let now = 1000000;
+    const f = fakeGis(3600);
+    const auth = new GoogleAuth({ config: cfg(), gis: async () => f.gis, now: () => now });
+    expect(auth.restore({ value: 'saved', expiresAt: now + 30_000 })).toBe(false); // under the one-minute margin
+    expect(auth.restore({ value: 'saved', expiresAt: now + 600_000 })).toBe(true);
+    expect(auth.connected).toBe(true);
+    expect(await auth.get()).toBe('saved');
+    expect(f.prompts).toEqual([]);
+    now += 560_000; // close to expiry: renewed silently (consented before), never the consent screen
+    expect(await auth.get()).toBe('tok-1');
+    expect(f.prompts).toEqual(['']);
+  });
+
   test('consent on the first connect, silent after; tokens reused until near expiry', async () => {
     let now = 1000000;
     const f = fakeGis(3600);

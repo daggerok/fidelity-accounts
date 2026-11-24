@@ -17,6 +17,8 @@ export interface RunState { status: string; at: number; accounts?: number; posit
 export const runState = createStore<RunState | null>(null);
 // a Fidelity login saved in the script (only "yes or no" crosses the bridge, never the login itself)
 export const loginSaved = createStore<boolean | null>(null);
+// 👀 Watch on or off (kept in the script's storage, so the Fidelity tab and every viewer tab agree)
+export const watching = createStore<boolean>(false);
 
 const CACHE_KEY = 'dataset';
 
@@ -38,6 +40,9 @@ export function startData(): void {
     if (e.data.type === 'fidelity-accounts:run') {
       try { runState.set(JSON.parse(e.data.json) as RunState); } catch { /* ignore */ }
     }
+    if (e.data.type === 'fidelity-accounts:watch') {
+      try { watching.set(!!(JSON.parse(e.data.json) as { on?: boolean }).on); } catch { /* ignore */ }
+    }
     if (e.data.type === 'fidelity-accounts:login') {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }
     }
@@ -47,13 +52,15 @@ export function startData(): void {
   window.postMessage({ type: 'fidelity-accounts:hello' }, location.origin);
 }
 
-/** ⬇ Sync: the script reads the Positions page in a Fidelity tab (one named tab, reused) */
-export function askSync(): void {
-  window.postMessage({ type: 'fidelity-accounts:command', mode: 'sync' }, location.origin);
-  window.open(POSITIONS_URL, 'fidelity-accounts-sync');
-}
 
 export const openFidelity = (): void => { window.open(POSITIONS_URL, 'fidelity-accounts-sync'); };
+
+/** 👀 on: Fidelity opens on Positions (one named tab, reused) and keeps refreshing; off: the tab stops refreshing */
+export function setWatch(on: boolean): void {
+  window.postMessage({ type: 'fidelity-accounts:watch-set', on }, location.origin);
+  watching.set(on);
+  if (on) window.open(POSITIONS_URL, 'fidelity-accounts-sync');
+}
 
 export async function importFile(f: File): Promise<void> {
   accept(await f.text(), 'import');
