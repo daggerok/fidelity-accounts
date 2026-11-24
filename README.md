@@ -8,7 +8,7 @@ Script: https://daggerok.github.io/fidelity-accounts/fidelity-accounts-sync.user
 
 ## Get started
 
-⚙️ Settings slide down from the navbar by themselves while something needs setup: Get started sits on top, expanded, and lists only the open steps; Enter or ✕ slides the panel up. Once everything is set, 🚀 leaves the navbar and Get started stays squashed on top of Settings (click its header to open it):
+⚙️ Settings slide down from the navbar by themselves while something needs setup: Get started sits on top, expanded, and lists only the open steps; Enter or ✕ slides the panel up. Google Sheets is part of Get started. Once everything is set, 🚀 leaves the navbar and Get started stays squashed on top of Settings (click its header to open it):
 
 1. Google OAuth Client ID: in [console.cloud.google.com](https://console.cloud.google.com/) enable the Google Sheets API, set the OAuth consent screen to External with your email under Test users, create an OAuth client ID of type Web application with the authorized JavaScript origin `https://daggerok.github.io` (and `http://localhost:1237` for local work). The client of youtube, twitter or mykplan-adp works too. Paste the Client ID into the window
 2. Connect Google: pick your account once, later the page connects by itself

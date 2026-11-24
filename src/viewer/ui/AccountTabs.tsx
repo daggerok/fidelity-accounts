@@ -11,7 +11,7 @@ export function AccountTabs({ ds, scope, onScope }: { ds: Dataset; scope: Scope;
   const Tab = ({ id, title, sub, value, gl, glPct, strong }: { id: Scope; title: string; sub?: string; value: number | undefined; gl?: number; glPct?: number | null; strong?: boolean }) => (
     <button type="button" className={`acct-tab ${scope === id ? 'on' : ''}`} onClick={() => onScope(id)} aria-pressed={scope === id} data-scope={id}>
       <span className={`flex w-full items-baseline justify-between gap-3 text-sm ${strong ? 'font-semibold' : 'font-medium'}`}>
-        <span className="truncate">{title}</span>
+        <span className="whitespace-nowrap">{title}</span>
         <span className="num">{usd(value)}</span>
       </span>
       <span className="flex w-full items-baseline justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">

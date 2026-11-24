@@ -76,12 +76,14 @@ export function App() {
     <div className="flex min-h-dvh flex-col font-sans">
       <div className="flex flex-1 flex-col gap-4 px-4 pt-4 lg:px-6 lg:pt-6">
         <div className="flex flex-col">
-          <header className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
-            <h1 className="m-0 leading-none">
+          {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
+              below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
+          <header className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+            <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
-            <div className="flex-1" />
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="hidden flex-1 sm:block" />
+            <div className="flex w-full items-center justify-evenly gap-1 sm:w-auto sm:justify-end">
               {isOlder(userscript, APP_VERSION) && (
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-1 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>

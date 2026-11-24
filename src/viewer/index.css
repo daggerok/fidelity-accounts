@@ -64,7 +64,7 @@ details.setup > summary .chev{display:inline-block;transition:transform .18s eas
 details.setup[open] > summary .chev{transform:rotate(90deg)}
 
 /* account tabs and cards */
-.acct-tab{display:flex;flex-direction:column;align-items:flex-start;gap:.125rem;min-width:9.5rem;padding:.5rem .75rem;border-radius:.75rem;border:1px solid transparent;text-align:left;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s}
+.acct-tab{display:flex;flex:none;flex-direction:column;align-items:flex-start;gap:.125rem;min-width:9.5rem;padding:.5rem .75rem;border-radius:.75rem;border:1px solid transparent;text-align:left;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s}
 .acct-tab:hover{background:#f1f5f9}
 .acct-tab.on{border-color:#0f172a;background:#fff}
 .dark .acct-tab:hover{background:#1e293b}
