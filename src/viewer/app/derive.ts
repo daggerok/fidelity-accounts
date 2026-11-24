@@ -49,6 +49,18 @@ export function moveAccount(accounts: Account[], moved: string, target: string):
   return list;
 }
 
+/** the folded mark of All accounts in `Prefs.collapsed`; group names mark folded groups */
+export const ALL_FOLD = '*';
+
+/**
+ * A click on All accounts or a group chip as a button (owner 2026-11-24): folds or unfolds it, the selection stays.
+ * All accounts unfolds everything (every group open again) or folds everything; a group folds only its accounts
+ */
+export function toggleFold(collapsed: string[], name: string): string[] {
+  if (name === ALL_FOLD) return collapsed.includes(ALL_FOLD) || collapsed.length ? [] : [ALL_FOLD];
+  return collapsed.includes(name) ? collapsed.filter((g) => g !== name) : collapsed.concat(name);
+}
+
 export function accountsIn(ds: Dataset, scope: Scope): Account[] {
   if (scope.startsWith('group:')) return ds.accounts.filter((a) => a.group === scope.slice(6));
   if (scope.startsWith('account:')) return ds.accounts.filter((a) => a.number === scope.slice(8));
