@@ -6,7 +6,7 @@ export function SlidePanel({ open, title, onClose, id, children }: { open: boole
     // the gap above comes with the open panel only (twitter: 'open mb-4'), so a closed panel leaves no extra space
     <div id={id} className={`slide-wrap shrink-0 ${open ? 'open mt-4 lg:mt-6' : ''}`} aria-hidden={!open}>
       <div className="slide-inner">
-        <section className="max-h-[60vh] overflow-auto rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <section className="max-h-[85vh] overflow-auto rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="panel-head">
             <h2 className="text-sm font-semibold">{title}</h2>
             <button type="button" className="tb" title={t('Close')} onClick={onClose}>✕</button>

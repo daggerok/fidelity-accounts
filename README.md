@@ -8,7 +8,7 @@ Script: https://daggerok.github.io/fidelity-accounts/fidelity-accounts-sync.user
 
 ## Get started
 
-A 🚀 panel slides down from the navbar by itself and lists only what still needs setup; Enter or ✕ slides it up. Once everything is set, 🚀 leaves the navbar and stays in ⚙️ Settings:
+⚙️ Settings slide down from the navbar by themselves while something needs setup: Get started sits on top, expanded, and lists only the open steps; Enter or ✕ slides the panel up. Once everything is set, 🚀 leaves the navbar and Get started stays squashed on top of Settings (click its header to open it):
 
 1. Google OAuth Client ID: in [console.cloud.google.com](https://console.cloud.google.com/) enable the Google Sheets API, set the OAuth consent screen to External with your email under Test users, create an OAuth client ID of type Web application with the authorized JavaScript origin `https://daggerok.github.io` (and `http://localhost:1237` for local work). The client of youtube, twitter or mykplan-adp works too. Paste the Client ID into the window
 2. Connect Google: pick your account once, later the page connects by itself
@@ -17,7 +17,7 @@ A 🚀 panel slides down from the navbar by itself and lists only what still nee
 5. Optional: open Fidelity, press 🔑 in the script's corner panel and save your username and password. The script then logs in by itself when Fidelity asks; a one-time code you type yourself
 6. Press ⬇ in the navbar: Fidelity opens on Positions, the script reads it, the data shows up in the viewer and in the sheet
 
-Later just press ⬇. On another computer: Connect Google and the viewer loads the data back from the sheet, no script needed. Demo data with made-up accounts is one click away in the 🚀 panel and in ⚙️ Settings
+Later just press ⬇. On another computer: Connect Google and the viewer loads the data back from the sheet, no script needed. Demo data with made-up accounts is one click away in ⚙️ Settings
 
 ## How it works
 

@@ -6,9 +6,8 @@ import { t } from '../app/i18n';
 import { MaskedField } from './MaskedField';
 import { useStore } from './useStore';
 
-// Setup panel (owner 2026-11-23: no modal windows, a panel that slides down from the navbar showing only what still
-// needs setup): each step disappears by itself once done. It opens on load while a required step is missing, closes
-// by itself when they are all done, and 🚀 in the navbar opens it any time
+// Get started, the first section of ⚙️ Settings (owner 2026-11-23: no modal windows; settings slide down by themselves
+// while something needs setup and show only those steps; once set up the section is squashed and lists every step)
 export interface SetupState { clientId: boolean; connected: boolean; spreadsheet: boolean; script: boolean; login: boolean; data: boolean }
 
 export function setupState(userscript: string | null): SetupState {
@@ -25,7 +24,7 @@ export function setupState(userscript: string | null): SetupState {
   };
 }
 
-// ✕ holds for this browser session only: the next visit opens the panel again while a step is missing
+// ✕ on settings that opened by themselves holds for this browser session: the next visit opens them again while a step is missing
 const LATER_KEY = 'fidelity-accounts-setup-later';
 export const laterThisSession = (): void => { try { sessionStorage.setItem(LATER_KEY, '1'); } catch { /* blocked storage */ } };
 export const saidLater = (): boolean => { try { return sessionStorage.getItem(LATER_KEY) === '1'; } catch { return false; } };
@@ -47,8 +46,7 @@ function Step({ n, title, optional, done, children }: { n: number; title: string
   );
 }
 
-/** the 🚀 slide-down panel: only the steps that still need doing; `all` (inside ⚙️ Settings once set up): every step,
- * the done ones ticked, to change or redo one */
+/** only the steps that still need doing; `all` (once set up): every step, the done ones ticked, to change or redo one */
 export function GetStarted({ userscript, onDemo, all = false }: { userscript: string | null; onDemo: () => void; all?: boolean }) {
   const g = useStore(sheets);
   const d = useStore(dataset);
