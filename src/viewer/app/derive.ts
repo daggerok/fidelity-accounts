@@ -17,6 +17,38 @@ export function groupsOf(ds: Dataset): Group[] {
   return out;
 }
 
+/**
+ * The owner's own order (owner 2026-11-24): groups move as a whole with their accounts, accounts move inside their
+ * group; accounts in `order` come by its index, the rest keep the site's order after them
+ */
+export function orderAccounts(ds: Dataset, order: string[], groupOrder: string[] = []): Dataset {
+  if (!order.length && !groupOrder.length) return ds;
+  // groups: the owner's order first (dragged as a whole), the rest by their first account on the site
+  const siteRank = new Map<string, number>();
+  ds.accounts.forEach((a, i) => { if (!siteRank.has(a.group)) siteRank.set(a.group, i); });
+  const groupRank = new Map<string, number>();
+  siteRank.forEach((r, g) => { const i = groupOrder.indexOf(g); groupRank.set(g, i < 0 ? groupOrder.length + r : i); });
+  const at = (a: Account) => { const i = order.indexOf(a.number); return i < 0 ? order.length + ds.accounts.indexOf(a) : i; };
+  const accounts = ds.accounts.slice().sort((a, b) => (groupRank.get(a.group)! - groupRank.get(b.group)!) || at(a) - at(b));
+  return { ...ds, accounts };
+}
+
+/** drop group `moved` right before group `target`; the new full order of group names */
+export function moveGroup(groups: string[], moved: string, target: string): string[] {
+  const list = groups.filter((g) => g !== moved);
+  const i = list.indexOf(target);
+  list.splice(i < 0 ? list.length : i, 0, moved);
+  return list;
+}
+
+/** drop `moved` right before `target` and return the new full order of account numbers */
+export function moveAccount(accounts: Account[], moved: string, target: string): string[] {
+  const list = accounts.map((a) => a.number).filter((n) => n !== moved);
+  const i = list.indexOf(target);
+  list.splice(i < 0 ? list.length : i, 0, moved);
+  return list;
+}
+
 export function accountsIn(ds: Dataset, scope: Scope): Account[] {
   if (scope.startsWith('group:')) return ds.accounts.filter((a) => a.group === scope.slice(6));
   if (scope.startsWith('account:')) return ds.accounts.filter((a) => a.number === scope.slice(8));
@@ -94,11 +126,12 @@ export function movers(ps: Position[], n = 5, by: 'pct' | 'usd' = 'pct'): { top:
   return { top: list.slice(0, n).filter((p) => key(p) > 0), bottom: list.slice(-n).filter((p) => key(p) < 0) };
 }
 
-export const ACCOUNT_SORTS = ['value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
+export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];
 
 /** the Accounts card order (owner 2026-11-23): by value, or by today's or total P&L in $ or %; largest first */
 export function sortAccounts(accounts: Account[], by: AccountSort): Account[] {
+  if (by === 'mine') return accounts.slice(); // the order of the accounts bar
   const v = (a: Account): number => (by === 'value' ? a.balance : by === 'todayUsd' ? a.todayGl : by === 'todayPct' ? a.todayGlPct : by === 'totalUsd' ? a.totalGl : a.totalGlPct) ?? -Infinity;
   return accounts.slice().sort((a, b) => v(b) - v(a));
 }

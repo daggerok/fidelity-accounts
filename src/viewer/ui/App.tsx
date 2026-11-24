@@ -1,7 +1,7 @@
 /// <reference lib="esnext" />
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
-import { accountsIn, validScope } from '../app/derive';
+import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, validScope } from '../app/derive';
 import { dataset, loginSaved, runState, setWatch, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
@@ -30,7 +30,9 @@ export function App() {
   const theme = useTheme();
   const language = useStore(lang);
   const pr = useStore(prefs);
-  const { ds, source, error } = useStore(dataset);
+  const { ds: rawDs, source, error } = useStore(dataset);
+  // the owner's own order of accounts applies everywhere: the bar, Positions, the Accounts card
+  const ds = useMemo(() => (rawDs ? orderAccounts(rawDs, pr.accountOrder, pr.groupOrder) : null), [rawDs, pr.accountOrder, pr.groupOrder]);
   const g = useStore(sheets);
   useStore(loginSaved);
   const watch = useStore(watching);
@@ -139,7 +141,8 @@ export function App() {
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <div className="flex flex-col gap-4 pt-4 lg:pt-6">
-            <AccountTabs ds={ds} scope={scope} onScope={(s) => animate(() => setPrefs({ scope: s }))} />
+            <AccountTabs ds={ds} scope={scope} onScope={(s) => animate(() => setPrefs({ scope: s }))} onMove={(moved, target) => animate(() => setPrefs({ accountOrder: moveAccount(ds.accounts, moved, target) }))}
+              onMoveGroup={(moved, target) => animate(() => setPrefs({ groupOrder: moveGroup(groupsOf(ds).map((g) => g.name), moved, target) }))} />
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               <div>
                 <h2 className="text-3xl font-semibold tracking-tight">{title}</h2>

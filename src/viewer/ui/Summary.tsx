@@ -134,7 +134,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const pr = useStore(prefs);
   const m = movers(ps, 5, pr.moversBy);
   const mBig = movers(ps, 20, pr.moversBy);
-  const sortName: Record<AccountSort, string> = { value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
+  const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
   const seg = (on: boolean) => `rounded px-1.5 py-0.5 text-xs ${on ? 'bg-slate-200 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`;
   const today = new Date().toISOString().slice(0, 10);
   const divs = upcomingDividends(ps, today);

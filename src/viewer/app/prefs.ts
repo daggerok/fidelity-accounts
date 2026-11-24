@@ -20,10 +20,12 @@ export interface Prefs {
   period: Period; // the balance chart's period
   views: Record<string, 'bars' | 'pie'>; // each allocation card its own view (owner 2026-11-23: not one global switch)
   moversBy: 'pct' | 'usd'; // top and bottom movers by % or $
-  accountSort: 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
+  accountSort: 'mine' | 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
+  accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
+  groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', accountSort: 'value' };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', accountSort: 'mine', accountOrder: [], groupOrder: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -38,7 +40,9 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       period: (PERIODS as readonly string[]).indexOf(String(p.period)) >= 0 ? (p.period as Period) : '1Y',
       views: p.views && typeof p.views === 'object' && !Array.isArray(p.views) ? p.views : {},
       moversBy: p.moversBy === 'usd' ? 'usd' : 'pct',
-      accountSort: ['value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'value',
+      accountSort: ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'mine',
+      accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
+      groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {
