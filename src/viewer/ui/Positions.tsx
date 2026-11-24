@@ -122,17 +122,11 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   }, [showCols]);
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
+  const count = all.filter((p) => p.kind === 'position').length;
   const tableWidth = 240 + cols.reduce((sum, c) => sum + width(c.key), 0);
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
-      <div className="flex flex-wrap items-center gap-2">
-        <input className="inp max-w-xs" placeholder={t('Search symbol or name')} value={pr.search} onChange={(e) => setPrefs({ search: e.target.value })} />
-        <span className="text-sm text-slate-500">{t('{n} positions', { n: all.filter((p) => p.kind === 'position').length })}</span>
-        <div className="flex-1" />
-        {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
-        <button type="button" className={`tb ${showCols ? 'on' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols((v) => !v)} aria-expanded={showCols} data-columns-button><SlidersIcon /></button>
-      </div>
       {showCols && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700">
           {COLUMNS().map((c) => (
@@ -147,7 +141,20 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
           <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           <thead>
             <tr>
-              <th onClick={() => sortBy('symbol')}>{t('Symbol')}{arrow('symbol')}</th>
+              {/* the search lives in the Symbol header (owner 2026-11-24): "Symbol" is its placeholder, the number of positions
+                  sits inside it on the right; the sort by symbol keeps a small arrow, the columns icon follows */}
+              <th className="!cursor-default" data-symbol-head>
+                <div className="flex items-center gap-1">
+                  <div className="relative min-w-0 flex-1">
+                    <input className="w-full rounded-md border border-slate-300 bg-white py-1 pl-2 pr-10 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      placeholder={t('Symbol')} aria-label={t('Search symbol or name')} title={t('Search symbol or name')} value={pr.search} onChange={(e) => setPrefs({ search: e.target.value })} data-search />
+                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[0.7rem] font-normal text-slate-500" title={t('{n} positions', { n: count })}>{count}</span>
+                  </div>
+                  <button type="button" className="rounded px-1 text-slate-500 hover:text-slate-900 dark:hover:text-white" title={t('Sort by symbol')} onClick={() => sortBy('symbol')}>{arrow('symbol').trim() || '⇅'}</button>
+                  {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
+                  <button type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols((v) => !v)} aria-expanded={showCols} data-columns-button><SlidersIcon /></button>
+                </div>
+              </th>
               {cols.map((c) => <th key={c.key} onClick={() => sortBy(c.key)} className="whitespace-normal">{c.label}{arrow(c.key)}</th>)}
             </tr>
           </thead>
