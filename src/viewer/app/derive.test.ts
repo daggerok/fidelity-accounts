@@ -48,6 +48,11 @@ test('allocation, dividends, 52-week, sort and search', () => {
   const secs = ps.filter((p) => p.kind === 'position');
   expect(sortPositions(secs, 'todayGlPct', -1).map((p) => p.symbol)).toEqual(['AAAA', 'BBBB']);
   expect(sortPositions(ps, 'symbol', 1)[0]!.symbol).toBe('AAAA');
+  // the 52-week range sorts by where the price sits in the range, not by the 52-week high; no range goes last
+  const near = (symbol: string, lastPrice: number, low52: number, high52: number) => ({ ...secs[0]!, symbol, lastPrice, low52, high52 });
+  const rs = [near('LOW', 110, 100, 2000), near('TOP', 95, 50, 100), near('MID', 15, 10, 20), { ...secs[0]!, symbol: 'NONE', low52: undefined, high52: undefined }];
+  expect(sortPositions(rs, 'high52', -1).map((p) => p.symbol)).toEqual(['TOP', 'MID', 'LOW', 'NONE']);
+  expect(sortPositions(rs, 'high52', 1).map((p) => p.symbol)).toEqual(['LOW', 'MID', 'TOP', 'NONE']);
   expect(matches(ps[1]!, 'alpha')).toBe(true);
   expect(matches(ps[1]!, 'zzz')).toBe(false);
 });

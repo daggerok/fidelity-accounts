@@ -313,8 +313,12 @@ export function rangeRows(ps: Position[]): RangeRow[] {
 }
 
 /** the positions table order; text columns sort by text, the rest by number, empty last */
+/** columns that sort by a computed value, not by their own field: the 52-week range sorts by where the price sits in it */
+const SORT_VALUES: Record<string, (p: Position) => number | undefined> = { high52: (p) => rangePos(p) ?? undefined };
+
 export function sortPositions(ps: Position[], key: string, dir: 1 | -1): Position[] {
-  const val = (p: Position): string | number | undefined => (p as unknown as Record<string, string | number | undefined>)[key] ?? (p.fields[key] as string | number | undefined);
+  const computed = SORT_VALUES[key];
+  const val = (p: Position): string | number | undefined => (computed ? computed(p) : (p as unknown as Record<string, string | number | undefined>)[key] ?? (p.fields[key] as string | number | undefined));
   return ps.slice().sort((a, b) => {
     const x = val(a);
     const y = val(b);
