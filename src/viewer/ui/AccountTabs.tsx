@@ -58,7 +58,7 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
     </div>
   );
   return (
-    <nav className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-950" aria-label={t('Accounts')}>
+    <nav className="flex items-center overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 [scrollbar-width:thin] dark:border-slate-700 dark:bg-slate-950" aria-label={t('Accounts')}>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
         onClick={() => onFold(ALL_FOLD)} onKeyDown={(e) => { if (e.key === 'Enter') onFold(ALL_FOLD); }} data-scope="all">
         {chev(!allFolded)}
@@ -68,7 +68,8 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
         <span>{t('All accounts')}</span>
         {money(all.balance, all.todayGl, all.todayGlPct)}
       </div>
-      {!allFolded && groupsOf(ds).map((g) => {
+      <div className={`hslide ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
+      {groupsOf(ds).map((g) => {
         const open = !collapsed.includes(g.name);
         const gt = totalsOf(g.accounts);
         const inGroup = g.accounts.filter((a) => shown.has(a.number)).length;
@@ -77,7 +78,7 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
           onScope(scopeOf(ds, inGroup === g.accounts.length ? others : others.concat(g.accounts.map((a) => a.number))));
         };
         return (
-          <div key={g.name} className={`flex flex-none items-center gap-1.5 border-l border-slate-200 pl-1.5 dark:border-slate-700 ${overGroup === g.name ? 'rounded-lg outline-2 outline-dashed outline-[var(--brand)]' : ''} ${draggedGroup === g.name ? 'opacity-50' : ''}`}
+          <div key={g.name} className={`flex flex-none items-center border-l border-slate-200 pl-1.5 dark:border-slate-700 ${overGroup === g.name ? 'rounded-lg outline-2 outline-dashed outline-[var(--brand)]' : ''} ${draggedGroup === g.name ? 'opacity-50' : ''}`}
             style={{ viewTransitionName: `group-${g.name.replace(/\W/g, '')}` } as React.CSSProperties}
             onDragOver={(e) => { if (draggedGroup && draggedGroup !== g.name) { e.preventDefault(); setOverGroup(g.name); } }}
             onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverGroup((o) => (o === g.name ? null : o)); }}
@@ -92,10 +93,11 @@ export function AccountTabs({ ds, scope, collapsed, onScope, onFold, onMove, onM
               <span>{g.name}</span>
               {money(gt.balance, gt.todayGl, gt.todayGlPct)}
             </div>
-            {open && g.accounts.map(accountChip)}
+            <div className={`hslide ${open ? 'open' : ''}`} inert={!open}><div>{g.accounts.map(accountChip)}</div></div>
           </div>
         );
       })}
+      </div></div>
     </nav>
   );
 }
