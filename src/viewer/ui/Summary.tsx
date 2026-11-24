@@ -295,8 +295,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full transition-[width] duration-300" style={{ width: `${v.total > 0 ? (v.paid / v.total) * 100 : 0}%`, background: 'var(--brand)' }} /></div>
               {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
-              {/* Fidelity's annual estimate spread over the period (owner 2026-11-24: "On average" under each tile) */}
-              <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Y' ? 1 : key === 'Q' ? 4 : 12))}</span></div>
+              {/* Fidelity's annual estimate spread over the quarter or the month (owner 2026-11-24: "On average", not under the
+                  year) */}
+              {key !== 'Y' && <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></div>}
             </div>
           ))}
         </div>
