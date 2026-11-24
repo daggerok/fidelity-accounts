@@ -25,7 +25,8 @@ export const RU: Record<string, string> = {
   'All accounts': 'Все счета',
   'Previous accounts': 'Предыдущие счета',
   'Next accounts': 'Следующие счета',
-  'received {paid} of {total}; coming {coming}': 'получено {paid} из {total}; ожидается {coming}',
+  "planned {total} at today's holdings; still to come {coming}": 'план {total} при сегодняшних позициях; ещё придёт {coming}',
+  'Needs the transactions history': 'Нужна история транзакций',
   '{n} accounts': 'счетов: {n}',
   'Show {name}': 'Показать {name}',
 
