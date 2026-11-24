@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { t } from '../app/i18n';
 
 // A card or a chart drawn big on top of the page (owner 2026-11-23: maximize and minimize for every plate where it makes
@@ -24,7 +25,9 @@ export function Zoom({ open, title, onClose, children }: { open: boolean; title:
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
   if (!mounted) return null;
-  return (
+  // drawn into <body>, not inside the card: a card in the packed columns with its own view-transition layer would let
+  // the next card paint over the window (owner 2026-11-24 found it)
+  return createPortal((
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 transition-opacity duration-150 ease-out ${shown ? 'opacity-100' : 'opacity-0'}`}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} role="dialog" aria-modal="true" aria-label={title} data-chart-zoom>
       <div className={`card flex max-h-full w-full max-w-6xl flex-col gap-3 overflow-auto transition-transform duration-150 ease-out ${shown ? 'scale-100' : 'scale-95'}`}>
@@ -35,5 +38,5 @@ export function Zoom({ open, title, onClose, children }: { open: boolean; title:
         {children}
       </div>
     </div>
-  );
+  ), document.body);
 }
