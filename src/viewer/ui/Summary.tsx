@@ -26,7 +26,7 @@ function Card({ id, title, children, tools, lead, expand }: { id: string; title:
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLElement>(null);
   return (
-    <section ref={box} className="card mb-4 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
+    <section ref={box} className="card mb-4 lg:mb-6 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         {lead}
@@ -219,7 +219,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const estAnnual = estAnnualOf(pr.incomeOf, tot.estAnnualIncome, ps);
 
   return (
-    <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
+    // the space between cards equals the space from the screen edge to the navbar: 16 px, 24 px from lg (owner 2026-11-24)
+    <div className="gap-4 md:columns-2 lg:gap-6 xl:columns-3" data-summary>
       <Card id="balance" title={t('Balance')} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
         {/* the balance and today's change on the left, the other facts in a compact table on the right (owner 2026-11-24:
             "move that part to top right"); on a narrow card they wrap under */}
