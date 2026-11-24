@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, securities, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeIn, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -216,7 +216,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const incM = incomeIn(incomePs, bounds.month[0], bounds.month[1], today);
   const incY = incomeIn(incomePs, bounds.year[0], bounds.year[1], today);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
-  const estAnnual = pr.incomeOf === 'all' ? tot.estAnnualIncome : securities(incomePs).reduce((x, p) => x + (p.estAnnualIncome ?? 0), 0);
+  const estAnnual = estAnnualOf(pr.incomeOf, tot.estAnnualIncome, ps);
 
   return (
     <div className="gap-4 md:columns-2 xl:columns-3" data-summary>
