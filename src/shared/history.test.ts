@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { ALL_PERIODS, PERIODS, cardPeriods, periodLabel, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
+import { ALL_PERIODS, PERIODS, cardPeriods, periodLabel, resample, changeOf, combine, mergeHistory, parseBalanceHistory, periodSlice, type Period, type Point } from './history';
 
 // weekdays only, like market closes, from 2025-10-15 to 2026-11-20 (a Friday), value = day number
 function closes(from: string, to: string): Point[] {
@@ -65,4 +65,11 @@ test('periods start at the right close', () => {
 test('change over a period: last minus first, percent of the first; too short gives null', () => {
   expect(changeOf([{ date: 'a', value: 200 }, { date: 'b', value: 210 }])).toEqual({ from: { date: 'a', value: 200 }, to: { date: 'b', value: 210 }, change: 10, pct: 5 });
   expect(changeOf([{ date: 'a', value: 1 }])).toBeNull();
+});
+
+test('resample spreads a line over n points', () => {
+  expect(resample([0, 10], 3)).toEqual([0, 5, 10]);
+  expect(resample([1, 2, 3, 4, 5], 3)).toEqual([1, 3, 5]);
+  expect(resample([7], 2)).toEqual([7, 7]);
+  expect(resample([], 4)).toEqual([]);
 });

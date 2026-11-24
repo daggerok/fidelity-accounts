@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Point } from '../../shared/history';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { resample, type Point } from '../../shared/history';
 import { siteDate, usd } from './format';
 
 // A light SVG line chart in the Fidelity look: the line with a soft fill, three value levels on the right, the first and
@@ -16,6 +16,41 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
     setWidth(Math.max(200, el.clientWidth));
     return () => ro.disconnect();
   }, []);
+  // morph between periods (owner 2026-11-24): the line in chart units (0 = bottom, 1 = top) is kept; when the period
+  // changes the old line is blended into the new one over 300 ms, then the exact line is drawn again
+  const N = Math.min(400, Math.max(2, points.length));
+  const norm = useMemo(() => {
+    if (points.length < 2) return [];
+    const v = points.map((p) => p.value);
+    let lo = Math.min(...v);
+    let hi = Math.max(...v);
+    if (hi === lo) { hi += 1; lo -= 1; }
+    const s = hi - lo;
+    lo -= s * 0.05;
+    hi += s * 0.05;
+    return v.map((x) => (x - lo) / (hi - lo));
+  }, [points]);
+  const shown = useRef<number[] | null>(null);
+  const [blend, setBlend] = useState<number[] | null>(null);
+  const shape = points.length ? `${points[0]!.date}|${points[points.length - 1]!.date}|${points.length}` : '';
+  useEffect(() => {
+    const from = shown.current;
+    const to = resample(norm, N);
+    shown.current = to;
+    const reduced = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!from || !to.length || reduced) return undefined;
+    const a = resample(from, N);
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / 300);
+      const e = 1 - (1 - k) ** 3;
+      setBlend(k < 1 ? to.map((y, i) => a[i]! + (y - a[i]!) * e) : null);
+      if (k < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [shape]);
   if (points.length < 2) return <div ref={box} style={{ height }} />;
   const pad = { l: 4, r: 64, t: 10, b: 24 };
   const w = width - pad.l - pad.r;
@@ -29,8 +64,10 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
   max += span * 0.05;
   const x = (i: number) => pad.l + (i / (points.length - 1)) * w;
   const y = (v: number) => pad.t + (1 - (v - min) / (max - min)) * h;
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join('');
-  const area = `${line}L${x(points.length - 1).toFixed(1)},${pad.t + h}L${pad.l},${pad.t + h}Z`;
+  const line = blend
+    ? blend.map((u, i) => `${i ? 'L' : 'M'}${(pad.l + (i / (blend.length - 1)) * w).toFixed(1)},${(pad.t + (1 - u) * h).toFixed(1)}`).join('')
+    : points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join('');
+  const area = `${line}L${(pad.l + w).toFixed(1)},${pad.t + h}L${pad.l},${pad.t + h}Z`;
   const color = up ? 'var(--gain)' : 'var(--loss)';
   const levels = [max - (max - min) * 0.05, (max + min) / 2, min + (max - min) * 0.05];
   const short = (v: number) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}K` : usd(v));
