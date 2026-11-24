@@ -61,6 +61,7 @@ export const RU: Record<string, string> = {
   Other: 'Прочее',
   '{period} balance change': '{period} изменение баланса',
   "Today's gain/loss": 'Изменение за сегодня',
+  Today: 'Сегодня',
   'Total gain/loss': 'Прибыль/убыток всего',
   'Cost basis': 'Себестоимость',
   'Cash (core)': 'Наличные (core)',
