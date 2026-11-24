@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { Account, Dataset } from '../../shared/model';
 import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount, totalsOf } from '../app/derive';
 import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
+import { Check } from './Check';
 import { EdgeScrollRow } from './EdgeScrollRow';
 import { signedPct, tone, usd } from './format';
 
@@ -13,14 +14,6 @@ import { signedPct, tone, usd } from './format';
 // than groups), so a section never looks like an account. A click on All accounts or a group folds or unfolds it (All
 // accounts unfolds every group); a click on an account shows only it. Checkboxes alone choose: All accounts ticks or
 // clears every account, a group its accounts, an account itself, so any set can be shown (Elena + Elena ROTH IRA)
-function Check({ checked, mixed, label, onChange }: { checked: boolean; mixed?: boolean; label: string; onChange: () => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (ref.current) ref.current.indeterminate = !!mixed && !checked; }, [mixed, checked]);
-  return (
-    <input ref={ref} type="checkbox" className="size-3.5 flex-none cursor-pointer accent-[var(--brand)]" checked={checked} aria-label={label}
-      onClick={(e) => e.stopPropagation()} onChange={onChange} />
-  );
-}
 
 export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; className?: string; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
   // drag an account chip onto another account of its group to put it there (owner 2026-11-24: my own order)
