@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
-import { askSync, dataset, loginSaved, openFidelity, showDemo } from '../app/data';
+import { askSync, clearDemo, dataset, importFile, loginSaved, openFidelity, showDemo } from '../app/data';
+import { APP_VERSION, isOlder } from '../app/version';
 import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets, writeNow } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
 import { t } from '../app/i18n';
@@ -33,6 +34,9 @@ export const saidLater = (): boolean => { try { return sessionStorage.getItem(LA
 /** the required steps (the Fidelity login is optional) */
 export const setupDone = (s: SetupState): boolean => s.clientId && s.spreadsheet && s.script && s.data;
 
+// a disabled button says which step it waits for (owner 2026-11-23: pale buttons with no reason looked broken)
+const Needs = ({ when, text }: { when: boolean; text: string }) => (when ? <span className="text-xs text-amber-600 dark:text-amber-400" data-needs>{text}</span> : null);
+
 const CODE = (text: string) => <code className="rounded bg-slate-100 px-1 text-[0.8em] dark:bg-slate-800">{text}</code>;
 
 function Step({ n, title, optional, done, children }: { n: number; title: string; optional?: boolean; done?: boolean; children: React.ReactNode }) {
@@ -59,6 +63,8 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
   useEffect(() => { setS(setupState(userscript)); }, [g.connected, d.ds, d.source, login, userscript]);
   const settle = () => setS(setupState(userscript));
   const [showUrl, setShowUrl] = useState(false);
+  const file = useRef<HTMLInputElement>(null);
+  const sourceName: Record<string, string> = { userscript: t('the script'), sheets: t('Google Sheets'), import: t('a JSON file'), cache: t('this browser'), demo: t('demo data') };
   const change = (p: Partial<typeof cfg>) => { const next = { ...cfg, ...p }; setCfg(next); saveConfig(next); handOff(); };
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
@@ -71,12 +77,13 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
   </> });
   if (all || !s.connected) steps.push({ key: 'connect', done: s.connected, title: t('Connect Google'), body: <>
     <span>{t('Google asks you to pick your account once; later the page connects by itself.')}</span>
-    <div><button type="button" className="btn sm primary" disabled={!cfg.clientId || s.connected} onClick={() => void connectGoogle()}>{t('Connect Google')}</button></div>
+    <div className="flex flex-wrap items-center gap-2"><button type="button" className="btn sm primary" disabled={!cfg.clientId || s.connected} onClick={() => void connectGoogle()}>{t('Connect Google')}</button><Needs when={!cfg.clientId} text={t('needs the Client ID first')} /></div>
   </> });
   if (all || !s.spreadsheet) steps.push({ key: 'sheet', done: s.spreadsheet, title: t('Google Sheet for your Fidelity data'), body: <>
     <span>{t('Create a new spreadsheet in your Google Drive, or paste the link of one you made (the youtube and twitter one is fine: this app writes only its fidelity_* tabs).')}</span>
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" className="btn sm primary" disabled={!s.connected} onClick={() => void createSpreadsheet().then((id) => { if (id) setCfg(loadConfig()); })}>{t('Create a spreadsheet')}</button>
+      <Needs when={!s.connected} text={t('needs Connect Google first, or paste a link below')} />
       {sheetId && <a className="masked text-xs underline" href={spreadsheetUrl(sheetId)} target="_blank" rel="noreferrer">{maskSpreadsheetUrl(spreadsheetUrl(sheetId))}</a>}
     </div>
     <MaskedField label={t('Spreadsheet link or ID')} value={cfg.spreadsheetId} mask={(v) => (v.includes('/d/') ? maskSpreadsheetUrl(v) : mask(v))} placeholder="https://docs.google.com/spreadsheets/d/1abc…/edit" onChange={(v) => change({ spreadsheetId: v.trim() })} />
@@ -96,6 +103,7 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
     <span>{t('Press ⬇ Sync (here or in the navbar): Fidelity opens on Positions, the script reads it and the data appears here and in your sheet.')}</span>
     <div className="flex flex-wrap gap-2">
       <button type="button" className="btn sm primary" disabled={!s.script} onClick={askSync}>⬇ {t('Sync')}</button>
+      <Needs when={!s.script} text={t('needs the script installed first')} />
       <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Look around with demo data')}</button>
     </div>
   </> });
@@ -140,6 +148,22 @@ export function GetStarted({ userscript, onDemo, all = false }: { userscript: st
           {!all && sheetsBox}
         </>
       ) : <p className="text-sm text-slate-600 dark:text-slate-300">{t('All set: Sync whenever you want fresh numbers.')}</p>}
+      {/* the data part is core setup too (owner 2026-11-23): where the data comes from, the script, the login, import */}
+      <div className="flex flex-col gap-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-700" data-data>
+        <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf && d.source !== 'demo' ? ` · ${d.ds.asOf}` : ''}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{t('Script')}: {userscript ? <b>{userscript}</b> : t('not seen on this page')}</span>
+          {userscript && <a className={`btn sm ${isOlder(userscript, APP_VERSION) ? 'primary' : ''}`} href="./fidelity-accounts-sync.user.js" data-install-script>{isOlder(userscript, APP_VERSION) ? t('Update to {version}', { version: APP_VERSION }) : t('Reinstall')}</a>}
+          <span>{t('Fidelity login in the script')}: <b>{login === null ? '—' : login ? t('saved') : t('not saved')}</b></span>
+          <button type="button" className="btn sm" onClick={openFidelity}>{t('Open Fidelity')}</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
+          {d.source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={() => { showDemo(); onDemo(); }}>{t('Show demo data')}</button>}
+          <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
+        </div>
+        <p className="text-xs text-amber-700 dark:text-amber-300">{t('Read only: the script never trades, transfers or changes anything on Fidelity; it reads the Positions page you can see yourself.')}</p>
+      </div>
     </div>
   );
 }

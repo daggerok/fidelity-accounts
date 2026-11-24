@@ -3,7 +3,9 @@ import { t } from '../app/i18n';
 
 // Settings values like twitter and youtube: hidden behind dots, 👁 shows and hides, 📋 copies without showing
 // (✅ for a moment after copying). Only 👁 shows the value: clicking or focusing the dots does not (owner 2026-11-22:
-// "it should not be accessible as I click until I click eye"); editing happens in the shown state
+// "it should not be accessible as I click until I click eye"); editing happens in the shown state. An empty field has
+// nothing to hide: it takes typing at once and stays editable until it is left (owner 2026-11-23: "why 1, 2, 3 are
+// disabled? how I suppose to set the values?")
 export const iconButton = 'ib disabled:opacity-40'; // twitter's .ib (src/index.css)
 const input = 'inp text-xs'; // twitter's .inp: .mono while shown, .masked while hidden
 
@@ -25,14 +27,16 @@ export function RevealCopy({ label, value, shown, onToggle }: { label: string; v
 
 export function MaskedField(p: { label: string; value: string; mask: (v: string) => string; placeholder: string; onChange: (v: string) => void; hint?: string }) {
   const [show, setShow] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const editable = show || editing || !p.value;
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{p.label}</span>
         <RevealCopy label={p.label} value={p.value} shown={show} onToggle={() => setShow((s) => !s)} />
       </div>
-      {show
-        ? <input className={`${input} mono`} value={p.value} onChange={(e) => p.onChange(e.target.value)} placeholder={p.placeholder} autoComplete="off" spellCheck={false} />
+      {editable
+        ? <input className={`${input} mono`} value={p.value} onChange={(e) => p.onChange(e.target.value)} onFocus={() => setEditing(true)} onBlur={() => setEditing(false)} placeholder={p.placeholder} autoComplete="off" spellCheck={false} />
         : <input className={`${input} masked cursor-default`} value={p.value ? p.mask(p.value) : ''} title={t('Press 👁 to show and edit')} placeholder={p.placeholder} readOnly data-masked />}
       {p.hint && <div className="mt-1 text-[10px] text-slate-400">{p.hint}</div>}
     </div>
