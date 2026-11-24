@@ -21,13 +21,15 @@ export function accountsIn(ds: Dataset, scope: Scope): Account[] {
   if (scope.startsWith('group:')) return ds.accounts.filter((a) => a.group === scope.slice(6));
   if (scope.startsWith('account:')) return ds.accounts.filter((a) => a.number === scope.slice(8));
   if (scope.startsWith('set:')) { const set = new Set(scope.slice(4).split(',')); return ds.accounts.filter((a) => set.has(a.number)); }
+  if (scope === 'none') return [];
   return ds.accounts;
 }
 
-/** any set of accounts as the shortest scope: all of them = 'all', exactly a group = 'group:', one = 'account:' */
+/** any set of accounts as the shortest scope: none = 'none', all of them = 'all', exactly a group = 'group:', one = 'account:' */
 export function scopeOf(ds: Dataset, numbers: string[]): Scope {
   const set = new Set(numbers.filter((n) => ds.accounts.some((a) => a.number === n)));
-  if (!set.size || set.size === ds.accounts.length) return 'all';
+  if (!set.size) return 'none';
+  if (set.size === ds.accounts.length) return 'all';
   if (set.size === 1) return `account:${Array.from(set)[0]}`;
   const group = groupsOf(ds).find((g) => g.accounts.length === set.size && g.accounts.every((a) => set.has(a.number)));
   if (group) return `group:${group.name}`;
@@ -43,6 +45,7 @@ export function toggleAccount(ds: Dataset, scope: Scope, number: string): Scope 
 /** a scope that no longer exists (account closed, other data) falls back to all accounts */
 export function validScope(ds: Dataset | null, scope: Scope): Scope {
   if (!ds || scope === 'all') return 'all';
+  if (scope === 'none') return 'none';
   return accountsIn(ds, scope).length ? scope : 'all';
 }
 
