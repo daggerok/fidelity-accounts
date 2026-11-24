@@ -23,9 +23,10 @@ export interface Prefs {
   accountSort: 'mine' | 'value' | 'todayUsd' | 'todayPct' | 'totalUsd' | 'totalPct'; // the Accounts card order
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
+  collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', accountSort: 'mine', accountOrder: [], groupOrder: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], period: '1Y', views: {}, moversBy: 'pct', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -43,6 +44,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       accountSort: ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'].indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as Prefs['accountSort']) : 'mine',
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
+      collapsed: Array.isArray(p.collapsed) ? p.collapsed.filter((x): x is string => typeof x === 'string') : [],
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {

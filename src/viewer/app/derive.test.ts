@@ -1,10 +1,10 @@
 /// <reference types="bun" />
 /// <reference types="node" />
 /// <reference lib="esnext" />
-import { expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import { buildDataset } from '../../shared/parse';
-import { moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
+import { ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangePos, sortPositions, totalsOf, upcomingDividends, validScope } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -87,4 +87,18 @@ test('my order of accounts: moved within the bar, groups stay put', () => {
   const groups = moveGroup(['Investment', 'Retirement'], 'Retirement', 'Investment');
   expect(groups).toEqual(['Retirement', 'Investment']);
   expect(orderAccounts(d, ['R2', 'R1', 'C'], groups).accounts.map((a) => a.number)).toEqual(['R2', 'R1', 'C', 'A', 'B']);
+});
+
+describe('toggleFold', () => {
+  test('a group folds and unfolds only itself', () => {
+    expect(toggleFold([], 'Investment')).toEqual(['Investment']);
+    expect(toggleFold(['Investment', 'Retirement'], 'Investment')).toEqual(['Retirement']);
+  });
+  test('All accounts folds everything when all is open', () => {
+    expect(toggleFold([], ALL_FOLD)).toEqual([ALL_FOLD]);
+  });
+  test('All accounts unfolds everything when anything is folded', () => {
+    expect(toggleFold([ALL_FOLD], ALL_FOLD)).toEqual([]);
+    expect(toggleFold(['Retirement'], ALL_FOLD)).toEqual([]);
+  });
 });
