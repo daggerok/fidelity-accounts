@@ -105,7 +105,7 @@ export function App() {
             </div>
           </SlidePanel>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={toggleSettings}>
-            <SettingsPanel userscript={userscript} onGetStarted={() => { setShowSetup(true); window.scrollTo({ top: 0 }); }} />
+            <SettingsPanel userscript={userscript} onDemo={() => undefined} />
           </SlidePanel>
         </div>
 

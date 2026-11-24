@@ -129,6 +129,7 @@ export const RU: Record<string, string> = {
   'Tampermonkey and the sync script': 'Tampermonkey и скрипт синхронизации',
   'Install Tampermonkey from tampermonkey.net. In Chrome open its extension details: turn on Allow User Scripts and give it site access to digital.fidelity.com and {host}. Then open the script and press Install, and reload this page.': 'Установи Tampermonkey с tampermonkey.net. В Chrome открой сведения о расширении: включи Allow User Scripts и дай доступ к сайтам digital.fidelity.com и {host}. Затем открой скрипт, нажми Install и перезагрузи эту страницу.',
   optional: 'необязательно',
+  'The setup steps; the ticked ones are done.': 'Шаги настройки; отмеченные галочкой уже выполнены.',
   'Open Fidelity: the script shows a small panel in the corner. Press 🔑 there and save your username and password: they stay in Tampermonkey storage only, and the script logs in by itself when Fidelity asks (a one-time code you type yourself). Skip it to log in yourself.': 'Открой Fidelity: скрипт покажет маленькую панель в углу. Нажми там 🔑 и сохрани логин и пароль: они остаются только в хранилище Tampermonkey, и скрипт сам входит, когда Fidelity просит (одноразовый код вводишь ты). Пропусти, чтобы входить самому.',
   'First sync': 'Первая синхронизация',
   'Press ⬇ Sync (here or in the navbar): Fidelity opens on Positions, the script reads it and the data appears here and in your sheet.': 'Нажми ⬇ (здесь или в верхней панели): Fidelity откроется на позициях, скрипт их прочитает, и данные появятся здесь и в таблице.',

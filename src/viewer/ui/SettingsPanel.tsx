@@ -6,13 +6,14 @@ import { connectGoogle, disconnectGoogle, handOff, loadFromSheets, sheets, write
 import { t } from '../app/i18n';
 import { resetPrefs } from '../app/prefs';
 import { APP_VERSION, isOlder } from '../app/version';
+import { GetStarted } from './GetStarted';
 import { MaskedField, RevealCopy } from './MaskedField';
 import { useStore } from './useStore';
 
 const H = ({ children }: { children: React.ReactNode }) => <h3 className="text-sm font-semibold">{children}</h3>;
 
 // ⚙️ Settings (slides down under the navbar): data source, Google Sheets, the script, the view reset
-export function SettingsPanel({ userscript, onGetStarted }: { userscript: string | null; onGetStarted: () => void }) {
+export function SettingsPanel({ userscript, onDemo }: { userscript: string | null; onDemo: () => void }) {
   const file = useRef<HTMLInputElement>(null);
   const [cfg, setCfg] = useState(loadConfig);
   const [showUrl, setShowUrl] = useState(false);
@@ -40,7 +41,6 @@ export function SettingsPanel({ userscript, onGetStarted }: { userscript: string
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn sm" onClick={() => file.current?.click()}>{t('Import JSON')}</button>
           {source === 'demo' ? <button type="button" className="btn sm" onClick={clearDemo}>{t('Hide demo')}</button> : <button type="button" className="btn sm" onClick={showDemo}>{t('Show demo data')}</button>}
-          <button type="button" className="btn sm" onClick={onGetStarted}>🚀 {t('Get started')}</button>
           <button type="button" className="btn sm danger" onClick={resetPrefs} title={t('Selected account, tab, sort, columns, theme and language back to their defaults')}>{t('Reset view')}</button>
           <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} />
         </div>
@@ -74,6 +74,11 @@ export function SettingsPanel({ userscript, onGetStarted }: { userscript: string
         {g.error && <p className="text-xs text-rose-600 dark:text-rose-400">{t('Last error: {error}', { error: g.error })}</p>}
         <pre className="max-h-32 overflow-auto whitespace-pre-wrap text-xs text-slate-500">{g.log.slice(-8).join('\n')}</pre>
       </div>
+      {/* once set up, Get started lives here and slides open on a click (owner 2026-11-23) */}
+      <details className="setup rounded-xl border border-slate-200 dark:border-slate-700 lg:col-span-2" data-settings-get-started>
+        <summary className="px-4 py-3 text-sm font-semibold"><span className="chev">▸</span> 🚀 {t('Get started')}</summary>
+        <div className="px-4 pb-4"><GetStarted userscript={userscript} onDemo={onDemo} all /></div>
+      </details>
     </div>
   );
 }

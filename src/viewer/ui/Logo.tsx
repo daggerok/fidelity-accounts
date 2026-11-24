@@ -1,10 +1,11 @@
-// The Fidelity wordmark drawn as text in its green (no image file of the trademark in this public repo) with the
-// app's own "accounts" tag, so the page is never mistaken for Fidelity's site
+// "Fidelity Accounts" as one wordmark (owner 2026-11-23): both words in the same bold italic, on one baseline;
+// "Fidelity" in its green, "Accounts" white in the dark theme and near black in the light one. Drawn as text, no
+// image file of the trademark in this public repo
 export function Logo() {
   return (
-    <span className="flex items-baseline gap-1.5 select-none" aria-label="Fidelity accounts">
-      <span className="text-[1.65rem] font-extrabold italic leading-none tracking-tight" style={{ color: 'var(--brand)' }}>Fidelity</span>
-      <span className="rounded-md border border-slate-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-600 dark:text-slate-400">accounts</span>
+    <span className="flex select-none items-baseline gap-2 text-[1.65rem] font-extrabold italic leading-none tracking-tight" aria-label="Fidelity Accounts">
+      <span style={{ color: 'var(--brand)' }}>Fidelity</span>
+      <span className="text-slate-900 dark:text-white">Accounts</span>
     </span>
   );
 }
