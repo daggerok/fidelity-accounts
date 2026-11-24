@@ -320,11 +320,10 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
               <div className="num whitespace-nowrap"><span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history')}>--</span> <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.total)}</span></div>
               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800" />
-              {/* the period's total as a share of the balance (owner 2026-11-24: under each tile) */}
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
-              {/* Fidelity's annual estimate spread over the quarter or the month (owner 2026-11-24: "On average", not under the
-                  year) */}
-              {key !== 'Y' && <div className="text-xs text-slate-500 dark:text-slate-400">{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></div>}
+              {/* On average first, then the share of the balance (owner 2026-11-24); the year has no average, an empty line
+                  keeps its share level with the others */}
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{key === 'Y' ? '\u00a0' : <>{t('On average')} · <span className="num">{usd(estAnnual / (key === 'Q' ? 4 : 12))}</span></>}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{tot.balance > 0 ? t('{pct} of the balance', { pct: pct((v.total / tot.balance) * 100) }) : ''}</div>
             </div>
           ))}
         </div>
