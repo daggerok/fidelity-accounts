@@ -162,8 +162,8 @@ export function App() {
                 tabs carry 10 px of their own padding above the text */}
             <main className="flex flex-col gap-4" data-tab={pr.tab}>
               {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
-                  time after it */}
-              <div className="flex flex-wrap items-end gap-x-6 border-b border-slate-200 dark:border-slate-700" role="tablist">
+                  time after it; only the current tab is underlined, no line across the row */}
+              <div className="flex flex-wrap items-end gap-x-6" role="tablist">
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
