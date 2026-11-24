@@ -24,14 +24,16 @@ export function Zoom({ open, title, onClose, children, tools, origin }: { open: 
     const to = p.getBoundingClientRect();
     const from = origin?.current?.getBoundingClientRect();
     const start: Keyframe = from && to.width && to.height
-      ? { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0.5 }
+      ? { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 }
       : { transform: 'scale(.95)', opacity: 0 };
     const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const opts: KeyframeAnimationOptions = { duration: reduced ? 0 : MS, easing: EASE, fill: 'both' };
+    const opts: KeyframeAnimationOptions = { duration: reduced ? 0 : MS, easing: 'linear', fill: 'both' };
     const end: Keyframe = { transform: 'none', opacity: 1 };
     // the window stays solid while it moves and only fades in the quarter next to the card (owner 2026-11-24: it was too
     // transparent while shrinking on Esc); opacity has its own keyframe at 25% or 75%, the transform runs straight through
-    const grow = p.animate(open ? [start, { opacity: 1, offset: 0.25 }, end] : [end, { opacity: 1, offset: 0.75 }, start], opts);
+    // the easing sits on the first keyframe, so it shapes the move while the time runs linear and the fade really happens
+    // only in that quarter (an easing on the whole animation pulled the fade to the first third)
+    const grow = p.animate(open ? [{ ...start, easing: EASE }, { opacity: 1, offset: 0.25 }, end] : [{ ...end, easing: EASE }, { opacity: 1, offset: 0.75 }, start], opts);
     const dim = b.animate(open ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], opts);
     let done = false;
     grow.onfinish = () => {
