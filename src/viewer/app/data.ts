@@ -18,8 +18,15 @@ export interface RunState { status: string; at: number; accounts?: number; posit
 export const runState = createStore<RunState | null>(null);
 // a Fidelity login saved in the script (only "yes or no" crosses the bridge, never the login itself)
 export const loginSaved = createStore<boolean | null>(null);
-// 👀 Watch on or off (kept in the script's storage, so the Fidelity tab and every viewer tab agree)
-export const watching = createStore<boolean>(false);
+// 👀 Watch on or off, only by the owner's hand (owner 2026-11-24: no pause by the clock, set and unset by me): kept in
+// the script's storage, so the Fidelity tab (its badge has the same switch) and every viewer tab agree, and mirrored in
+// this browser's localStorage so 👀 shows right at once after a reload. `watchChosen`: switched at least once, so the
+// viewer never switches it on by itself again
+const WATCH_MIRROR = 'fidelity-accounts.watch';
+const mirror = (): string | null => { try { return localStorage.getItem(WATCH_MIRROR); } catch { return null; } };
+export const watching = createStore<boolean>(mirror() === 'on');
+export const watchChosen = createStore<boolean>(mirror() !== null);
+const remember = (on: boolean) => { try { localStorage.setItem(WATCH_MIRROR, on ? 'on' : 'off'); } catch { /* private window */ } };
 // the script's live check of the contract with Fidelity (src/shared/contract.ts)
 export const contract = createStore<Report | null>(null);
 
@@ -50,7 +57,11 @@ export function startData(): void {
       try { contract.set(JSON.parse(e.data.json) as Report); } catch { /* ignore */ }
     }
     if (e.data.type === 'fidelity-accounts:watch') {
-      try { watching.set(!!(JSON.parse(e.data.json) as { on?: boolean }).on); } catch { /* ignore */ }
+      try {
+        const w = JSON.parse(e.data.json) as { on?: boolean; chosen?: boolean };
+        watching.set(!!w.on);
+        if (w.chosen) { watchChosen.set(true); remember(!!w.on); }
+      } catch { /* ignore */ }
     }
     if (e.data.type === 'fidelity-accounts:login') {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }
@@ -68,6 +79,8 @@ export const openFidelity = (): void => { window.open(POSITIONS_URL, 'fidelity-a
 export function setWatch(on: boolean): void {
   window.postMessage({ type: 'fidelity-accounts:watch-set', on }, location.origin);
   watching.set(on);
+  watchChosen.set(true);
+  remember(on);
   if (on) window.open(POSITIONS_URL, 'fidelity-accounts-sync');
 }
 

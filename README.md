@@ -17,7 +17,7 @@ Script: https://daggerok.github.io/fidelity-accounts/fidelity-accounts-sync.user
 5. Optional: open Fidelity, press 🔑 in the script's corner panel and save your username and password. The script then logs in by itself when Fidelity asks; a one-time code you type yourself
 6. Press 👀 in the navbar: Fidelity opens on Positions, the script reads it, the data shows up in the viewer and in the sheet. While 👀 is on, Positions refresh every minute and the numbers in the viewer follow the market; press 👀 again to stop
 
-Once Google is connected the data comes by itself: from the sheet, or with 👀 started for you when the sheet is empty. The Google sign-in is kept until it expires (about an hour), so a reload needs no click; ☁️ shows in the navbar only while Google is not connected, Disconnect is in ⚙️. On another computer: Connect Google and the data loads from the sheet, no script needed.
+Once Google is connected the data comes by itself: from the sheet, or with 👀 started for you when the sheet is empty and you never switched 👀 yourself. 👀 stays as you set it (in the viewer or on the script panel on Fidelity, whose dot is green while watching and grey when not); nothing pauses it by the clock. The Google sign-in is kept until it expires (about an hour), so a reload needs no click; ☁️ shows in the navbar only while Google is not connected, Disconnect is in ⚙️. On another computer: Connect Google and the data loads from the sheet, no script needed.
 
 ## How it works
 

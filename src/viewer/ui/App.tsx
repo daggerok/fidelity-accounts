@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
 import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, toggleFold, validScope } from '../app/derive';
-import { dataset, loginSaved, runState, setWatch, watching } from '../app/data';
+import { dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -36,6 +36,7 @@ export function App() {
   const g = useStore(sheets);
   useStore(loginSaved);
   const watch = useStore(watching);
+  const chosen = useStore(watchChosen);
   const run = useStore(runState);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
@@ -56,13 +57,14 @@ export function App() {
   const rememberPanel = (open: boolean) => { try { localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed'); } catch { /* private window */ } };
   const done = setupDone(setupState(userscript));
   // Google connected, the sheet read and still no data, the script installed: start watching by itself, so the first
-  // data comes with no other click (owner 2026-11-23); once per page
+  // data comes with no other click (owner 2026-11-23); once per page, and never after the owner switched 👀 on or off
+  // (owner 2026-11-24: "do not want if it was disabled previously")
   const autoWatched = useRef(false);
   useEffect(() => {
-    if (!g.connected || g.busy || ds || !userscript || watch || autoWatched.current) return;
+    if (!g.connected || g.busy || ds || !userscript || watch || chosen || autoWatched.current) return;
     autoWatched.current = true;
     setWatch(true);
-  }, [g.connected, g.busy, ds, userscript, watch]);
+  }, [g.connected, g.busy, ds, userscript, watch, chosen]);
   // ☁️ and 🚀 wait for the same 1.5 s (owner 2026-11-24: on a reload 🚀 flashed and went away): the script mark, the saved
   // data and the saved Google sign-in come a moment after the first paint
   const [settled, setSettled] = useState(false);
