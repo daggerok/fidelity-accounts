@@ -306,6 +306,8 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
   const mBig = movers(moverPs, 20, pr.moversBy);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
   const shownAccounts = sortAccounts(accounts, pr.accountSort);
+  // sorted by Total $ or Total %: each account shows its total gain or loss, not today's (owner 2026-11-25)
+  const totalView = pr.accountSort === 'totalUsd' || pr.accountSort === 'totalPct';
   const today = localToday();
   const divPs = ofKind(ps, pr.dividendsOf);
   const divsUntil = windowEnd(today, pr.dividendsWindow);
@@ -374,7 +376,7 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
           {shownAccounts.map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="min-w-0"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
-              <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs"><GainLoss usd={a.todayGl} pct={a.todayGlPct} /></div></div>
+              <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs" title={totalView ? t('Total gain/loss') : t("Today's gain/loss")}>{totalView ? <GainLoss usd={a.totalGl} pct={a.totalGlPct} /> : <GainLoss usd={a.todayGl} pct={a.todayGlPct} />}</div></div>
             </div>
           ))}
         </div>
