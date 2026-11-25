@@ -144,6 +144,19 @@ export function App() {
               </button>
             </div>
           </header>
+          {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
+              our navbar, but it will contains only tabs"): the tabs on the left, our read time on the right ("As of": Fidelity's
+              own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards */}
+          {ds && (
+            <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
+              <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist">
+                {MAIN_TABS.map((tab) => (
+                  <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab py-1.5 ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
+                ))}
+              </div>
+              <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
+            </nav>
+          )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsResets />}>
@@ -157,20 +170,8 @@ export function App() {
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <div className="flex flex-col">
-            {/* the tabs live inside the gutter between the navbar and the cards (owner 2026-11-24: "text for tabs shouldn't be
-                counted at all, text simply should be rendered in between"): the row is exactly one gutter tall (16 px below
-                lg, 24 px from lg), the text is centered in it, the selected tab is told by its color, no underline */}
-            <main className="flex flex-col" data-tab={pr.tab}>
-              {/* no big title (owner 2026-11-24): what is shown is the Balance card's title, the right of the tabs says only
-                  "As of" our read time (Fidelity's own "As of" keeps the page load time after Refresh Positions) */}
-              <div className="flex h-4 items-center gap-x-6 text-sm leading-none lg:h-6 lg:text-base" role="tablist">
-                {MAIN_TABS.map((tab) => (
-                  <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
-                ))}
-                <div className="ml-auto flex min-w-0 items-baseline gap-3" data-scope-title>
-                  <span className="flex-none text-xs leading-none text-slate-500 dark:text-slate-400">{t('As of {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
-                </div>
-              </div>
+            {/* the cards start one gutter below the tabs panel (or below the open settings) */}
+            <main className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
               {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
           </div>
