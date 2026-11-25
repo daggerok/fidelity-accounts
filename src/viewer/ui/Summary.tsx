@@ -13,6 +13,7 @@ import { RangeBar } from './RangeBar';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
+import { useFitRows } from './useFitRows';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
@@ -91,7 +92,7 @@ function Bars({ slices, all }: { slices: Slice[]; all?: boolean }) {
 // 2026-11-24): tickers, names and values ("$ (%)" as one column) each aligned; the lists share one table so the top and
 // the bottom line up too
 const MoverRow = ({ p, at }: { p: Position; at: 'card' | 'big' }) => (
-  <tr style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
+  <tr data-fit-row style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
     <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
     <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
     <td className="whitespace-nowrap py-1 pl-3 text-right align-baseline"><GainLoss usd={p.todayGl} pct={p.todayGlPct} /></td>
@@ -302,7 +303,9 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
   const ps = positionsIn(ds, accounts);
   const pr = useStore(prefs);
   const moverPs = ofKind(ps, pr.moversOf);
-  const m = movers(moverPs, 5, pr.moversBy);
+  // on a big screen the movers and the dividends show as many rows as fit above the footer (useFitRows)
+  const [moversBox, moversN] = useFitRows(5, 20, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`);
+  const m = movers(moverPs, moversN, pr.moversBy);
   const mBig = movers(moverPs, 20, pr.moversBy);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
   const shownAccounts = sortAccounts(accounts, pr.accountSort);
@@ -312,6 +315,7 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
   const divPs = ofKind(ps, pr.dividendsOf);
   const divsUntil = windowEnd(today, pr.dividendsWindow);
   const divs = upcomingDividends(divPs, today, divsUntil);
+  const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`);
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
@@ -363,7 +367,7 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
       )} expand={mBig.top.length || mBig.bottom.length ? (
         <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><MoversBig list={mBig.top} by={pr.moversBy} /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><MoversBig list={mBig.bottom} by={pr.moversBy} /></div></div>
       ) : undefined}>
-        {m.top.length || m.bottom.length ? <Movers lists={[m.top, m.bottom]} at="card" /> : <Empty text={t('No price changes yet today')} />}
+        <div ref={moversBox}>{m.top.length || m.bottom.length ? <Movers lists={[m.top, m.bottom]} at="card" /> : <Empty text={t('No price changes yet today')} />}</div>
       </Card>
 
       {/* the order as pills in one row on the right of the title row (owner 2026-11-24: buttons in line, like Fidelity's
@@ -393,15 +397,15 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
       )}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
-          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+          <div ref={divsBox} className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {/* the total on top, as the first row (owner 2026-11-24) */}
             {/* DRIP only in the ⤢ table (owner 2026-11-24: "hide DRIP on plate and show only in zoomed view") */}
             <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
               <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
               <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
             </div>
-            {divs.slice(0, 8).map((p) => (
-              <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+            {divs.slice(0, divsN).map((p) => (
+              <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" data-fit-row>
                 {/* the ticker alone, both dates on the line under it (owner 2026-11-24) */}
                 <div className="min-w-0"><div className="font-semibold">{p.symbol}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('ex date: {ex} pay date: {pay}', { ex: siteDate(p.exDate), pay: siteDate(p.payDate) })}</div></div>
                 <div className="text-right">
