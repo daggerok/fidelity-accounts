@@ -5,8 +5,8 @@ import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../fixtures/grid';
 import { buildDataset } from '../parse';
 import { SheetsError } from './client';
-import { balanceRows, changedSets, readSets, datasetFromTabs, dayOf, fingerprint, parseSignal, positionRows, syncedRows, txnStoreFromTabs, wideRows } from './sync';
-import { ACCOUNTS, BALANCES, POSITIONS, TAB_NAMES, TRANSACTIONS, TXN_SYNCED } from './tabs';
+import { balanceRows, betaRows, betasFromRows, changedSets, readSets, datasetFromTabs, dayOf, fingerprint, parseSignal, positionRows, syncedRows, txnStoreFromTabs, wideRows } from './sync';
+import { ACCOUNTS, BALANCES, BETAS, POSITIONS, TAB_NAMES, TRANSACTIONS, TXN_SYNCED } from './tabs';
 import type { TxnStore } from '../transactions';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: 'As of Nov-20-2026 4:01 p.m. ET', builtAt: '2026-11-21T02:00:00.000Z' });
@@ -87,4 +87,27 @@ test('a tab not created yet reads as empty, other errors still fail the read', a
   });
   expect(await readSets(fake(TXN_SYNCED.name, 400), ['transactions'])).toEqual({ txns: [], synced: [] });
   await expect(readSets(fake(POSITIONS.name, 500), ['positions'])).rejects.toThrow('500');
+});
+
+test('betas round-trip through fidelity_betas, go into the shown dataset and print without their day', () => {
+  const betas = { AAAA: { beta: 1.25, source: 'stock5y' as const, asOf: '2026-11-25T10:00:00.000Z' }, BBBB: { beta: 0.8, source: 'calcMonthly' as const, months: 36, asOf: '2026-11-25T10:00:00.000Z' } };
+  const rows = betaRows(betas).map((r) => BETAS.fromRow(BETAS.toRow(r))!);
+  expect(BETAS.columns).toEqual(['symbol', 'beta', 'source', 'months', 'as_of']);
+  expect(betasFromRows(rows)).toEqual(betas);
+  const shown = datasetFromTabs(ds, { betas: rows })!;
+  expect(shown.betas).toEqual(betas);
+  expect(shown.betasAt).toBe('2026-11-25T10:00:00.000Z');
+  expect(shown.positions).toEqual(ds.positions);
+  expect(datasetFromTabs(shown, { betas: [] })!.betas).toEqual(betas); // an empty tab keeps the shown betas
+  const data = { ds: { ...ds, betas }, store };
+  const later = { ds: { ...ds, betas: { AAAA: { ...betas.AAAA, asOf: 'later' }, BBBB: { ...betas.BBBB, asOf: 'later' } } }, store };
+  expect(fingerprint('betas', later)).toBe(fingerprint('betas', data)!);
+  expect(fingerprint('betas', { ds: { ...ds, betas: { ...betas, AAAA: { ...betas.AAAA, beta: 1.3 } } }, store })).not.toBe(fingerprint('betas', data)!);
+  expect(fingerprint('betas', { ds, store })).toBeNull();
+  expect(parseSignal(JSON.stringify({ at: 1, sets: ['betas'] }))).toEqual({ at: 1, sets: ['betas'] });
+});
+
+test('a beta tab not created yet reads as empty', async () => {
+  const fake = { readRows: async <T,>(spec: { name: string }): Promise<T[]> => { throw new SheetsError(`Google Sheets 400 on read ${spec.name}`, 400); } };
+  expect(await readSets(fake, ['betas'])).toEqual({ betas: [] });
 });

@@ -34,6 +34,9 @@ export function userscriptHeader(version: string, dev = false): string {
     '// @grant        GM_xmlhttpRequest',
     '// @grant        GM_addElement',
     '// @connect      sheets.googleapis.com',
+    // the beta of each holding (beta-sync.ts): Fidelity's screeners and price history, reads only
+    '// @connect      research2.fidelity.com',
+    '// @connect      fastquote.fidelity.com',
     '// ==/UserScript==',
     '',
   ].join('\n');

@@ -3,6 +3,7 @@
 // the account list on the left (groups, names, balances) and the rows of its positions grid (ag-grid), whose raw
 // objects carry about 100 fields each, mostly as { val, disp }. Nothing is computed by Fidelity for us twice:
 // money stays in dollars as numbers (the site gives them so), dates as ISO text
+import { cleanBetas, type Betas } from './beta';
 import { mergeHistory, type History } from './history';
 
 export const DATASET_VERSION = 1;
@@ -74,6 +75,9 @@ export interface Dataset {
   // daily values per account from Fidelity's BalanceHistory (src/shared/history.ts), since each account opened
   history?: History;
   historyAt?: string; // ISO time of the last BalanceHistory read
+  // beta per held symbol (src/shared/beta.ts), collected once a day by the userscript
+  betas?: Betas;
+  betasAt?: string; // ISO time of the last beta run
 }
 
 export const emptyDataset = (builtAt: string): Dataset => ({ version: DATASET_VERSION, builtAt, asOf: null, accounts: [], positions: [], warnings: [] });
@@ -84,7 +88,7 @@ export function parseDataset(json: string): Dataset | null {
     const d = JSON.parse(json) as Partial<Dataset>;
     if (!d || d.version !== DATASET_VERSION || typeof d.builtAt !== 'string') return null;
     const history = d.history && typeof d.history === 'object' && !Array.isArray(d.history) ? d.history : undefined;
-    return { version: d.version, builtAt: d.builtAt, asOf: d.asOf ?? null, accounts: Array.isArray(d.accounts) ? d.accounts : [], positions: Array.isArray(d.positions) ? d.positions : [], warnings: Array.isArray(d.warnings) ? d.warnings : [], history, historyAt: typeof d.historyAt === 'string' ? d.historyAt : undefined };
+    return { version: d.version, builtAt: d.builtAt, asOf: d.asOf ?? null, accounts: Array.isArray(d.accounts) ? d.accounts : [], positions: Array.isArray(d.positions) ? d.positions : [], warnings: Array.isArray(d.warnings) ? d.warnings : [], history, historyAt: typeof d.historyAt === 'string' ? d.historyAt : undefined, betas: cleanBetas(d.betas), betasAt: typeof d.betasAt === 'string' ? d.betasAt : undefined };
   } catch {
     return null;
   }
@@ -100,5 +104,6 @@ export function mergeDatasets(prev: Dataset | null, next: Dataset): Dataset {
   const positions = prev.positions.filter((p) => !fresh.has(p.account)).concat(next.positions);
   const history = prev.history || next.history ? mergeHistory(prev.history, next.history) : undefined;
   const historyAt = [prev.historyAt, next.historyAt].filter(Boolean).sort().pop();
-  return { ...next, accounts: Array.from(accounts.values()), positions, history, historyAt };
+  // the betas come from their own daily run, a read of the grid has none: the stored ones stay
+  return { ...next, accounts: Array.from(accounts.values()), positions, history, historyAt, betas: next.betas ?? prev.betas, betasAt: next.betasAt ?? prev.betasAt };
 }

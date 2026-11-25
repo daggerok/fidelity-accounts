@@ -5,15 +5,17 @@
 // viewer reads only those back. Three sets, as Fidelity changes them apart (owner: "and summary, and positions, and
 // even transactions"): summary = fidelity_accounts + fidelity_balances_daily, positions = fidelity_positions (+ the
 // wide fidelity_positions_all, written only), transactions = fidelity_transactions + fidelity_transactions_synced.
-// Accounts, positions and transactions are the state now (rewritten), balances_daily is history (upsert by date|account)
+// betas = fidelity_betas (shared/beta.ts, a daily run of their own).
+// Accounts, positions, transactions and betas are the state now (rewritten), balances_daily is history (upsert by date|account)
+import type { Betas } from '../beta';
 import { DATASET_VERSION, parseDataset, type Account, type Dataset } from '../model';
 import type { Txn, TxnStore } from '../transactions';
 import { statusOf, type SheetsClient } from './client';
 import type { TabSpec } from './tabs';
-import { ACCOUNTS, BALANCES, POSITIONS, TRANSACTIONS, TXN_SYNCED, UPDATES, WIDE_FIRST, WIDE_TAB, growHeader, wideSpec, type BalanceRow, type PositionRow, type TxnSyncedRow, type UpdateRow } from './tabs';
+import { ACCOUNTS, BALANCES, BETAS, POSITIONS, TRANSACTIONS, TXN_SYNCED, UPDATES, WIDE_FIRST, WIDE_TAB, growHeader, wideSpec, type BalanceRow, type BetaRow, type PositionRow, type TxnSyncedRow, type UpdateRow } from './tabs';
 
-export type DataSet = 'summary' | 'positions' | 'transactions';
-export const DATA_SETS: readonly DataSet[] = ['summary', 'positions', 'transactions'];
+export type DataSet = 'summary' | 'positions' | 'transactions' | 'betas';
+export const DATA_SETS: readonly DataSet[] = ['summary', 'positions', 'transactions', 'betas'];
 
 /** the signal the Fidelity tab leaves after a write: when, and which sets the sheet has new */
 export interface SheetsSignal { at: number; sets: DataSet[] }
@@ -90,6 +92,20 @@ export async function pushTransactions(client: SheetsClient, store: TxnStore, lo
   log(`${TXN_SYNCED.name}: ${s.written} rows`);
 }
 
+export const betaRows = (betas: Betas): BetaRow[] => Object.keys(betas).sort().map((symbol) => ({ symbol, ...betas[symbol]! }));
+export function betasFromRows(rows: BetaRow[]): Betas {
+  const out: Betas = {};
+  rows.forEach(({ symbol, ...b }) => { if (symbol && Number.isFinite(b.beta)) out[symbol] = b; });
+  return out;
+}
+
+/** betas: one row per held symbol with its beta, source, months and day */
+export async function pushBetas(client: SheetsClient, ds: Dataset, log: Log): Promise<void> {
+  if (!ds.betas) return;
+  const r = await client.writeAll(BETAS, betaRows(ds.betas));
+  log(`${BETAS.name}: ${r.written} rows`);
+}
+
 /**
  * A short print of a set's content, to skip a write that would change nothing (owner 2026-11-24: signal "when anything
  * useful was sent, not just empty try"). The read time is left out: accounts carry it in asOf, a refresh of a closed
@@ -103,6 +119,11 @@ export function fingerprint(set: DataSet, data: { ds: Dataset | null; store: Txn
   } else if (set === 'positions') {
     if (!data.ds?.positions.length) return null;
     json = JSON.stringify(data.ds.positions);
+  } else if (set === 'betas') {
+    const betas = data.ds?.betas;
+    if (!betas || !Object.keys(betas).length) return null;
+    // the run day is left out like the read time: the same betas the next day are not written again
+    json = JSON.stringify(betaRows(betas).map(({ asOf: _asOf, ...b }) => b));
   } else {
     if (!data.store) return null;
     json = JSON.stringify([data.store.synced, data.store.rows]);
@@ -131,7 +152,7 @@ export function changedSets(sheet: Partial<Record<DataSet, string>>, seen: Parti
 }
 
 /** what the viewer reads back for some sets; a set left out stays undefined */
-export interface SheetTabs { accounts?: Account[]; positions?: PositionRow[]; days?: BalanceRow[]; txns?: Txn[]; synced?: TxnSyncedRow[] }
+export interface SheetTabs { accounts?: Account[]; positions?: PositionRow[]; days?: BalanceRow[]; txns?: Txn[]; synced?: TxnSyncedRow[]; betas?: BetaRow[] }
 /** the rows of a tab; a tab not created yet (400 "Unable to parse range") reads as empty, other errors surface */
 export async function readTab<T>(client: Pick<SheetsClient, 'readRows'>, spec: TabSpec<T>): Promise<T[]> {
   try {
@@ -148,13 +169,14 @@ export async function readSets(client: Pick<SheetsClient, 'readRows'>, sets: rea
     sets.includes('summary') ? Promise.all([readTab(client, ACCOUNTS), readTab(client, BALANCES)]).then(([a, d]) => { out.accounts = a; out.days = d; }) : null,
     sets.includes('positions') ? readTab(client, POSITIONS).then((p) => { out.positions = p; }) : null,
     sets.includes('transactions') ? Promise.all([readTab(client, TRANSACTIONS), readTab(client, TXN_SYNCED)]).then(([t, s]) => { out.txns = t; out.synced = s; }) : null,
+    sets.includes('betas') ? readTab(client, BETAS).then((b) => { out.betas = b; }) : null,
   ]);
   return out;
 }
 
 /**
  * The shown dataset with the sets read from the sheet put in: accounts and the daily history from summary, positions
- * from positions; what was not read stays as it was. The read time is the newest asOf of the rows read (the time
+ * from positions, the betas from betas; what was not read stays as it was. The read time is the newest asOf of the rows read (the time
  * the Fidelity tab read them), never older than the shown one. Null when nothing is there yet
  */
 export function datasetFromTabs(prev: Dataset | null, tabs: SheetTabs): Dataset | null {
@@ -168,9 +190,12 @@ export function datasetFromTabs(prev: Dataset | null, tabs: SheetTabs): Dataset 
     Object.keys(h).forEach((k) => h[k]!.sort((a, b) => (a.date < b.date ? -1 : 1)));
     history = Object.keys(h).length ? h : history;
   }
+  const read = tabs.betas ? betasFromRows(tabs.betas) : undefined;
+  const betas = read && Object.keys(read).length ? read : prev?.betas;
+  const betasAt = read && Object.keys(read).length ? tabs.betas!.reduce((m, b) => (b.asOf > m ? b.asOf : m), '') || prev?.betasAt : prev?.betasAt;
   const times = (tabs.accounts ?? []).map((a) => a.asOf).concat((tabs.positions ?? []).map((p) => p.asOf), prev ? [prev.builtAt] : []).filter(Boolean);
   const builtAt = times.reduce((m, x) => (x > m ? x : m), '') || new Date().toISOString();
-  return parseDataset(JSON.stringify({ version: DATASET_VERSION, builtAt, asOf: null, accounts, positions, warnings: [], history }));
+  return parseDataset(JSON.stringify({ version: DATASET_VERSION, builtAt, asOf: null, accounts, positions, warnings: [], history, betas, betasAt }));
 }
 
 /** the transactions store from its two tabs, or null when the history was never written */

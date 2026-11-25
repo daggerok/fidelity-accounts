@@ -15,6 +15,8 @@ import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
 import { useFitRows } from './useFitRows';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
+import { BetaValue } from './Beta';
+import { accountBeta } from '../../shared/beta';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -379,8 +381,10 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
           {shownAccounts.map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div className="min-w-0"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
+              <div className="min-w-0 flex-1"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
               <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs" title={totalView ? t('Total gain/loss') : t("Today's gain/loss")}>{totalView ? <GainLoss usd={a.totalGl} pct={a.totalGlPct} /> : <GainLoss usd={a.todayGl} pct={a.todayGlPct} />}</div></div>
+              {/* the account's beta from its positions' sizes, the right-most column (owner 2026-11-25) */}
+              <div className="w-10 shrink-0 text-right"><div><BetaValue mix={accountBeta(ps, a.number, ds.betas)} /></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('Beta')}</div></div>
             </div>
           ))}
         </div>

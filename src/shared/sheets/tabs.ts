@@ -3,6 +3,7 @@
 // shared/sheets/tabs.ts). Row 1 is the header in snake_case, cells go out as RAW (numbers as numbers, ISO dates and
 // account numbers as text), rows come back as UNFORMATTED_VALUE and text is parsed too (a hand-edited cell must not
 // break a read)
+import { BETA_SOURCES, type BetaSource } from '../beta';
 import type { Account, Position } from '../model';
 import type { Txn } from '../transactions';
 export type Cell = string | number | boolean;
@@ -261,7 +262,17 @@ export const TXN_SYNCED = defineTab<TxnSyncedRow>('fidelity_transactions_synced'
   { key: 'at', kind: 'text' },
 ], (r) => r.account);
 
-// when each data set was last written (one row per set: summary, positions, transactions): the viewer watches this
+// the beta of each held symbol (shared/beta.ts) and where it came from, rewritten after the daily beta run
+export interface BetaRow { symbol: string; beta: number; source: BetaSource; months?: number; asOf: string }
+export const BETAS = defineTab<BetaRow>('fidelity_betas', [
+  { key: 'symbol', kind: 'text' },
+  { key: 'beta', kind: 'num' },
+  { key: 'source', kind: 'text', values: BETA_SOURCES },
+  { key: 'months', kind: 'num', optional: true },
+  { key: 'asOf', kind: 'text' },
+], (r) => r.symbol);
+
+// when each data set was last written (one row per set: summary, positions, transactions, betas): the viewer watches this
 // small tab and reads back only the sets that changed
 export interface UpdateRow { set: string; at: string }
 export const UPDATES = defineTab<UpdateRow>('fidelity_updates', [
@@ -269,4 +280,4 @@ export const UPDATES = defineTab<UpdateRow>('fidelity_updates', [
   { key: 'at', kind: 'text' },
 ], (r) => r.set);
 
-export const TAB_NAMES = [ACCOUNTS.name, POSITIONS.name, BALANCES.name, WIDE_TAB, TRANSACTIONS.name, TXN_SYNCED.name, UPDATES.name];
+export const TAB_NAMES = [ACCOUNTS.name, POSITIONS.name, BALANCES.name, WIDE_TAB, TRANSACTIONS.name, TXN_SYNCED.name, BETAS.name, UPDATES.name];
