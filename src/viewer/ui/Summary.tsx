@@ -61,9 +61,6 @@ function Tickers({ symbols, tone, title }: { symbols: string[]; tone: 'gain' | '
   );
 }
 
-// the DRIP column of the Upcoming dividends rows: shares on top, dollars under
-const DRIP_COL = 'w-20 shrink-0 text-right';
-
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
 function Allocation({ id, slices }: { id: string; slices: Slice[] }) {
@@ -227,8 +224,6 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const divPs = ofKind(ps, pr.dividendsOf);
   const divsUntil = windowEnd(today, pr.dividendsWindow);
   const divs = upcomingDividends(divPs, today, divsUntil);
-  const divDrips = divs.map((d) => symbolDrip(payoutParts(divPs, shownAccounts, d)));
-  const divToBuy = dripToBuy(divDrips);
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
@@ -312,17 +307,15 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {/* the total on top, as the first row (owner 2026-11-24) */}
-            {/* DRIP in its own column (owner 2026-11-24): the total row names it and sums what to buy for all */}
-            <div className="flex items-center gap-3 py-1.5 text-sm" data-dividends-total>
-              <div className="min-w-0 flex-1"><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
-              <div className={DRIP_COL} title={DRIP_HINT()}><div className="text-xs text-slate-500 dark:text-slate-400">DRIP</div>{divToBuy > 0 && <div className="num text-xs" title={t('to buy so every listed dividend reinvests')}><DripValue value={divToBuy} as="usd" /></div>}</div>
-              <div className="num w-24 text-right font-semibold">{usd(payoutTotal(divs))}</div>
+            {/* DRIP only in the ⤢ table (owner 2026-11-24: "hide DRIP on plate and show only in zoomed view") */}
+            <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
+              <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
+              <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
             </div>
-            {divs.slice(0, 8).map((p, i) => (
-              <div key={p.symbol} className="flex items-center gap-3 py-1.5 text-sm">
-                <div className="min-w-0 flex-1"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
-                <div className={DRIP_COL}>{divDrips[i] ? <><div className="num"><DripValue value={divDrips[i]!.shares} as="shares" /></div><div className="num text-xs"><DripValue value={divDrips[i]!.usd} as="usd" /></div></> : <span className="text-slate-400">--</span>}</div>
-                <div className="w-24 text-right">
+            {divs.slice(0, 8).map((p) => (
+              <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
+                <div className="text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
                   {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
                 </div>

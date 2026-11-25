@@ -242,14 +242,15 @@ test('upcoming dividends look ahead to the end of the month or quarter, or one o
   expect(windowEnd('2026-11-24', 'MTD')).toBe('2026-11-30');
   expect(windowEnd('2026-11-24', '1M')).toBe('2026-12-24');
   expect(windowEnd('2026-11-24', 'QTD')).toBe('2026-12-31');
-  expect(windowEnd('2026-11-24', '3M')).toBe('2027-02-24');
+  expect(windowEnd('2026-11-24', '1Q')).toBe('2027-02-24');
   expect(windowEnd('2027-01-05', 'QTD')).toBe('2027-03-31');
   expect(asDivWindow('QTD')).toBe('QTD');
   expect(asDivWindow('30D')).toBe('MTD');
+  expect(asDivWindow('3M')).toBe('1Q'); // the name before 1Q, kept in old prefs
   const pos = (symbol: string, exDate: string): Position => ({ account: 'A', kind: 'position', symbol, description: '', quantity: 1, exDate, fields: {} });
   const ps = [pos('NOV', '2026-11-28'), pos('DEC', '2026-12-10'), pos('FEB', '2027-02-01')];
   expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', 'MTD')).map((p) => p.symbol)).toEqual(['NOV']);
-  expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', '3M')).map((p) => p.symbol)).toEqual(['NOV', 'DEC', 'FEB']);
+  expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', '1Q')).map((p) => p.symbol)).toEqual(['NOV', 'DEC', 'FEB']);
 });
 
 test('DRIP of an upcoming dividend: per account, short accounts summed, else the smallest margin', () => {

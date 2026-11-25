@@ -223,14 +223,15 @@ export function upcomingDividends(ps: Position[], today: string, last = addDays(
 
 /**
  * How far the Upcoming dividends card looks ahead (owner 2026-11-24: "MTD 1M QTD 3M like we have on Balance", MTD by
- * default): to the end of this month, a month from today, to the end of this quarter, three months from today
+ * default; then 3M named 1Q): to the end of this month, a month from today, to the end of this quarter, three months
+ * (one quarter) from today
  */
-export const DIV_WINDOWS = ['MTD', '1M', 'QTD', '3M'] as const;
+export const DIV_WINDOWS = ['MTD', '1M', 'QTD', '1Q'] as const;
 export type DivWindow = (typeof DIV_WINDOWS)[number];
-export const asDivWindow = (v: unknown): DivWindow => ((DIV_WINDOWS as readonly unknown[]).indexOf(v) >= 0 ? (v as DivWindow) : 'MTD');
+export const asDivWindow = (v: unknown): DivWindow => (v === '3M' ? '1Q' : (DIV_WINDOWS as readonly unknown[]).indexOf(v) >= 0 ? (v as DivWindow) : 'MTD');
 export function windowEnd(today: string, w: DivWindow): string {
   if (w === '1M') return addMonths(today, 1);
-  if (w === '3M') return addMonths(today, 3);
+  if (w === '1Q') return addMonths(today, 3);
   const b = periodBounds(today);
   return w === 'MTD' ? b.month[1] : b.quarter[1];
 }
