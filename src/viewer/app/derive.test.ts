@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -250,4 +250,21 @@ test('upcoming dividends look ahead to the end of the month or quarter, or one o
   const ps = [pos('NOV', '2026-11-28'), pos('DEC', '2026-12-10'), pos('FEB', '2027-02-01')];
   expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', 'MTD')).map((p) => p.symbol)).toEqual(['NOV']);
   expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', '3M')).map((p) => p.symbol)).toEqual(['NOV', 'DEC', 'FEB']);
+});
+
+test('DRIP of an upcoming dividend: per account, short accounts summed, else the smallest margin', () => {
+  const acct = (number: string): Account => ({ number, name: number, group: 'G', asOf: '' });
+  const pos = (account: string, quantity: number): Position => ({ account, kind: 'position', symbol: 'X', description: '', lastPrice: 52.3, dividendAmount: 0.25, quantity, exDate: '2026-11-28', fields: {} });
+  // 0.24 shares make the 6 cents that buy 0.001 share at $52.30
+  const ps = [pos('A', 0.1), pos('B', 0.2), pos('C', 1)];
+  const accounts = [acct('A'), acct('B'), acct('C')];
+  const [u] = upcomingDividends(ps, '2026-11-24');
+  const parts = payoutParts(ps, accounts, u!);
+  expect(parts.map((p) => p.drip?.shares)).toEqual([0.14, 0.04, -0.76]);
+  expect(symbolDrip(parts)).toEqual({ shares: 0.18, usd: 9.43 }); // 7.33 + 2.10: bought in A and B
+  expect(symbolDrip(parts.slice(2))).toEqual({ shares: -0.76, usd: -39.75 });
+  const both = payoutParts([pos('A', 1), pos('C', 0.5)], accounts, upcomingDividends([pos('A', 1), pos('C', 0.5)], '2026-11-24')[0]!);
+  expect(symbolDrip(both)?.shares).toBe(-0.26); // the closer margin of -0.76 and -0.26
+  expect(symbolDrip([])).toBeNull();
+  expect(dripToBuy([{ shares: 0.14, usd: 7.33 }, null, { shares: -1, usd: -50 }, { shares: 0.04, usd: 2.1 }])).toBe(9.43);
 });

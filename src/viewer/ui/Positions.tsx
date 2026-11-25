@@ -7,9 +7,10 @@ import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
+import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
-import { DASH, bigUsd, pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd } from './format';
+import { DASH, bigUsd, pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
 // grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
@@ -30,8 +31,6 @@ function Range({ p }: { p: Position }) {
   );
 }
 
-// DRIP: minus (green) means the next payout already buys 0.001 share, plus is what is still to buy
-const dripCell = (v: number, text: string) => <span className={v <= 0 ? 'gain' : ''}>{text}</span>;
 const dripOf = (p: Position, f: (d: { shares: number; usd: number }) => React.ReactNode) => { const d = dripGap(p); return d ? f(d) : DASH; };
 
 // the groups of the columns window, in Fidelity's words where it has them
@@ -42,8 +41,8 @@ const QUOTE = () => t('Quote data');
 const DIV = () => t('Dividends and yield');
 
 export const COLUMNS = (): Col[] => [
-  { key: 'drip', label: 'DRIP', group: OURS(), hint: t('Shares to buy so the next dividend buys 0.001 share by DRIP; minus: it already does'), cell: (p) => dripOf(p, (d) => dripCell(d.shares, signedQty(d.shares))) },
-  { key: 'dripUsd', label: 'DRIP $', group: OURS(), hint: t('Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP; minus: it already does'), cell: (p) => dripOf(p, (d) => dripCell(d.usd, signedUsd(d.usd))) },
+  { key: 'drip', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
+  { key: 'dripUsd', label: 'DRIP $', group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
   { key: 'todayGlPct', group: GL(), label: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
   { key: 'todayGl', group: GL(), label: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
   { key: 'totalGlPct', group: GL(), label: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
