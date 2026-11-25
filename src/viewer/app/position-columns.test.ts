@@ -3,7 +3,7 @@
 import { expect, test } from 'bun:test';
 import type { Position } from '../../shared/model';
 import { columnTypes, filterRows } from '../../shared/typed-columns';
-import { positionColumn, sortPositions } from './position-columns';
+import { FIELD_COLUMNS, NEW_COLUMN_KEYS, fieldText, fieldValue, positionColumn, sortPositions } from './position-columns';
 
 // made-up positions
 const pos = (symbol: string, more: Partial<Position> = {}): Position => ({ account: 'A', kind: 'position', symbol, description: `${symbol} DEMO`, fields: {}, ...more });
@@ -70,4 +70,26 @@ test('a column with no entry reads its own field or the grid field, typed like t
   expect(syms(sortPositions(ps, 'costBasisPerShare', -1))).toBe('A B C');
   expect(columnTypes([positionColumn('fooRate')], ps).types.fooRate).toBe('percent');
   expect(syms(sortPositions(ps, 'fooRate', 1))).toBe('B A C');
+});
+
+test('the rest of the Fidelity columns: one field each, shown in its format, sorted by its number', () => {
+  const p = (fields: Record<string, string | number | boolean>): Position => ({ account: 'A', kind: 'position', symbol: 'X', description: '', fields });
+  const col = (key: string) => FIELD_COLUMNS.find((c) => c.key === key)!;
+  expect(new Set(FIELD_COLUMNS.map((c) => c.key)).size).toBe(FIELD_COLUMNS.length);
+  expect(fieldText(p({ bidPrice: 12.5 }), col('bid'))).toBe('$12.50');
+  expect(fieldText(p({ oneYr: 12.345 }), col('return1y'))).toBe('+12.35%');
+  expect(fieldText(p({ exRtNt: 0.09 }), col('expenseNet'))).toBe('0.09%');
+  expect(fieldText(p({ volume: 1234567 }), col('volume'))).toBe('1,234,567');
+  expect(fieldText(p({ sharesOutstanding: 2.5e9 }), col('sharesOut'))).toBe('2.50B');
+  expect(fieldText(p({ yearHighDate: '2026-03-05' }), col('high52Date'))).toBe('Mar-05-2026');
+  expect(fieldText(p({ isHTB: true }), col('hardToBorrow'))).toBe('✓');
+  expect(fieldText(p({ isHTB: false }), col('hardToBorrow'))).toBe('');
+  expect(fieldText(p({ mstar_rate: 4 }), col('morningstar'))).toBe('★★★★');
+  expect(fieldText(p({}), col('bid'))).toBe('');
+  // the analyst rating reads as words and sorts by its score
+  expect(fieldValue(p({ equitySummaryRating: 'Bullish', equitySummaryScore: 7.5 }), col('analystRating'))).toBe(7.5);
+  const rows = [p({ volume: 10 }), p({}), p({ volume: 300 })];
+  expect<unknown[]>(sortPositions(rows, 'volume', -1).map((r) => r.fields.volume)).toEqual([300, 10, undefined]);
+  expect(NEW_COLUMN_KEYS).toContain('todayGlBoth');
+  expect(NEW_COLUMN_KEYS).toContain('cusip');
 });

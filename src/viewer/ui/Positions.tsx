@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
 import { dripGap, positionsIn, rangePos, securities, totalsOf } from '../app/derive';
-import { positionColumn } from '../app/position-columns';
+import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
 import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
 import { t } from '../app/i18n';
@@ -15,7 +15,7 @@ import { CellScroll } from './CellScroll';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
-import { DASH, bigUsd, pct, qty, signedPct, signedUsd, siteDate, tone, usd } from './format';
+import { DASH, bigUsd, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
 // grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
@@ -45,6 +45,31 @@ const GL = () => t('Gain/loss');
 const ACCT = () => t('Account specifics');
 const QUOTE = () => t('Quote data');
 const DIV = () => t('Dividends and yield');
+const FUND = () => t('Fundamentals');
+const PERF = () => t('Performance');
+const OTHER = () => t('Other');
+const FIELD_GROUP: Record<FieldGroup, () => string> = { acct: ACCT, quote: QUOTE, div: DIV, fund: FUND, perf: PERF, other: OTHER };
+// the names of the field columns, in Fidelity's words where it has them
+const FIELD_LABEL = (): Record<string, string> => ({
+  avgCost: t('Average cost basis'), acctType: t('Account type'), costMethod: t('Cost basis method'), hardToBorrow: t('Hard to borrow'),
+  lastChange: t('Last price change'), lastChangePct: t('Last price change %'), open: t('Open'), prevClose: t('Previous close'),
+  bid: t('Bid'), bidSize: t('Bid size'), ask: t('Ask'), askSize: t('Ask size'), volume: t('Volume'), avgVolume10: t('Avg. volume (10 day)'), avgVolume90: t('Avg. volume (90 day)'),
+  high52Price: t('52-week high'), low52Price: t('52-week low'), high52Date: t('52-week high date'), low52Date: t('52-week low date'),
+  volatility30: t('Volatility (30 day)'), volatility250: t('Volatility (1 year)'), dividendAmount: t('Dividend amount'),
+  peRatio: t('P/E ratio'), shortPct: t('Short %'), shortInterest: t('Short interest'), shortRatio: t('Short interest ratio'), sharesOut: t('Shares outstanding'),
+  earningsDate: t('Earnings date'), analystRating: t('Analyst ratings'), industry: t('Industry'), subIndustry: t('Sub-industry'),
+  morningstar: t('Morningstar rating'), morningstarCategory: t('Morningstar category'), expenseGross: t('Gross expense ratio'), expenseNet: t('Net expense ratio'),
+  returnYtd: t('YTD return'), return1y: t('1-year return'), return3y: t('3-year return'), return5y: t('5-year return'), return10y: t('10-year return'),
+  cusip: t('CUSIP'), securityType: t('Security type'), optionable: t('Optionable'), currency: t('Currency'),
+});
+const fieldCols = (): Col[] => {
+  const label = FIELD_LABEL();
+  return FIELD_COLUMNS.map((c) => ({ key: c.key, group: FIELD_GROUP[c.group](), label: label[c.key] ?? c.key, cell: (p: Position) => {
+    const text = fieldText(p, c) || DASH;
+    return c.format === 'signedPct' || c.format === 'signedUsd' ? glCell(fieldValue(p, c), text) : text;
+  } }));
+};
+const lowHigh = (p: Position): string => { const lo = p.fields.dayRange_low; const hi = p.fields.dayRange_high; return typeof lo === 'number' && typeof hi === 'number' ? `${usd(lo)} - ${usd(hi)}` : DASH; };
 
 export const COLUMNS = (): Col[] => [
   { key: 'drip', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
@@ -67,18 +92,26 @@ export const COLUMNS = (): Col[] => [
   { key: 'exDate', group: DIV(), label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
   { key: 'payDate', group: DIV(), label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
   { key: 'sector', group: QUOTE(), label: t('Sector'), cell: (p) => p.sector ?? DASH },
+  // the rest of Fidelity's columns, hidden until turned on (prefs NEW_COLUMN_KEYS)
+  { key: 'todayGlBoth', group: GL(), label: t("Today's gain/loss ($ and %)"), cell: (p) => glCell(p.todayGl, p.todayGl === undefined ? DASH : signedUsdPct(p.todayGl, p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsdPct(x.todayGl, x.todayGlPct)); } },
+  { key: 'totalGlBoth', group: GL(), label: t('Total gain/loss ($ and %)'), cell: (p) => glCell(p.totalGl, p.totalGl === undefined ? DASH : signedUsdPct(p.totalGl, p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsdPct(x.totalGl, x.totalGlPct)); } },
+  { key: 'dayRange', group: QUOTE(), label: t("Day's range"), cell: lowHigh },
+  ...fieldCols(),
 ];
 
 // Only the rows in view are drawn (owner 2026-11-24: Positions lagged and the tabs stopped answering): 1,100 positions
 // were 21,000 cells, drawn again on every new copy from 👀 Watch. Rows have one fixed height, the columns fixed widths,
 // spacer rows stand for the rows above and below the window
 const ROW = 50;
-// the Symbol column: half of what it was (owner 2026-11-24: "that column width can be 2 less, if we have that scroll"),
+// the Symbol column: narrower than the 240 it was (owner 2026-11-24: "that column width can be 2 less, if we have that
+// scroll"; then "make it little bit wider" so the name, its badge and the columns icon share one line),
 // a long name scrolls inside its cell (CellScroll)
-const SYMBOL_W = 120;
+const SYMBOL_W = 150;
 const OVERSCAN = 12;
 // wide enough for a name in two lines with its type badge and for a filter like >2026-12-01
-const width = (key: string): number => (key === 'high52' ? 150 : key === 'paymentFrequency' || key === 'marketCap' || key === 'sector' ? 160 : 128);
+const WIDE: Record<string, number> = { high52: 150, paymentFrequency: 160, marketCap: 160, sector: 160, dayRange: 160, todayGlBoth: 170, totalGlBoth: 170 };
+FIELD_COLUMNS.forEach((c) => { if (c.width) WIDE[c.key] = c.width; });
+const width = (key: string): number => WIDE[key] ?? 128;
 const SYMBOL = 'symbol';
 
 interface Line { key: string; cls: string; cells: () => React.ReactNode }

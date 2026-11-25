@@ -115,7 +115,7 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
           return (
             <th key={c.key} className={th} title={c.hint} aria-sort={dir === 1 ? 'ascending' : dir === -1 ? 'descending' : undefined} data-col={c.key}>
               <div className={`flex items-start gap-1 ${c.wrap ? 'flex-wrap' : ''} ${c.align === 'left' ? '' : 'justify-end'}`}>
-                <button type="button" className={`min-w-0 cursor-pointer whitespace-normal font-[inherit] hover:text-[var(--brand-strong)] ${c.align === 'left' ? 'text-left' : 'text-right'}`}
+                <button type="button" className={`min-w-0 cursor-pointer whitespace-normal font-[inherit] hover:text-[var(--brand-strong)] text-left`}
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
                 <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
                 {extras[c.key]}

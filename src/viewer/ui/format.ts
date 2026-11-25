@@ -21,6 +21,12 @@ export const siteDate = (iso: string | undefined): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
   return m ? `${'JanFebMarAprMayJunJulAugSepOctNovDec'.slice((Number(m[2]) - 1) * 3, Number(m[2]) * 3)}-${m[3]}-${m[1]}` : DASH;
 };
+/** 12.35M style for big counts (volume, shares outstanding) */
+export const bigNum = (n: number | undefined | null): string => {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DASH;
+  const a = Math.abs(n);
+  return a >= 1e12 ? `${(n / 1e12).toFixed(2)}T` : a >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : a >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : a >= 1e3 ? `${(n / 1e3).toFixed(2)}K` : String(Math.round(n));
+};
 /** $234.93B style for market caps */
 export const bigUsd = (n: number | undefined | null): string => {
   if (typeof n !== 'number' || !Number.isFinite(n)) return DASH;
