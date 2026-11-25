@@ -29,11 +29,11 @@ const TYPE_CLASSES: Record<ColumnType, string> = { ...COL_TYPE_CLASSES, frequenc
 // text and typed-head.test.ts checks that none is missing
 const word = (text: string): string => t(text);
 
-export function TypeBadge({ type, detected, onClick }: { type: ColumnType; detected: ColumnType; onClick: (reset: boolean) => void }) {
+export function TypeBadge({ type, detected, onClick, className = 'flex-none' }: { type: ColumnType; detected: ColumnType; onClick: (reset: boolean) => void; className?: string }) {
   const set = type !== detected;
   const how = set ? t('set by you, detected: {type}', { type: word(TYPE_NAMES[detected]) }) : t('auto-detected');
   return (
-    <button type="button" className={`flex-none rounded border px-1 text-[10px] font-bold leading-4 tracking-wide transition-opacity hover:opacity-100 ${set ? 'border-slate-400 opacity-100' : 'border-transparent opacity-75'} ${TYPE_CLASSES[type]}`}
+    <button type="button" className={`${className} rounded border px-1 text-[10px] font-bold leading-4 tracking-wide transition-opacity hover:opacity-100 ${set ? 'border-slate-400 opacity-100' : 'border-transparent opacity-75'} ${TYPE_CLASSES[type]}`}
       title={t('Column type: {type} ({how}). Click for the next type, Shift+click for the detected one', { type: word(TYPE_NAMES[type]), how })}
       onClick={(e) => { e.stopPropagation(); onClick(e.shiftKey); }} data-type-badge={type}>{TYPE_LABELS[type]}</button>
   );
@@ -114,10 +114,17 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
           const dir = control.sort && control.sort.key === c.key ? control.sort.dir : 0;
           return (
             <th key={c.key} className={th} title={c.hint} aria-sort={dir === 1 ? 'ascending' : dir === -1 ? 'descending' : undefined} data-col={c.key}>
-              <div className={`flex items-start gap-1 ${c.wrap ? 'flex-wrap' : ''} ${c.align === 'left' ? '' : 'justify-end'}`}>
-                <button type="button" className={`min-w-0 cursor-pointer whitespace-normal font-[inherit] hover:text-[var(--brand-strong)] text-left`}
-                  title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
-                <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
+              {/* like Fidelity (owner 2026-11-24): a wrapped name keeps its lines aligned left ("Est. annual" / "income") and
+                  the type badge follows its last word on the last line; the name is inline text (a real button would take
+                  the whole width once it wraps and push the badge to a line of its own), so it answers Enter and Space itself */}
+              <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''} ${c.align === 'left' ? '' : 'justify-end'}`}>
+                <span className="min-w-0 text-left">
+                  <span role="button" tabIndex={0} className="cursor-pointer whitespace-normal hover:text-[var(--brand-strong)]"
+                    title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); control.onSort(c.key); } }} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</span>
+                  {' '}
+                  <TypeBadge className="inline-block align-[1px]" type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
+                </span>
                 {extras[c.key]}
               </div>
             </th>
