@@ -100,7 +100,9 @@ export function App() {
       <div className="shrink-0 px-4 pt-4 lg:px-6 lg:pt-6">
           {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
-          <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+          {/* the navbar, the tabs panel and the cards share one inset (24 px, the card padding) and one corner (1rem), so the logo,
+              the tabs and the card titles start on one line and the buttons, As of and ⤢ end on one (owner 2026-11-25) */}
+          <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900">
             <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
@@ -149,7 +151,7 @@ export function App() {
               own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards, and it is
               as tall as the navbar (owner 2026-11-25): the tabs are as tall as the navbar buttons (.tb, 2.25rem) */}
           {ds && (
-            <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
+            <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
               <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist">
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab flex h-9 items-center ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>

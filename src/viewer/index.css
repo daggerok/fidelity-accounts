@@ -89,7 +89,7 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .dark .acct-tab.on{border-color:#e2e8f0;background:#0f172a}
 .card{border-radius:1rem;border:1px solid #e2e8f0;background:#fff;padding:1.25rem 1.5rem;min-width:0}
 .dark .card{border-color:#334155;background:#0f172a}
-.main-tab{padding:0 .25rem;font-weight:500;color:#64748b;white-space:nowrap}
+.main-tab{padding:0;font-weight:500;color:#64748b;white-space:nowrap}
 .main-tab:hover{color:#0f172a}
 .main-tab.on{color:var(--brand)}
 .dark .main-tab{color:#94a3b8}
