@@ -80,7 +80,7 @@ export function EdgeScrollRow({ prevLabel, nextLabel, items, label, storeKey, cl
   const mask = edgeFadeMask(edges, EDGE_FADE_PX, ARROW_PX) ?? undefined;
   return (
     <div className={`relative flex min-w-0 ${className}`} data-strip>
-      <nav ref={rowRef} aria-label={label} className="scrollbar-hidden flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>
+      <nav ref={rowRef} aria-label={label} className="scrollbar-hidden flex min-w-0 flex-auto items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>
         {children}
       </nav>
       <EdgeButton dir={-1} label={prevLabel} show={edges.left} onClick={() => step(-1)} />

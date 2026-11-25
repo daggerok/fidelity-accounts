@@ -7,8 +7,9 @@ export interface ScrollEdges {
   right: boolean;
 }
 
-/** Sub-pixel scroll positions (zoom, fractional widths) within this many px of an end count as that end. */
-export const EDGE_EPSILON_PX = 1;
+/** Scroll positions within this many px of an end count as that end: sub-pixel widths, and the 2 px room the chips keep
+ * for their focus ring (the folding groups overflow by it), so a strip that fits shows no fade and no arrow */
+export const EDGE_EPSILON_PX = 2;
 
 /** The sides of a scroller (its scrollLeft, clientWidth and scrollWidth) that have more content. */
 export function scrollEdges(scrollLeft: number, clientWidth: number, scrollWidth: number): ScrollEdges {

@@ -46,8 +46,9 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
     </div>
   );
   return (
-    // All accounts stays on the very left, the groups and accounts after it scroll (owner 2026-11-24)
-    <div className={`flex min-w-0 items-center ${className ?? ''}`} data-accounts-bar>
+    // All accounts stays on the very left, the groups and accounts after it scroll (owner 2026-11-24); the strip is as
+    // wide as its chips and sits in the middle between the logo and the buttons when they all fit (owner 2026-11-24)
+    <div className={`flex min-w-0 items-center justify-center ${className ?? ''}`} data-accounts-bar>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
         onClick={() => onFold(ALL_FOLD)} onKeyDown={(e) => { if (e.key === 'Enter') onFold(ALL_FOLD); }} data-scope="all">
         {chev(!allFolded)}
@@ -56,8 +57,8 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
           onChange={() => onScope(shown.size === ds.accounts.length ? 'none' : 'all')} />
         <span>{t('All accounts')}</span>
       </div>
-      <div className={`hslide min-w-0 flex-1 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
-      <EdgeScrollRow label={t('Accounts')} items="[data-scope]" storeKey="fidelity-accounts.strip-scroll" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-1">
+      <div className={`hslide min-w-0 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
+      <EdgeScrollRow label={t('Accounts')} items="[data-scope]" storeKey="fidelity-accounts.strip-scroll" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-auto">
       {groupsOf(ds).map((g) => {
         const open = !collapsed.includes(g.name);
         const inGroup = g.accounts.filter((a) => shown.has(a.number)).length;
