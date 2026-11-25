@@ -2,7 +2,8 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { DEFAULT_PREFS, loadPrefs } from './prefs';
+import { COLUMNS_V, DEFAULT_PREFS, loadPrefs } from './prefs';
+import { NEW_COLUMN_KEYS } from './position-columns';
 
 const load = (json: string | null) => loadPrefs({ getItem: () => json });
 
@@ -37,4 +38,15 @@ test('column filters and types: only filled strings and known types stay', () =>
   expect(p.types).toEqual({ quantity: 'currency', sector: 'frequency' });
   expect(load('{"filters":["a"],"types":"x"}').filters).toEqual({});
   expect(load('{"filters":["a"],"types":"x"}').types).toEqual({});
+});
+
+test('the columns added later start hidden once: by default and for a choice saved before them, never again after', () => {
+  expect(NEW_COLUMN_KEYS.length).toBeGreaterThan(40);
+  expect(DEFAULT_PREFS.hidden).toEqual(NEW_COLUMN_KEYS);
+  const old = load(JSON.stringify({ hidden: ['sector'] }));
+  expect(old.hidden).toEqual(['sector'].concat(NEW_COLUMN_KEYS));
+  expect(old.columnsV).toBe(COLUMNS_V);
+  // turned on after the upgrade: stays on
+  const later = load(JSON.stringify({ hidden: ['sector'], columnsV: COLUMNS_V }));
+  expect(later.hidden).toEqual(['sector']);
 });
