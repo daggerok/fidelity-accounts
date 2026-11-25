@@ -73,6 +73,17 @@ export function accountsIn(ds: Dataset, scope: Scope): Account[] {
   return ds.accounts;
 }
 
+/**
+ * The name of what is shown, the Balance card's title (owner 2026-11-24: "All accounts" when all are chosen, any other
+ * choice named by its accounts, "Elena + Ameliia + Elena ROTH IRA"): nothing or all = `all`, a whole group = its name, up to
+ * three accounts = their names joined by " + ", more = `count(n)`
+ */
+export function scopeTitle(scope: Scope, accounts: Account[], words: { all: string; count: (n: number) => string }): string {
+  if (scope === 'none' || scope === 'all') return words.all;
+  if (scope.startsWith('group:')) return scope.slice(6);
+  return accounts.length <= 3 ? accounts.map((a) => a.name).join(' + ') : words.count(accounts.length);
+}
+
 /** any set of accounts as the shortest scope: none = 'none', all of them = 'all', exactly a group = 'group:', one = 'account:' */
 export function scopeOf(ds: Dataset, numbers: string[]): Scope {
   const set = new Set(numbers.filter((n) => ds.accounts.some((a) => a.number === n)));

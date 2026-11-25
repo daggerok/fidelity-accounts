@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -268,4 +268,16 @@ test('DRIP of an upcoming dividend: per account, short accounts summed, else the
   expect(symbolDrip(both)?.shares).toBe(-0.26); // the closer margin of -0.76 and -0.26
   expect(symbolDrip([])).toBeNull();
   expect(dripToBuy([{ shares: 0.14, usd: 7.33 }, null, { shares: -1, usd: -50 }, { shares: 0.04, usd: 2.1 }])).toBe(9.43);
+});
+
+test('the name of what is shown: All accounts, a group, up to three accounts by name, else a count', () => {
+  const acct = (number: string, name: string): Account => ({ number, name, group: 'G', asOf: '' });
+  const words = { all: 'All accounts', count: (n: number) => `${n} accounts` };
+  const [a, b, c, d] = [acct('1', 'One'), acct('2', 'Two'), acct('3', 'Two ROTH IRA'), acct('4', 'Four')];
+  expect(scopeTitle('all', [a!, b!, c!, d!], words)).toBe('All accounts');
+  expect(scopeTitle('none', [], words)).toBe('All accounts');
+  expect(scopeTitle('group:Retirement', [c!], words)).toBe('Retirement');
+  expect(scopeTitle('account:1', [a!], words)).toBe('One');
+  expect(scopeTitle('set:1,2,3', [a!, b!, c!], words)).toBe('One + Two + Two ROTH IRA');
+  expect(scopeTitle('set:1,2,3,4', [a!, b!, c!, d!], words)).toBe('4 accounts');
 });
