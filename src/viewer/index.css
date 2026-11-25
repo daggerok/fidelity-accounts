@@ -102,6 +102,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .pos-table td:first-child{background:inherit}
 .pos-table td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .pos-table tr.pos-spacer td{padding:0;border:0}
+.cell-scroll{overflow-x:auto;white-space:nowrap;scrollbar-width:none;overscroll-behavior-x:contain}
+.cell-scroll::-webkit-scrollbar{display:none}
+.cell-scroll.more{mask-image:linear-gradient(to right,#000 calc(100% - 1.5rem),transparent);-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 1.5rem),transparent)}
 .pos-table tr{background:#fff}
 .pos-table tr.acct-row{background:#f1f5f9}
 .pos-table tr.cash-row{background:#fefce8}
