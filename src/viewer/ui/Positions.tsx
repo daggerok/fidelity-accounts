@@ -137,6 +137,8 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   }, [all, shown, accounts, filtered, colKeys, several]);
 
   const box = useRef<HTMLDivElement>(null);
+  const headBox = useRef<HTMLDivElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 800 });
   useEffect(() => {
     const el = box.current;
@@ -147,13 +149,22 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     el.addEventListener('scroll', on, { passive: true });
     const ro = new ResizeObserver(on);
     ro.observe(el);
-    return () => { cancelAnimationFrame(frame); el.removeEventListener('scroll', on); ro.disconnect(); };
+    // the header is its own table above the scrolling rows (owner 2026-11-24: the scrollbar starts at the first row, not
+    // beside the header): it follows the rows sideways; a sideways swipe or a focused filter on the header moves the rows
+    const head = headBox.current;
+    const follow = () => { if (head && head.scrollLeft !== el.scrollLeft) head.scrollLeft = el.scrollLeft; };
+    const lead = () => { if (head && el.scrollLeft !== head.scrollLeft) el.scrollLeft = head.scrollLeft; };
+    const wheel = (e: WheelEvent) => { if (!head || !e.deltaX) return; el.scrollLeft += e.deltaX; e.preventDefault(); };
+    el.addEventListener('scroll', follow, { passive: true });
+    head?.addEventListener('scroll', lead, { passive: true });
+    head?.addEventListener('wheel', wheel, { passive: false });
+    return () => { cancelAnimationFrame(frame); el.removeEventListener('scroll', on); el.removeEventListener('scroll', follow); head?.removeEventListener('scroll', lead); head?.removeEventListener('wheel', wheel); ro.disconnect(); };
   }, []);
   // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
   // height is the room between its top and the footer, measured again on a resize
   const [fill, setFill] = useState<number | null>(null);
   useEffect(() => {
-    const el = box.current;
+    const el = wrap.current;
     if (!el) return undefined;
     const measure = () => {
       const foot = document.querySelector('footer')?.getBoundingClientRect().top ?? window.innerHeight;
@@ -178,7 +189,10 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       <Zoom open={showCols} title={t('Columns')} origin={colsButton} narrow onClose={() => setShowCols(false)}>
         <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} onChange={setPrefs} />
       </Zoom>
-      <div ref={box} className="min-h-0 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-rows={lines.length} data-drawn={last - first}>
+      {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
+          runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
+      <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
+        <div ref={headBox} className="flex-none overflow-hidden bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
           <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
@@ -193,12 +207,18 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
                 <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
               </span>
             ) }} />
+        </table>
+        </div>
+      <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
+        <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+          <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           <tbody>
             {first > 0 && <tr aria-hidden="true" className="pos-spacer" style={{ height: first * ROW }}><td colSpan={cols.length + 1} /></tr>}
             {lines.slice(first, last).map((l) => <tr key={l.key} className={l.cls} style={{ height: ROW }}>{l.cells()}</tr>)}
             {last < lines.length && <tr aria-hidden="true" className="pos-spacer" style={{ height: (lines.length - last) * ROW }}><td colSpan={cols.length + 1} /></tr>}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
