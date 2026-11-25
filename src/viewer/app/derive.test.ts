@@ -5,7 +5,8 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
+import { sortPositions } from './position-columns';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -53,8 +54,6 @@ test('allocation, dividends, 52-week, sort and search', () => {
   const rs = [near('LOW', 110, 100, 2000), near('TOP', 95, 50, 100), near('MID', 15, 10, 20), { ...secs[0]!, symbol: 'NONE', low52: undefined, high52: undefined }];
   expect(sortPositions(rs, 'high52', -1).map((p) => p.symbol)).toEqual(['TOP', 'MID', 'LOW', 'NONE']);
   expect(sortPositions(rs, 'high52', 1).map((p) => p.symbol)).toEqual(['LOW', 'MID', 'TOP', 'NONE']);
-  expect(matches(ps[1]!, 'alpha')).toBe(true);
-  expect(matches(ps[1]!, 'zzz')).toBe(false);
 });
 
 test('any set of accounts: checkbox toggles, the shortest scope name', () => {

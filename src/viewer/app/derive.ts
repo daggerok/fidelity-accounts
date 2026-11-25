@@ -380,33 +380,6 @@ export function rangeRows(ps: Position[]): RangeRow[] {
   return Array.from(by.values()).map(({ cost, ...r }) => ({ ...r, totalGlPct: cost > 0 ? (r.totalGl / cost) * 100 : null }));
 }
 
-/** the positions table order; text columns sort by text, the rest by number, empty last */
-/** columns that sort by a computed value, not by their own field: the 52-week range sorts by where the price sits in it,
- * DRIP and DRIP $ by the gap */
-const SORT_VALUES: Record<string, (p: Position) => number | undefined> = {
-  high52: (p) => rangePos(p) ?? undefined,
-  drip: (p) => dripGap(p)?.shares,
-  dripUsd: (p) => dripGap(p)?.usd,
-};
-
-export function sortPositions(ps: Position[], key: string, dir: 1 | -1): Position[] {
-  const computed = SORT_VALUES[key];
-  const val = (p: Position): string | number | undefined => (computed ? computed(p) : (p as unknown as Record<string, string | number | undefined>)[key] ?? (p.fields[key] as string | number | undefined));
-  return ps.slice().sort((a, b) => {
-    const x = val(a);
-    const y = val(b);
-    if (x === undefined || x === '') return y === undefined || y === '' ? 0 : 1;
-    if (y === undefined || y === '') return -1;
-    if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
-    return String(x).localeCompare(String(y)) * dir;
-  });
-}
-
-export function matches(p: Position, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  return !s || p.symbol.toLowerCase().includes(s) || p.description.toLowerCase().includes(s);
-}
-
 /**
  * Income of a period as facts and plan (owner 2026-11-24: "we want to know facts and what is planned and then see how
  * facts aligned in progress with planned"): received = the dividends and interest paid in, from the transactions
