@@ -302,15 +302,32 @@ export function incomeIn(ps: Position[], from: string, to: string, today: string
  * One upcoming payout split by account (owner 2026-11-24: one line per account, named, in the order of the Accounts
  * card): the account's shares of the symbol and its part of the payout
  */
-export interface PayoutPart { account: Account; shares: number; payout?: number }
+export interface PayoutPart { account: Account; shares: number; payout?: number; drip: Drip | null }
 export function payoutParts(ps: Position[], accounts: Account[], u: Upcoming): PayoutPart[] {
   return accounts
     .map((a) => {
       const shares = securities(ps).filter((p) => p.account === a.number && p.symbol === u.symbol).reduce((x, p) => x + (p.quantity ?? 0), 0);
-      return { account: a, shares, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * shares * 100) / 100 : undefined };
+      // DRIP runs per account: each account's own payout has to buy the 0.001 share
+      return { account: a, shares, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * shares * 100) / 100 : undefined, drip: dripGap({ ...u, account: a.number, kind: 'position', quantity: shares }) };
     })
     .filter((x) => x.shares > 0);
 }
+
+/**
+ * The DRIP of one upcoming dividend over its accounts (owner 2026-11-24: a DRIP column in the Upcoming dividends rows):
+ * what to buy in all the accounts still short of 0.001 share, summed; when none is short, the smallest margin (the
+ * negative closest to zero); null when no account can tell (no dividend or price)
+ */
+export function symbolDrip(parts: PayoutPart[]): Drip | null {
+  const known = parts.map((p) => p.drip).filter((d): d is Drip => d !== null);
+  if (!known.length) return null;
+  const short = known.filter((d) => d.shares > 0);
+  if (!short.length) return known.reduce((a, d) => (d.shares > a.shares ? d : a));
+  return { shares: Math.round(short.reduce((x, d) => x + d.shares, 0) * 1000) / 1000, usd: Math.round(short.reduce((x, d) => x + d.usd, 0) * 100) / 100 };
+}
+
+/** the dollars to buy so every listed dividend reinvests: the plus DRIP $ of the rows summed */
+export const dripToBuy = (drips: (Drip | null)[]): number => Math.round(drips.reduce((x, d) => x + (d && d.usd > 0 ? d.usd : 0), 0) * 100) / 100;
 
 /** where the last price sits in the 52-week range, 0..1, or null */
 export function rangePos(p: Position): number | null {

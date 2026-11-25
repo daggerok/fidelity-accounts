@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, symbolDrip, dripToBuy, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -11,6 +11,7 @@ import { RangeBar } from './RangeBar';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
+import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -50,6 +51,18 @@ function ViewSwitch({ id }: { id: string }) {
       onChange={(v) => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: v } }))} />
   );
 }
+
+// a line of tickers in one colour, the commas plain
+function Tickers({ symbols, tone, title }: { symbols: string[]; tone: 'gain' | 'loss'; title: string }) {
+  return (
+    <div title={title} data-tickers={tone}>
+      {Array.from(new Set(symbols)).map((s, i) => <span key={s}>{i > 0 && <span className="text-slate-400">, </span>}<span className={`${tone} font-medium`}>{s}</span></span>)}
+    </div>
+  );
+}
+
+// the DRIP column of the Upcoming dividends rows: shares on top, dollars under
+const DRIP_COL = 'w-20 shrink-0 text-right';
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
@@ -114,18 +127,20 @@ function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
 // per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order
 function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position[]; accounts: Account[] }) {
   const th = 'sticky top-0 z-10 bg-[var(--card-bg)] px-3 py-2 font-medium';
+  const toBuy = dripToBuy(rows.map((r) => symbolDrip(payoutParts(ps, accounts, r))));
   return (
     <div className="overflow-x-auto">
       <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
         <thead><tr className="text-left text-xs text-slate-500">
           <th className={th}>{t('Symbol')}</th><th className={th}>{t('Account')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th>
-          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={`${th} text-right`}>{t('Frequency')}</th>
+          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={`${th} text-right`} title={DRIP_HINT()}>DRIP</th><th className={`${th} text-right`} title={DRIP_USD_HINT()}>DRIP $</th><th className={`${th} text-right`}>{t('Frequency')}</th>
         </tr></thead>
         <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(payoutTotal(rows))}</td><td /></tr>
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(payoutTotal(rows))}</td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /></tr>
         </tbody>
         {rows.map((r) => {
           const parts = payoutParts(ps, accounts, r);
+          const drip = symbolDrip(parts);
           const one = parts.length === 1 ? parts[0]!.account : null;
           return (
             <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
@@ -137,6 +152,8 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
                 <td className="num text-right">{usd(r.dividendAmount)}</td>
                 <td className="num text-right">{qty(r.shares)}</td>
                 <td className="num text-right font-medium">{usd(r.payout)}</td>
+                <td className="num text-right">{drip ? <DripValue value={drip.shares} as="shares" /> : '--'}</td>
+                <td className="num text-right">{drip ? <DripValue value={drip.usd} as="usd" /> : '--'}</td>
                 <td className="text-right">{r.paymentFrequency ?? ''}</td>
               </tr>
               {!one && parts.map((p) => (
@@ -146,6 +163,8 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
                   <td colSpan={3} />
                   <td className="num text-right">{qty(p.shares)}</td>
                   <td className="num text-right">{usd(p.payout)}</td>
+                  <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
+                  <td className="num text-right">{p.drip ? <DripValue value={p.drip.usd} as="usd" /> : ''}</td>
                   <td />
                 </tr>
               ))}
@@ -208,6 +227,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const divPs = ofKind(ps, pr.dividendsOf);
   const divsUntil = windowEnd(today, pr.dividendsWindow);
   const divs = upcomingDividends(divPs, today, divsUntil);
+  const divDrips = divs.map((d) => symbolDrip(payoutParts(divPs, shownAccounts, d)));
+  const divToBuy = dripToBuy(divDrips);
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
@@ -278,23 +299,30 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-      {/* how far ahead, between the title and the ETFs and Stocks chips (owner 2026-11-24: like the Balance periods, MTD by default) */}
-      <Card id="dividends" title={t('Upcoming dividends')} lead={(
-        <Pills items={DIV_WINDOWS} value={pr.dividendsWindow} label={t('Ex-dividend dates until')} labelOf={(w) => w}
-          onChange={(w) => animate(() => setPrefs({ dividendsWindow: w }))} />
-      )} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
+      {/* how far ahead, on the right before the ETFs and Stocks chips (owner 2026-11-24: like the Balance periods, MTD by
+          default; then "align periods to the right") */}
+      <Card id="dividends" title={t('Upcoming dividends')} tools={(
+        <span className="flex flex-wrap items-center justify-end gap-2">
+          <Pills items={DIV_WINDOWS} value={pr.dividendsWindow} label={t('Ex-dividend dates until')} labelOf={(w) => w}
+            onChange={(w) => animate(() => setPrefs({ dividendsWindow: w }))} />
+          <KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />
+        </span>
+      )}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {/* the total on top, as the first row (owner 2026-11-24) */}
-            <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
-              <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
-              <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
+            {/* DRIP in its own column (owner 2026-11-24): the total row names it and sums what to buy for all */}
+            <div className="flex items-center gap-3 py-1.5 text-sm" data-dividends-total>
+              <div className="min-w-0 flex-1"><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
+              <div className={DRIP_COL} title={DRIP_HINT()}><div className="text-xs text-slate-500 dark:text-slate-400">DRIP</div>{divToBuy > 0 && <div className="num text-xs" title={t('to buy so every listed dividend reinvests')}><DripValue value={divToBuy} as="usd" /></div>}</div>
+              <div className="num w-24 text-right font-semibold">{usd(payoutTotal(divs))}</div>
             </div>
-            {divs.slice(0, 8).map((p) => (
-              <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
-                <div className="text-right">
+            {divs.slice(0, 8).map((p, i) => (
+              <div key={p.symbol} className="flex items-center gap-3 py-1.5 text-sm">
+                <div className="min-w-0 flex-1"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
+                <div className={DRIP_COL}>{divDrips[i] ? <><div className="num"><DripValue value={divDrips[i]!.shares} as="shares" /></div><div className="num text-xs"><DripValue value={divDrips[i]!.usd} as="usd" /></div></> : <span className="text-slate-400">--</span>}</div>
+                <div className="w-24 text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
                   {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
                 </div>
@@ -307,8 +335,9 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
       <Card id="near52" title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable highs={n52.highs} lows={n52.lows} /> : undefined}>
         {n52.highs.length || n52.lows.length ? (
           <div className="flex flex-col gap-2 text-sm">
-            {n52.highs.length > 0 && <div><span className="gain font-medium">{t('High')}: </span>{Array.from(new Set(n52.highs.map((p) => p.symbol))).join(', ')}</div>}
-            {n52.lows.length > 0 && <div><span className="loss font-medium">{t('Low')}: </span>{Array.from(new Set(n52.lows.map((p) => p.symbol))).join(', ')}</div>}
+            {/* no High: and Low: words (owner 2026-11-24): the tickers near a high are green, near a low red */}
+            {n52.highs.length > 0 && <Tickers symbols={n52.highs.map((p) => p.symbol)} tone="gain" title={t('Near its 52-week high')} />}
+            {n52.lows.length > 0 && <Tickers symbols={n52.lows.map((p) => p.symbol)} tone="loss" title={t('Near its 52-week low')} />}
           </div>
         ) : <Empty text={t('Nothing within 3% of its 52-week high or low')} />}
       </Card>
