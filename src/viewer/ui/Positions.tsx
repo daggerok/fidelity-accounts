@@ -188,7 +188,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
             inputs={{ [SYMBOL]: { placeholder: t('Symbol or name'), note: on ? `${shown.length}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown.length, total }) : t('{n} positions', { n: total }) } }}
             extras={{ [SYMBOL]: (
               <span className="ml-auto flex flex-none items-center gap-1">
-                {on > 0 && <button type="button" className="rounded-md border border-emerald-500 px-1.5 text-[0.7rem] font-medium leading-5 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
+                {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
                 {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
                 <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
               </span>

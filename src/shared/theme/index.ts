@@ -45,3 +45,32 @@ export function saveThemeMode(storage: KeyValue | undefined, m: ThemeMode): void
     // private window or blocked storage: the choice lives until reload
   }
 }
+
+// Color palettes (owner 2026-11-24, like gex's Color palette): the accent of the whole app, the logo, card titles,
+// chips, pills, buttons and focus rings; gains and losses keep their green and red. Fidelity green is ours, Indigo Desk
+// the violet of gex and options-desk, Ocean blue the blue of investments (ETFs, Stocks, fidelity-reports). Each palette
+// is a set of CSS variables on html[data-palette] (src/viewer/index.css); the inline script of src/viewer/index.html sets
+// the attribute before the first paint, theme-inline.test.ts keeps it in step with readPalette
+export const PALETTES = ['green', 'indigo', 'blue'] as const;
+export type Palette = (typeof PALETTES)[number];
+export const PALETTE_KEY = 'fidelity-accounts-palette';
+export const DEFAULT_PALETTE: Palette = 'green';
+
+export const isPalette = (v: unknown): v is Palette => typeof v === 'string' && (PALETTES as readonly string[]).indexOf(v) >= 0;
+
+export function readPalette(storage: KeyValue | undefined): Palette {
+  try {
+    const v = storage?.getItem(PALETTE_KEY);
+    return isPalette(v) ? v : DEFAULT_PALETTE;
+  } catch {
+    return DEFAULT_PALETTE;
+  }
+}
+
+export function savePalette(storage: KeyValue | undefined, p: Palette): void {
+  try {
+    storage?.setItem(PALETTE_KEY, p);
+  } catch {
+    // private window or blocked storage: the choice lives until reload
+  }
+}

@@ -14,6 +14,16 @@ html, body { margin: 0; }
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s-other: #94a3b8; }
 :root.dark { --gain: #4ade80; --loss: #f87171; --brand: #6abf4b; --card-bg: #0f172a;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #e66767; --s-other: #64748b; }
+/* color palettes (src/shared/theme PALETTES): the accent of everything that is ours, set on html[data-palette] before the
+   first paint. green is the default above and below; indigo is gex's Indigo Desk, blue the investments blue.
+   brand = logo, titles, pills; ring = focus borders and dots; btn = filled buttons; soft and ink = an active field;
+   line = the border of a done box; strong = a hovered link */
+:root { --brand-ring: #10b981; --brand-btn: #059669; --brand-btn-hover: #10b981; --brand-soft: #ecfdf5; --brand-ink: #064e3b; --brand-line: #a7f3d0; --brand-strong: #047857; }
+:root.dark { --brand-soft: #022c22; --brand-ink: #d1fae5; --brand-line: #065f46; --brand-strong: #6ee7b7; }
+html[data-palette='indigo'] { --brand: #4f46e5; --brand-ring: #6366f1; --brand-btn: #4f46e5; --brand-btn-hover: #6366f1; --brand-soft: #eef2ff; --brand-ink: #312e81; --brand-line: #c7d2fe; --brand-strong: #4338ca; }
+html.dark[data-palette='indigo'] { --brand: #818cf8; --brand-soft: #1e1b4b; --brand-ink: #e0e7ff; --brand-line: #3730a3; --brand-strong: #a5b4fc; }
+html[data-palette='blue'] { --brand: #2563eb; --brand-ring: #3b82f6; --brand-btn: #2563eb; --brand-btn-hover: #3b82f6; --brand-soft: #eff6ff; --brand-ink: #1e3a8a; --brand-line: #bfdbfe; --brand-strong: #1d4ed8; }
+html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --brand-ink: #dbeafe; --brand-line: #1e40af; --brand-strong: #93c5fd; }
 .gain { color: var(--gain); }
 .scrollbar-hidden { scrollbar-width: none; }
 .scrollbar-hidden::-webkit-scrollbar { display: none; }
@@ -40,21 +50,21 @@ html, body { margin: 0; }
 
 /* settings controls copied from twitter src/index.css (owner 2026-11-22: "why styles is not same as in twitter"; pattern masked-settings) */
 .inp{display:block;width:100%;min-height:2.375rem;padding:.5rem .75rem;border-radius:.5rem;border:1px solid #cbd5e1;background:#f8fafc;color:#047857;font-size:.875rem;line-height:1.25rem;transition:border-color .15s}
-.inp:focus{outline:none;border-color:#10b981}
+.inp:focus{outline:none;border-color:var(--brand-ring)}
 .inp::placeholder{color:#94a3b8}
 .dark .inp{background:#1e293b;border-color:#334155;color:#34d399}
 .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.375rem;padding:.5rem .875rem;border-radius:.5rem;border:1px solid #e2e8f0;background:#fff;color:#334155;font-size:.875rem;line-height:1.25rem;font-weight:500;white-space:nowrap;transition:background-color .15s,border-color .15s,color .15s}
 .btn:hover{background:#f8fafc;border-color:#cbd5e1}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.btn.primary{background:#059669;border-color:#059669;color:#fff}
-.btn.primary:hover{background:#10b981}
+.btn.primary{background:var(--brand-btn);border-color:var(--brand-btn);color:#fff}
+.btn.primary:hover{background:var(--brand-btn-hover)}
 .btn.danger{color:#be123c;border-color:#fda4af}
 .btn.danger:hover{background:#fff1f2}
 .btn.sm{min-height:1.875rem;padding:.25rem .625rem;font-size:.75rem}
 .dark .btn{background:#1e293b;border-color:#475569;color:#e2e8f0}
 .dark .btn:hover{background:#334155;border-color:#64748b}
-.dark .btn.primary{background:#059669;border-color:#059669;color:#fff}
-.dark .btn.primary:hover{background:#10b981}
+.dark .btn.primary{background:var(--brand-btn);border-color:var(--brand-btn);color:#fff}
+.dark .btn.primary:hover{background:var(--brand-btn-hover)}
 .dark .btn.danger{color:#fda4af;border-color:rgba(244,63,94,.5)}
 .dark .btn.danger:hover{background:rgba(190,18,60,.18)}
 .btn.active{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
@@ -64,7 +74,7 @@ html, body { margin: 0; }
 .dark .ib{border-color:#334155;color:#94a3b8}
 .dark .ib:hover{background:#334155}
 .inp.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:500}
-.masked{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;color:#059669}
+.masked{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;color:var(--brand-btn)}
 .dark .masked{color:#34d399}
 details.setup > summary{list-style:none;cursor:pointer}
 details.setup > summary::-webkit-details-marker{display:none}

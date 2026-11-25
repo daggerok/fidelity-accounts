@@ -11,7 +11,7 @@ afterAll(() => GlobalRegistrator.unregister());
 // key that a reset of this app must never touch
 const seed = () => {
   localStorage.clear();
-  ['fidelity-accounts.prefs', 'fidelity-accounts-theme', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-gs-config', 'other-app.setting'].forEach((k) => localStorage.setItem(k, '1'));
+  ['fidelity-accounts.prefs', 'fidelity-accounts-theme', 'fidelity-accounts-palette', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-gs-config', 'other-app.setting'].forEach((k) => localStorage.setItem(k, '1'));
 };
 
 test('Reset view clears the look and the choices, never the Google setup or a neighbour app key', async () => {
@@ -24,6 +24,7 @@ test('Reset view clears the look and the choices, never the Google setup or a ne
   expect(localStorage.getItem('other-app.setting')).toBe('1');
   expect(localStorage.getItem('fidelity-accounts.prefs')).toBeNull();
   expect(localStorage.getItem('fidelity-accounts-theme')).toBeNull();
+  expect(localStorage.getItem('fidelity-accounts-palette')).toBeNull();
   expect(localStorage.getItem('fidelity-accounts.lang')).toBeNull();
 });
 
