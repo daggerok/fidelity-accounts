@@ -135,6 +135,7 @@ export const RU: Record<string, string> = {
   'Filter by column name': 'Фильтр по названию',
   'Select all': 'Все',
   Default: 'По умолчанию',
+  "Today's gain/loss": 'Изменение за сегодня',
   'Dist. date': 'Дата dist.',
   'Dist. rate date': 'Дата dist. rate',
   'Holding': 'Владение',
