@@ -91,9 +91,11 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .dark .card{border-color:#334155;background:#0f172a}
 .main-tab{padding:0 .25rem;font-weight:500;color:#64748b;white-space:nowrap}
 .main-tab:hover{color:#0f172a}
-.main-tab.on{color:#0f172a}
+.main-tab.on{color:var(--brand)}
 .dark .main-tab{color:#94a3b8}
-.dark .main-tab:hover,.dark .main-tab.on{color:#f1f5f9}
+.dark .main-tab:hover{color:#f1f5f9}
+.dark .main-tab.on{color:var(--brand)}
+/* the chosen tab wears the palette's accent (owner 2026-11-25), like the card titles */
 /* the two header rows (names with sort and type badge, filter inputs) stick together as one head */
 .pos-table thead{position:sticky;top:0;z-index:3}
 .pos-table th{background:#f8fafc;font-weight:600;font-size:.75rem;line-height:1.1;text-align:right;vertical-align:bottom;padding:.5rem .5rem .25rem;white-space:nowrap;user-select:none}
