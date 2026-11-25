@@ -57,10 +57,13 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title} data-chart-zoom>
       <div ref={back} className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
       <div ref={panel} className={`card relative flex max-h-full w-full ${narrow ? 'max-w-4xl' : 'max-w-[min(96vw,100rem)]'} flex-col gap-3 overflow-auto`} style={{ transformOrigin: 'top left' }}>
-        <div className="flex items-center gap-3">
+        {/* the tools sit on the right next to ✕, as on the card next to ⤢ (owner 2026-11-24: "move all buttons to the right") */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }}>{title}</h2>
-          {tools && <span className="-my-1 flex items-center gap-1">{tools}</span>}
-          <button type="button" className={`${CORNER_BUTTON} ml-auto`} title={t('Close')} onClick={onClose}><CloseIcon /></button>
+          <span className="-my-1 ml-auto flex items-center gap-2">
+            {tools}
+            <button type="button" className={CORNER_BUTTON} title={t('Close')} onClick={onClose}><CloseIcon /></button>
+          </span>
         </div>
         {children}
       </div>
