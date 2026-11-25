@@ -11,6 +11,7 @@ import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
+import { CellScroll } from './CellScroll';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
@@ -72,6 +73,9 @@ export const COLUMNS = (): Col[] => [
 // were 21,000 cells, drawn again on every new copy from 👀 Watch. Rows have one fixed height, the columns fixed widths,
 // spacer rows stand for the rows above and below the window
 const ROW = 50;
+// the Symbol column: half of what it was (owner 2026-11-24: "that column width can be 2 less, if we have that scroll"),
+// a long name scrolls inside its cell (CellScroll)
+const SYMBOL_W = 120;
 const OVERSCAN = 12;
 // wide enough for a name in two lines with its type badge and for a filter like >2026-12-01
 const width = (key: string): number => (key === 'high52' ? 150 : key === 'paymentFrequency' || key === 'marketCap' || key === 'sector' ? 160 : 128);
@@ -120,11 +124,11 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       if (filtered && !secs.length) return;
       out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-500">{a.number}</span></td> });
       cash.forEach((p) => out.push({ key: `${a.number}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
-        <td><div className="truncate font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500">{p.description}</span></div><div className="text-xs text-slate-500">{p.symbol}</div></td>
+        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500">{p.description}</span></CellScroll><div className="text-xs text-slate-500">{p.symbol}</div></td>
         {cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? usd(p.currentValue) : c.key === 'secYield' || c.key === 'distRate' ? c.cell(p) : ''}</td>)}
       </> }));
       secs.forEach((p) => out.push({ key: `${a.number}-${p.symbol}`, cls: '', cells: () => <>
-        <td><div className="font-semibold">{p.symbol}</div><div className="truncate text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</div></td>
+        <td><div className="font-semibold">{p.symbol}</div><CellScroll className="text-xs text-slate-500 dark:text-slate-400">{p.description}</CellScroll></td>
         {cols.map((c) => <td key={c.key}>{c.cell(p)}</td>)}
       </> }));
       pending.forEach((p) => out.push({ key: `${a.number}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
@@ -179,10 +183,10 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
   const total = securities(all).length;
-  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left' }];
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left', wrap: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   const on = activeFilters(filters);
-  const tableWidth = 240 + cols.reduce((sum, c) => sum + width(c.key), 0);
+  const tableWidth = SYMBOL_W + cols.reduce((sum, c) => sum + width(c.key), 0);
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
@@ -194,12 +198,12 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
         <div ref={headBox} className="flex-none overflow-hidden bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
+          <colgroup><col style={{ width: SYMBOL_W }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
               the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
           <TypedHead control={control}
             cols={head}
-            inputs={{ [SYMBOL]: { placeholder: t('Symbol or name'), note: on ? `${shown.length}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown.length, total }) : t('{n} positions', { n: total }) } }}
+            inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown.length}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown.length, total }) : t('{n} positions', { n: total }) } }}
             extras={{ [SYMBOL]: (
               <span className="ml-auto flex flex-none items-center gap-1">
                 {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
@@ -211,7 +215,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
+          <colgroup><col style={{ width: SYMBOL_W }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
           <tbody>
             {first > 0 && <tr aria-hidden="true" className="pos-spacer" style={{ height: first * ROW }}><td colSpan={cols.length + 1} /></tr>}
             {lines.slice(first, last).map((l) => <tr key={l.key} className={l.cls} style={{ height: ROW }}>{l.cells()}</tr>)}
