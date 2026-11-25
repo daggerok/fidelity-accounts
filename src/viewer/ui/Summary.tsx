@@ -1,6 +1,6 @@
 import type { Account, Dataset, Position } from '../../shared/model';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -36,7 +36,7 @@ function Card({ id, title, children, tools, lead, expand }: { id: string; title:
       </div>
       {children}
       {/* always mounted: a list that empties under an open window (a pill switched) must not drop the window; it shows the card's own view then */}
-      <Zoom open={open} title={title} tools={tools} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
+      <Zoom open={open} title={title} tools={lead || tools ? <>{lead}{tools}</> : undefined} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
     </section>
   );
 }
@@ -206,7 +206,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   const shownAccounts = sortAccounts(accounts, pr.accountSort);
   const today = localToday();
   const divPs = ofKind(ps, pr.dividendsOf);
-  const divs = upcomingDividends(divPs, today);
+  const divsUntil = windowEnd(today, pr.dividendsWindow);
+  const divs = upcomingDividends(divPs, today, divsUntil);
   const n52 = near52(ps);
   const sectors = allocation(ps, (p) => p.sector || p.securityType);
   const types = allocation(ps, (p) => p.securityType);
@@ -277,7 +278,11 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
         </div>
       </Card>
 
-      <Card id="dividends" title={t('Upcoming ex-dividend dates (30 days)')} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
+      {/* how far ahead, between the title and the ETFs and Stocks chips (owner 2026-11-24: like the Balance periods, MTD by default) */}
+      <Card id="dividends" title={t('Upcoming dividends')} lead={(
+        <Pills items={DIV_WINDOWS} value={pr.dividendsWindow} label={t('Ex-dividend dates until')} labelOf={(w) => w}
+          onChange={(w) => animate(() => setPrefs({ dividendsWindow: w }))} />
+      )} tools={<KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
@@ -296,7 +301,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
               </div>
             ))}
           </div>
-        ) : <Empty text={t('No ex-dividend dates in the next 30 days')} />}
+        ) : <Empty text={t('No ex-dividend dates until {date}', { date: siteDate(divsUntil) })} />}
       </Card>
 
       <Card id="near52" title={t('Near a 52-week high or low')} expand={n52.highs.length || n52.lows.length ? <RangeTable highs={n52.highs} lows={n52.lows} /> : undefined}>

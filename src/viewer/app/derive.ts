@@ -207,8 +207,7 @@ export function localToday(now: Date = new Date()): string {
  * held on the ex-date decide
  */
 export type Upcoming = Position & { shares: number; payout?: number };
-export function upcomingDividends(ps: Position[], today: string, days = 30): Upcoming[] {
-  const last = addDays(today, days);
+export function upcomingDividends(ps: Position[], today: string, last = addDays(today, 30)): Upcoming[] {
   const due = securities(ps).filter((p) => p.exDate && p.exDate >= today && p.exDate <= last);
   const bySymbol = new Map<string, Upcoming>();
   due.forEach((p) => {
@@ -220,6 +219,20 @@ export function upcomingDividends(ps: Position[], today: string, days = 30): Upc
   return Array.from(bySymbol.values())
     .map((u) => ({ ...u, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * u.shares * 100) / 100 : undefined }))
     .sort((a, b) => (a.exDate! < b.exDate! ? -1 : a.exDate! > b.exDate! ? 1 : 0));
+}
+
+/**
+ * How far the Upcoming dividends card looks ahead (owner 2026-11-24: "MTD 1M QTD 3M like we have on Balance", MTD by
+ * default): to the end of this month, a month from today, to the end of this quarter, three months from today
+ */
+export const DIV_WINDOWS = ['MTD', '1M', 'QTD', '3M'] as const;
+export type DivWindow = (typeof DIV_WINDOWS)[number];
+export const asDivWindow = (v: unknown): DivWindow => ((DIV_WINDOWS as readonly unknown[]).indexOf(v) >= 0 ? (v as DivWindow) : 'MTD');
+export function windowEnd(today: string, w: DivWindow): string {
+  if (w === '1M') return addMonths(today, 1);
+  if (w === '3M') return addMonths(today, 3);
+  const b = periodBounds(today);
+  return w === 'MTD' ? b.month[1] : b.quarter[1];
 }
 
 /** the sum of the payouts of a list of upcoming dividends */
