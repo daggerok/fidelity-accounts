@@ -121,7 +121,8 @@ function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
 }
 
 // the big ex-dividend table (owner 2026-11-24: every value on one line, wide, easy to read): the total on top, one row
-// per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order
+// per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order;
+// To you is the last column, on the right (owner 2026-11-24)
 function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position[]; accounts: Account[] }) {
   const th = 'sticky top-0 z-10 bg-[var(--card-bg)] px-3 py-2 font-medium';
   const toBuy = dripToBuy(rows.map((r) => symbolDrip(payoutParts(ps, accounts, r))));
@@ -130,10 +131,10 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
       <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
         <thead><tr className="text-left text-xs text-slate-500">
           <th className={th}>{t('Symbol')}</th><th className={th}>{t('Account')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th>
-          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`}>{t('To you')}</th><th className={`${th} text-right`} title={DRIP_HINT()}>DRIP</th><th className={`${th} text-right`} title={DRIP_USD_HINT()}>DRIP $</th><th className={`${th} text-right`}>{t('Frequency')}</th>
+          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`} title={DRIP_HINT()}>DRIP</th><th className={`${th} text-right`} title={DRIP_USD_HINT()}>DRIP $</th><th className={`${th} text-right`}>{t('Frequency')}</th><th className={`${th} text-right`}>{t('To you')}</th>
         </tr></thead>
         <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td className="num text-right">{usd(payoutTotal(rows))}</td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /></tr>
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(rows))}</td></tr>
         </tbody>
         {rows.map((r) => {
           const parts = payoutParts(ps, accounts, r);
@@ -148,10 +149,10 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
                 <td className="num">{siteDate(r.payDate)}</td>
                 <td className="num text-right">{usd(r.dividendAmount)}</td>
                 <td className="num text-right">{qty(r.shares)}</td>
-                <td className="num text-right font-medium">{usd(r.payout)}</td>
                 <td className="num text-right">{drip ? <DripValue value={drip.shares} as="shares" /> : '--'}</td>
                 <td className="num text-right">{drip ? <DripValue value={drip.usd} as="usd" /> : '--'}</td>
                 <td className="text-right">{r.paymentFrequency ?? ''}</td>
+                <td className="num text-right font-medium">{usd(r.payout)}</td>
               </tr>
               {!one && parts.map((p) => (
                 <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
@@ -159,10 +160,10 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
                   <td className="pl-6">{p.account.name} <span className="text-slate-400">···{p.account.number.slice(-4)}</span></td>
                   <td colSpan={3} />
                   <td className="num text-right">{qty(p.shares)}</td>
-                  <td className="num text-right">{usd(p.payout)}</td>
                   <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
                   <td className="num text-right">{p.drip ? <DripValue value={p.drip.usd} as="usd" /> : ''}</td>
                   <td />
+                  <td className="num text-right">{usd(p.payout)}</td>
                 </tr>
               ))}
             </tbody>
