@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import type { Account, Dataset } from '../../shared/model';
-import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount, totalsOf } from '../app/derive';
+import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount } from '../app/derive';
 import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
 import { Check } from './Check';
 import { EdgeScrollRow } from './EdgeScrollRow';
-import { signedPct, tone, usd } from './format';
 
 // The accounts strip (owner 2026-11-23): one line per chip. No view-transition names here (owner 2026-11-24 glitch): a
 // named chip leaves the strip's clip during a card transition and flashes past its right edge. It lives in the navbar between the logo and the buttons and
@@ -13,7 +12,9 @@ import { signedPct, tone, usd } from './format';
 // the groups (All accounts, Investment, Retirement) light outlined ones (owner 2026-11-24: accounts look more permanent
 // than groups), so a section never looks like an account. A click on All accounts or a group folds or unfolds it (All
 // accounts unfolds every group); a click on an account shows only it. Checkboxes alone choose: All accounts ticks or
-// clears every account, a group its accounts, an account itself, so any set can be shown (Elena + Elena ROTH IRA)
+// clears every account, a group its accounts, an account itself, so any set can be shown (Elena + Elena ROTH IRA).
+// Names only, no balances, changes or account numbers (owner 2026-11-24: the Balance card shows the numbers; the
+// number stays in the chip's tooltip)
 
 export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; className?: string; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
   // drag an account chip onto another account of its group to put it there (owner 2026-11-24: my own order)
@@ -23,7 +24,6 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
   const [overGroup, setOverGroup] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const shown = new Set(accountsIn(ds, scope).map((a) => a.number));
-  const all = totalsOf(ds.accounts);
   const chip = (kind: 'all' | 'group' | 'account', active: boolean) =>
     `flex h-8 flex-none cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-2.5 text-sm transition-colors ${
       kind === 'account'
@@ -32,12 +32,6 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
     } ${active ? 'ring-2 ring-[var(--brand)]' : ''}`;
   const allFolded = collapsed.includes(ALL_FOLD);
   const chev = (open: boolean) => <span className={`inline-block text-[0.6rem] text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▶</span>;
-  const money = (value: number | undefined, gl: number | undefined, pctv: number | null | undefined) => (
-    <>
-      <span className="num">{usd(value)}</span>
-      {gl !== undefined && <span className={`num text-xs ${tone(gl)}`}>{signedPct(pctv ?? null)}</span>}
-    </>
-  );
   const accountChip = (a: Account) => (
     <div key={a.number} role="button" tabIndex={0} className={`${chip('account', scope === `account:${a.number}`)} ${over === a.number ? 'outline-2 outline-dashed outline-[var(--brand)]' : ''} ${dragged?.number === a.number ? 'opacity-50' : ''}`}
       title={t('{name} {number}: drag to move', { name: a.name, number: a.number })}
@@ -49,8 +43,6 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
       onClick={() => onScope(`account:${a.number}`)} onKeyDown={(e) => { if (e.key === 'Enter') onScope(`account:${a.number}`); }} data-scope={`account:${a.number}`}>
       <Check checked={shown.has(a.number)} label={t('Show {name}', { name: a.name })} onChange={() => onScope(toggleAccount(ds, scope, a.number))} />
       <span>{a.name}</span>
-      <span className="text-xs text-slate-400">···{a.number.slice(-4)}</span>
-      {money(a.balance, a.todayGl, a.todayGlPct)}
     </div>
   );
   return (
@@ -63,13 +55,11 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
         <Check checked={shown.size === ds.accounts.length} mixed={shown.size > 0} label={t('Show {name}', { name: t('All accounts') })}
           onChange={() => onScope(shown.size === ds.accounts.length ? 'none' : 'all')} />
         <span>{t('All accounts')}</span>
-        {money(all.balance, all.todayGl, all.todayGlPct)}
       </div>
       <div className={`hslide min-w-0 flex-1 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
       <EdgeScrollRow label={t('Accounts')} items="[data-scope]" storeKey="fidelity-accounts.strip-scroll" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-1">
       {groupsOf(ds).map((g) => {
         const open = !collapsed.includes(g.name);
-        const gt = totalsOf(g.accounts);
         const inGroup = g.accounts.filter((a) => shown.has(a.number)).length;
         const toggleGroup = () => {
           const others = Array.from(shown).filter((n) => !g.accounts.some((a) => a.number === n));
@@ -88,7 +78,6 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
               {chev(open)}
               <Check checked={inGroup === g.accounts.length} mixed={inGroup > 0} label={t('Show {name}', { name: g.name })} onChange={toggleGroup} />
               <span>{g.name}</span>
-              {money(gt.balance, gt.todayGl, gt.todayGlPct)}
             </div>
             <div className={`hslide ${open ? 'open' : ''}`} inert={!open}><div>{g.accounts.map(accountChip)}</div></div>
           </div>
