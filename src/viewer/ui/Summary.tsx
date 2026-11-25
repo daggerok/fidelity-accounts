@@ -314,7 +314,8 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
             </div>
             {divs.slice(0, 8).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('ex {date}', { date: siteDate(p.exDate) })}</span></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('pay date {date}', { date: siteDate(p.payDate) })}</div></div>
+                {/* the ticker alone, both dates on the line under it (owner 2026-11-24) */}
+                <div className="min-w-0"><div className="font-semibold">{p.symbol}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('ex date: {ex} pay date: {pay}', { ex: siteDate(p.exDate), pay: siteDate(p.payDate) })}</div></div>
                 <div className="text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
                   {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
