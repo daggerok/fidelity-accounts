@@ -1,9 +1,10 @@
 /// <reference lib="esnext" />
 // What the owner picked in the interface, remembered per browser until reset (owner 2026-11-23: "if other tab was
 // opened or dark theme was selected - we must use user selection until reset"): the account or group shown, the main
-// tab, the positions sort, search and hidden columns. The theme and the language keep their own keys
+// tab, the positions sort, column filters and hidden columns. The theme and the language keep their own keys
 import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
+import { cleanFilters, cleanTypes, type ColumnType } from '../../shared/typed-columns';
 import { ACCOUNT_SORTS, asDivWindow, asKind, type AccountSort, type DivWindow, type Kind } from './derive';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
@@ -16,7 +17,9 @@ export interface Prefs {
   scope: Scope;
   tab: MainTab;
   sort: { key: string; dir: 1 | -1 };
-  search: string;
+  search: string; // the filter of the Symbol column (symbol or name)
+  filters: Record<string, string>; // the filters of the other positions columns, by column key (src/shared/typed-columns.ts)
+  types: Record<string, ColumnType>; // column types the owner set with the header badge; the rest are detected
   hidden: string[]; // positions columns switched off
   columns: string[]; // the owner's order of the positions columns (src/viewer/app/columns.ts)
   period: Period; // the balance chart's period
@@ -32,7 +35,7 @@ export interface Prefs {
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: [], columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -44,6 +47,8 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       ...p,
       scope: typeof p.scope === 'string' ? p.scope : 'all',
       search: typeof p.search === 'string' ? p.search : '',
+      filters: cleanFilters(p.filters),
+      types: cleanTypes(p.types),
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       hidden: Array.isArray(p.hidden) ? p.hidden : [],
       columns: Array.isArray(p.columns) ? p.columns.filter((x): x is string => typeof x === 'string') : [],

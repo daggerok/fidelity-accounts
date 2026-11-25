@@ -1,6 +1,8 @@
+/// <reference lib="esnext" />
 import type { Account, Dataset, Position } from '../../shared/model';
+import type { TypedColumn } from '../../shared/typed-columns';
 import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, symbolDrip, dripToBuy, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Slice, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, symbolDrip, dripToBuy, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Drip, type PayoutPart, type Slice, type Upcoming } from '../app/derive';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
@@ -17,7 +19,9 @@ import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { transactions } from '../app/data';
 import { t } from '../app/i18n';
-import { pct, qty, signedPct, signedUsd, siteDate, tone, usd, usd0 } from './format';
+import { NoMatch, TypedHead, type HeadColumn } from './TypedHead';
+import { useTypedTable } from './useTypedTable';
+import { pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd, usd0 } from './format';
 
 // Summary: cards of information like the Fidelity summary page, for the chosen scope. Each card is as tall as its
 // content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
@@ -86,37 +90,87 @@ function Bars({ slices, all }: { slices: Slice[]; all?: boolean }) {
 // the big window's names apart (a name used twice cancels the whole transition). A table with no borders (owner
 // 2026-11-24): tickers, names and values ("$ (%)" as one column) each aligned; the lists share one table so the top and
 // the bottom line up too
+const MoverRow = ({ p, at }: { p: Position; at: 'card' | 'big' }) => (
+  <tr style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
+    <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
+    <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
+    <td className="whitespace-nowrap py-1 pl-3 text-right align-baseline"><GainLoss usd={p.todayGl} pct={p.todayGlPct} /></td>
+  </tr>
+);
+
 function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' }) {
   return (
     <table className="w-full text-sm" data-movers>
       {lists.map((list, i) => (
         <tbody key={i}>
           {i > 0 && list.length > 0 && <tr aria-hidden><td colSpan={3} className="h-3" /></tr>}
-          {list.map((p) => (
-            <tr key={p.symbol} style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
-              <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
-              <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
-              <td className="whitespace-nowrap py-1 pl-3 text-right align-baseline"><GainLoss usd={p.todayGl} pct={p.todayGlPct} /></td>
-            </tr>
-          ))}
+          {list.map((p) => <MoverRow key={p.symbol} p={p} at={at} />)}
         </tbody>
       ))}
     </table>
   );
 }
 
+// The head of the ⤢ tables: the names in the small grey of the cards, the filter inputs under them (TypedHead)
+const ZOOM_HEAD = 'bg-[var(--card-bg)] text-xs text-slate-500 dark:text-slate-400';
+const ZOOM_TH = 'px-2 pt-2 pb-1 align-bottom font-medium';
+const ZOOM_FILTER_TH = 'min-w-[6.5rem] px-2 pb-2 font-normal';
+
+// one list of the big movers window with the shared head: the change sorts and filters by what the % and $ switch shows
+function MoversBig({ list, by }: { list: Position[]; by: 'pct' | 'usd' }) {
+  const cols: (TypedColumn<Position> & HeadColumn)[] = [
+    { key: 'symbol', label: t('Symbol'), align: 'left', text: (p) => p.symbol },
+    { key: 'name', label: t('Name'), align: 'left', text: (p) => p.description },
+    by === 'usd'
+      ? { key: 'today', label: t("Today's gain/loss"), text: (p) => signedUsd(p.todayGl), value: (p) => p.todayGl }
+      : { key: 'today', label: t("Today's gain/loss"), text: (p) => signedPct(p.todayGlPct), value: (p) => p.todayGlPct },
+  ];
+  const table = useTypedTable(cols, list);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm" data-movers>
+        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
+        <tbody>
+          {table.rows.map((p) => <MoverRow key={p.symbol} p={p} at="big" />)}
+          {!table.rows.length && <tr><NoMatch span={3} /></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // the big views of the cards
 // the zoomed card follows its own toggle (owner 2026-11-24 bug: bars had no effect in the big window): bars = every
 // slice as a bar, donut = the donut and the full table
+const SLICE_COLS = (): (TypedColumn<Slice> & HeadColumn)[] => [
+  { key: 'name', label: t('Name'), align: 'left', text: (s) => s.name },
+  { key: 'value', label: t('Value'), text: (s) => usd(s.value), value: (s) => s.value },
+  { key: 'pct', label: t('% of total'), text: (s) => pct(s.pct), value: (s) => s.pct },
+];
+
+function AllocationTable({ slices }: { slices: Slice[] }) {
+  const cols = SLICE_COLS();
+  const table = useTypedTable(cols, slices);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm [&_td]:px-2" data-allocation-table>
+        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
+        <tbody>
+          {table.rows.map((s) => <tr key={s.name} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1.5">{s.name}</td><td className="num py-1.5 text-right">{usd(s.value)}</td><td className="num py-1.5 text-right text-slate-500">{pct(s.pct)}</td></tr>)}
+          {!table.rows.length && <tr><NoMatch span={3} /></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
   const pr = useStore(prefs);
   if (viewOf(pr.views, id) !== 'pie') return <Bars slices={slices} all />;
   return (
     <div className="grid items-start gap-6 md:grid-cols-2">
       <Donut slices={slices} otherName={t('Other')} />
-      <table className="w-full text-sm [&_td]:px-2 [&_th]:px-2"><tbody>
-        {slices.map((s) => <tr key={s.name} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1.5">{s.name}</td><td className="num py-1.5 text-right">{usd(s.value)}</td><td className="num py-1.5 text-right text-slate-500">{pct(s.pct)}</td></tr>)}
-      </tbody></table>
+      <AllocationTable slices={slices} />
     </div>
   );
 }
@@ -124,62 +178,90 @@ function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
 // the big ex-dividend table (owner 2026-11-24: every value on one line, wide, easy to read): the total on top, one row
 // per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order;
 // To you is the last column, on the right (owner 2026-11-24)
+// The total follows the filters: it sums the rows left
+interface DivRow { u: Upcoming; parts: PayoutPart[]; drip: Drip | null; one: Account | null }
+const DIV_COLS = (): (TypedColumn<DivRow> & HeadColumn)[] => [
+  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.u.symbol} ${r.u.description}` },
+  // every account that holds it, so an account's name finds its symbols
+  { key: 'account', label: t('Account'), align: 'left', text: (r) => r.parts.map((p) => p.account.name).join(' ') },
+  { key: 'exDate', label: t('Ex-date'), align: 'left', text: (r) => siteDate(r.u.exDate) },
+  { key: 'payDate', label: t('Pay date'), align: 'left', text: (r) => siteDate(r.u.payDate) },
+  { key: 'perShare', label: t('Per share'), text: (r) => usd(r.u.dividendAmount), value: (r) => r.u.dividendAmount },
+  { key: 'shares', label: t('Shares'), text: (r) => qty(r.u.shares), value: (r) => r.u.shares },
+  { key: 'drip', label: 'DRIP', hint: DRIP_HINT(), text: (r) => signedQty(r.drip?.shares), value: (r) => r.drip?.shares },
+  { key: 'dripUsd', label: 'DRIP $', hint: DRIP_USD_HINT(), text: (r) => signedUsd(r.drip?.usd), value: (r) => r.drip?.usd },
+  { key: 'frequency', label: t('Frequency'), text: (r) => r.u.paymentFrequency ?? '' },
+  { key: 'payout', label: t('To you'), text: (r) => usd(r.u.payout), value: (r) => r.u.payout },
+];
+
 function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position[]; accounts: Account[] }) {
-  const th = 'sticky top-0 z-10 bg-[var(--card-bg)] px-3 py-2 font-medium';
-  const toBuy = dripToBuy(rows.map((r) => symbolDrip(payoutParts(ps, accounts, r))));
+  const cols = DIV_COLS();
+  const all: DivRow[] = rows.map((u) => { const parts = payoutParts(ps, accounts, u); return { u, parts, drip: symbolDrip(parts), one: parts.length === 1 ? parts[0]!.account : null }; });
+  const table = useTypedTable(cols, all);
+  const shown = table.rows;
+  const toBuy = dripToBuy(shown.map((r) => r.drip));
   return (
     <div className="overflow-x-auto">
       <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
-        <thead><tr className="text-left text-xs text-slate-500">
-          <th className={th}>{t('Symbol')}</th><th className={th}>{t('Account')}</th><th className={th}>{t('Ex-date')}</th><th className={th}>{t('Pay date')}</th>
-          <th className={`${th} text-right`}>{t('Per share')}</th><th className={`${th} text-right`}>{t('Shares')}</th><th className={`${th} text-right`} title={DRIP_HINT()}>DRIP</th><th className={`${th} text-right`} title={DRIP_USD_HINT()}>DRIP $</th><th className={`${th} text-right`}>{t('Frequency')}</th><th className={`${th} text-right`}>{t('To you')}</th>
-        </tr></thead>
+        <TypedHead cols={cols} control={table.control} className={`sticky top-0 z-10 ${ZOOM_HEAD}`} th="px-3 pt-2 pb-1 align-bottom font-medium" filterTh="min-w-[6.5rem] px-3 pb-2 font-normal" />
         <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: rows.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(rows))}</td></tr>
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: shown.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(shown.map((r) => r.u)))}</td></tr>
+          {!shown.length && <tr><NoMatch span={10} /></tr>}
         </tbody>
-        {rows.map((r) => {
-          const parts = payoutParts(ps, accounts, r);
-          const drip = symbolDrip(parts);
-          const one = parts.length === 1 ? parts[0]!.account : null;
-          return (
-            <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
-              <tr>
-                <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
-                <td className="text-slate-600 dark:text-slate-300">{one ? one.name : t('{n} accounts', { n: parts.length })}</td>
-                <td className="num">{siteDate(r.exDate)}</td>
-                <td className="num">{siteDate(r.payDate)}</td>
-                <td className="num text-right">{usd(r.dividendAmount)}</td>
-                <td className="num text-right">{qty(r.shares)}</td>
-                <td className="num text-right">{drip ? <DripValue value={drip.shares} as="shares" /> : '--'}</td>
-                <td className="num text-right">{drip ? <DripValue value={drip.usd} as="usd" /> : '--'}</td>
-                <td className="text-right">{r.paymentFrequency ?? ''}</td>
-                <td className="num text-right font-medium">{usd(r.payout)}</td>
+        {shown.map(({ u: r, parts, drip, one }) => (
+          <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
+            <tr>
+              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
+              <td className="text-slate-600 dark:text-slate-300">{one ? one.name : t('{n} accounts', { n: parts.length })}</td>
+              <td className="num">{siteDate(r.exDate)}</td>
+              <td className="num">{siteDate(r.payDate)}</td>
+              <td className="num text-right">{usd(r.dividendAmount)}</td>
+              <td className="num text-right">{qty(r.shares)}</td>
+              <td className="num text-right">{drip ? <DripValue value={drip.shares} as="shares" /> : '--'}</td>
+              <td className="num text-right">{drip ? <DripValue value={drip.usd} as="usd" /> : '--'}</td>
+              <td className="text-right">{r.paymentFrequency ?? ''}</td>
+              <td className="num text-right font-medium">{usd(r.payout)}</td>
+            </tr>
+            {!one && parts.map((p) => (
+              <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
+                <td />
+                <td className="pl-6">{p.account.name} <span className="text-slate-400">···{p.account.number.slice(-4)}</span></td>
+                <td colSpan={3} />
+                <td className="num text-right">{qty(p.shares)}</td>
+                <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
+                <td className="num text-right">{p.drip ? <DripValue value={p.drip.usd} as="usd" /> : ''}</td>
+                <td />
+                <td className="num text-right">{usd(p.payout)}</td>
               </tr>
-              {!one && parts.map((p) => (
-                <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
-                  <td />
-                  <td className="pl-6">{p.account.name} <span className="text-slate-400">···{p.account.number.slice(-4)}</span></td>
-                  <td colSpan={3} />
-                  <td className="num text-right">{qty(p.shares)}</td>
-                  <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
-                  <td className="num text-right">{p.drip ? <DripValue value={p.drip.usd} as="usd" /> : ''}</td>
-                  <td />
-                  <td className="num text-right">{usd(p.payout)}</td>
-                </tr>
-              ))}
-            </tbody>
-          );
-        })}
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   );
 }
 
 // the big 52-week table (owner 2026-11-24: "more info here"): highs and lows apart, where the price sits in its range,
-// how far from the high and the low, today's move and what is held in the shown accounts
+// how far from the high and the low, today's move and what is held in the shown accounts. One head for both parts: a
+// sort or a filter works inside each; with no sort chosen the nearest to the high and to the low come first
+type RangeLine = RangeRow & { high: boolean };
+const RANGE_COLS = (): (TypedColumn<RangeLine> & HeadColumn)[] => [
+  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.symbol} ${r.sector ?? ''} ${r.description}` },
+  { key: 'pos', label: t('52-week range'), text: (r) => pct(r.pos * 100), value: (r) => r.pos * 100 },
+  { key: 'lastPrice', label: t('Last price'), text: (r) => usd(r.lastPrice), value: (r) => r.lastPrice },
+  { key: 'fromHigh', label: t('From the high'), text: (r) => signedPct(r.fromHigh), value: (r) => r.fromHigh },
+  { key: 'fromLow', label: t('From the low'), text: (r) => signedPct(r.fromLow), value: (r) => r.fromLow },
+  { key: 'shares', label: t('Shares'), text: (r) => qty(r.shares), value: (r) => r.shares },
+  { key: 'value', label: t('Value'), text: (r) => usd(r.value), value: (r) => r.value },
+  { key: 'totalGl', label: t('Total gain/loss'), text: (r) => signedUsd(r.totalGl), value: (r) => r.totalGl },
+];
+
 function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
-  const th = 'px-2 py-1.5 text-right font-medium';
-  const section = (title: string, cls: string, rows: RangeRow[], high: boolean) => rows.length > 0 && (
+  const cols = RANGE_COLS();
+  const all: RangeLine[] = rangeRows(highs).sort((a, b) => b.pos - a.pos).map((r) => ({ ...r, high: true }))
+    .concat(rangeRows(lows).sort((a, b) => a.pos - b.pos).map((r) => ({ ...r, high: false })));
+  const table = useTypedTable(cols, all);
+  const section = (title: string, cls: string, rows: RangeLine[], high: boolean) => rows.length > 0 && (
     <tbody>
       <tr><td colSpan={8} className={`px-2 pt-4 pb-1 text-sm font-semibold ${cls}`}>{title}</td></tr>
       {rows.map((r) => (
@@ -204,10 +286,11 @@ function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
   );
   return (
     <div className="overflow-x-auto">
-      <table className="w-full whitespace-nowrap text-sm">
-        <thead><tr className="text-xs text-slate-500"><th className={`${th} text-left`}>{t('Symbol')}</th><th className={th}>{t('52-week range')}</th><th className={th}>{t('Last price')}</th><th className={th}>{t('From the high')}</th><th className={th}>{t('From the low')}</th><th className={th}>{t('Shares')}</th><th className={th}>{t('Value')}</th><th className={th}>{t('Total gain/loss')}</th></tr></thead>
-        {section(t('Near the high'), 'gain', rangeRows(highs).sort((a, b) => b.pos - a.pos), true)}
-        {section(t('Near the low'), 'loss', rangeRows(lows).sort((a, b) => a.pos - b.pos), false)}
+      <table className="w-full whitespace-nowrap text-sm" data-range-table>
+        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
+        {section(t('Near the high'), 'gain', table.rows.filter((r) => r.high), true)}
+        {section(t('Near the low'), 'loss', table.rows.filter((r) => !r.high), false)}
+        {!table.rows.length && <tbody><tr><NoMatch span={8} /></tr></tbody>}
       </table>
     </div>
   );
@@ -276,7 +359,7 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
           onChange={(v) => animate(() => setPrefs({ moversBy: v }))} />
         </span>
       )} expand={mBig.top.length || mBig.bottom.length ? (
-        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><Movers lists={[mBig.top]} at="big" /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><Movers lists={[mBig.bottom]} at="big" /></div></div>
+        <div className="grid gap-6 md:grid-cols-2"><div><h3 className="mb-1 text-sm font-semibold gain">{t('Top')}</h3><MoversBig list={mBig.top} by={pr.moversBy} /></div><div><h3 className="mb-1 text-sm font-semibold loss">{t('Bottom')}</h3><MoversBig list={mBig.bottom} by={pr.moversBy} /></div></div>
       ) : undefined}>
         {m.top.length || m.bottom.length ? <Movers lists={[m.top, m.bottom]} at="card" /> : <Empty text={t('No price changes yet today')} />}
       </Card>

@@ -1,7 +1,11 @@
+/// <reference lib="esnext" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
-import { dripGap, matches, positionsIn, rangePos, sortPositions, totalsOf } from '../app/derive';
+import { dripGap, positionsIn, rangePos, securities, totalsOf } from '../app/derive';
+import { positionColumn } from '../app/position-columns';
+import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
+import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
 import { t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
@@ -14,7 +18,8 @@ import { DASH, bigUsd, pct, qty, signedPct, signedUsd, siteDate, tone, usd } fro
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
 // grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
-// Fidelity's. Columns are chosen in a window like the ⤢ of the cards and remembered
+// Fidelity's. Columns are chosen in a window like the ⤢ of the cards and remembered. Every column has a detected type,
+// sorts by it and has a filter under its name (owner 2026-11-24; TypedHead, what a column reads: app/position-columns.ts)
 interface Col { key: string; label: string; group: string; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
 
 const sum = (ps: Position[], f: (p: Position) => number | undefined) => ps.reduce((s, p) => s + (f(p) ?? 0), 0);
@@ -68,7 +73,9 @@ export const COLUMNS = (): Col[] => [
 // spacer rows stand for the rows above and below the window
 const ROW = 50;
 const OVERSCAN = 12;
-const width = (key: string): number => (key === 'high52' ? 150 : key === 'paymentFrequency' || key === 'marketCap' || key === 'sector' ? 160 : 112);
+// wide enough for a name in two lines with its type badge and for a filter like >2026-12-01
+const width = (key: string): number => (key === 'high52' ? 150 : key === 'paymentFrequency' || key === 'marketCap' || key === 'sector' ? 160 : 128);
+const SYMBOL = 'symbol';
 
 interface Line { key: string; cls: string; cells: () => React.ReactNode }
 
@@ -80,10 +87,27 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   const byKey = new Map(every.map((c) => [c.key, c]));
   const cols = shownKeys(every.map((c) => c.key), pr.columns, pr.hidden).map((k) => byKey.get(k)!);
   const colKeys = cols.map((c) => c.key).join(',');
-  const all = useMemo(() => positionsIn(ds, accounts).filter((p) => matches(p, pr.search)), [ds, accounts, pr.search]);
-  const sortBy = (key: string) => setPrefs({ sort: { key, dir: pr.sort.key === key ? (pr.sort.dir === 1 ? -1 : 1) : key === 'symbol' ? 1 : -1 } });
-  const arrow = (key: string) => (pr.sort.key === key ? (pr.sort.dir === 1 ? ' ▲' : ' ▼') : '');
+  const all = useMemo(() => positionsIn(ds, accounts), [ds, accounts]);
   const several = accounts.length > 1;
+  // the Symbol column and every column of the table, also the hidden ones: a filter keeps working when its column is
+  // switched off, as in the investments apps (Clear filters and its number tell that one is on)
+  const typed = useMemo(() => [SYMBOL].concat(every.map((c) => c.key)).map(positionColumn), [every.length]);
+  // types come from all the securities shown, before any filter, so a filter never changes the type of its own column
+  const { types, detected } = useMemo(() => columnTypes(typed, securities(all), pr.types), [typed, all, pr.types]);
+  const filters = useMemo(() => withFilter(pr.filters, SYMBOL, pr.search), [pr.filters, pr.search]);
+  const filtered = activeFilters(filters) > 0;
+  // the securities that pass the filters, in the chosen order: filtered and sorted once, then cut by account
+  const shown = useMemo(() => {
+    const test = rowTest(typed, types, filters);
+    const kept = test ? securities(all).filter(test) : securities(all);
+    return sortRows(kept, positionColumn(pr.sort.key), types[pr.sort.key] ?? columnTypes([positionColumn(pr.sort.key)], kept).types[pr.sort.key]!, pr.sort.dir);
+  }, [all, typed, types, filters, pr.sort.key, pr.sort.dir]);
+  const control: TableControl = {
+    sort: pr.sort, filters, types, detected,
+    onSort: (key) => setPrefs({ sort: nextSort(pr.sort, key, types[key] ?? 'string') }),
+    onFilter: (key, value) => setPrefs(key === SYMBOL ? { search: value } : { filters: withFilter(prefs.get().filters, key, value) }),
+    onType: (key, reset) => setPrefs({ types: withType(prefs.get().types, key, types[key] ?? 'string', detected[key] ?? 'string', reset) }),
+  };
 
   const lines = useMemo(() => {
     const out: Line[] = [];
@@ -91,8 +115,9 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       const own = all.filter((p) => p.account === a.number);
       const cash = own.filter((p) => p.kind === 'core');
       const pending = own.filter((p) => p.kind === 'pending');
-      const secs = sortPositions(own.filter((p) => p.kind === 'position'), pr.sort.key, pr.sort.dir);
-      if (pr.search && !secs.length) return;
+      const secs = shown.filter((p) => p.account === a.number);
+      // an account with no row left by the filters is not shown
+      if (filtered && !secs.length) return;
       out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-500">{a.number}</span></td> });
       cash.forEach((p) => out.push({ key: `${a.number}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
         <td><div className="truncate font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500">{p.description}</span></div><div className="text-xs text-slate-500">{p.symbol}</div></td>
@@ -105,10 +130,11 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       pending.forEach((p) => out.push({ key: `${a.number}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
       out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
     });
+    if (filtered && !shown.length) out.push({ key: 'none', cls: '', cells: () => <NoMatch span={cols.length + 1} /> });
     if (several) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(all, accounts) : ''}</td>)}</> });
     return out;
     // cols follow colKeys; the rest are the inputs of the rows (no lint in this repo)
-  }, [all, accounts, pr.sort.key, pr.sort.dir, pr.search, colKeys, several]);
+  }, [all, shown, accounts, filtered, colKeys, several]);
 
   const box = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 800 });
@@ -141,7 +167,10 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   }, []);
   const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
-  const count = all.filter((p) => p.kind === 'position').length;
+  const total = securities(all).length;
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left' }];
+  cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
+  const on = activeFilters(filters);
   const tableWidth = 240 + cols.reduce((sum, c) => sum + width(c.key), 0);
 
   return (
@@ -152,25 +181,18 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       <div ref={box} className="min-h-0 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
           <colgroup><col style={{ width: 240 }} />{cols.map((c) => <col key={c.key} style={{ width: width(c.key) }} />)}</colgroup>
-          <thead>
-            <tr>
-              {/* the search lives in the Symbol header (owner 2026-11-24): "Symbol" is its placeholder, the number of positions
-                  sits inside it on the right; the sort by symbol keeps a small arrow, the columns icon follows */}
-              <th className="!cursor-default" data-symbol-head>
-                <div className="flex items-center gap-1">
-                  <div className="relative min-w-0 flex-1">
-                    <input className="w-full rounded-md border border-slate-300 bg-white py-1 pl-2 pr-10 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      placeholder={t('Symbol')} aria-label={t('Search symbol or name')} title={t('Search symbol or name')} value={pr.search} onChange={(e) => setPrefs({ search: e.target.value })} data-search />
-                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[0.7rem] font-normal text-slate-500" title={t('{n} positions', { n: count })}>{count}</span>
-                  </div>
-                  <button type="button" className="rounded px-1 text-slate-500 hover:text-slate-900 dark:hover:text-white" title={t('Sort by symbol')} onClick={() => sortBy('symbol')}>{arrow('symbol').trim() || '⇅'}</button>
-                  {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
-                  <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
-                </div>
-              </th>
-              {cols.map((c) => <th key={c.key} onClick={() => sortBy(c.key)} className="whitespace-normal" title={c.hint}>{c.label}{arrow(c.key)}</th>)}
-            </tr>
-          </thead>
+          {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
+              the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
+          <TypedHead control={control}
+            cols={head}
+            inputs={{ [SYMBOL]: { placeholder: t('Symbol or name'), note: on ? `${shown.length}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown.length, total }) : t('{n} positions', { n: total }) } }}
+            extras={{ [SYMBOL]: (
+              <span className="ml-auto flex flex-none items-center gap-1">
+                {on > 0 && <button type="button" className="rounded-md border border-emerald-500 px-1.5 text-[0.7rem] font-medium leading-5 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
+                {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
+                <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
+              </span>
+            ) }} />
           <tbody>
             {first > 0 && <tr aria-hidden="true" className="pos-spacer" style={{ height: first * ROW }}><td colSpan={cols.length + 1} /></tr>}
             {lines.slice(first, last).map((l) => <tr key={l.key} className={l.cls} style={{ height: ROW }}>{l.cells()}</tr>)}

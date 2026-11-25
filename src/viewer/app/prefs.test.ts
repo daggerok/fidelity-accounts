@@ -30,3 +30,11 @@ test('junk choices fall back to the defaults', () => {
   expect(p.accountSort).toBe('mine');
   expect(p.tab).toBe('summary');
 });
+
+test('column filters and types: only filled strings and known types stay', () => {
+  const p = load('{"filters":{"sector":"energy, !tech","lastPrice":"  ","junk":5},"types":{"quantity":"currency","sector":"frequency","x":"nope"}}');
+  expect(p.filters).toEqual({ sector: 'energy, !tech' });
+  expect(p.types).toEqual({ quantity: 'currency', sector: 'frequency' });
+  expect(load('{"filters":["a"],"types":"x"}').filters).toEqual({});
+  expect(load('{"filters":["a"],"types":"x"}').types).toEqual({});
+});
