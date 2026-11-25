@@ -4,7 +4,7 @@
 // tab, the positions sort, search and hidden columns. The theme and the language keep their own keys
 import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
-import { ACCOUNT_SORTS, asKind, type AccountSort, type Kind } from './derive';
+import { ACCOUNT_SORTS, asDivWindow, asKind, type AccountSort, type DivWindow, type Kind } from './derive';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
 export type MainTab = (typeof MAIN_TABS)[number];
@@ -25,13 +25,14 @@ export interface Prefs {
   moversOf: Kind; // the movers of every security, only ETFs or only stocks
   incomeOf: Kind; // the income of every security, only ETFs or only stocks
   dividendsOf: Kind; // the upcoming ex-dividend dates of every security, ETFs or stocks
+  dividendsWindow: DivWindow; // how far the upcoming dividends look ahead
   accountSort: AccountSort; // the Accounts card order
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', hidden: [], columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -52,6 +53,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       moversOf: asKind(p.moversOf),
       incomeOf: asKind(p.incomeOf),
       dividendsOf: asKind(p.dividendsOf),
+      dividendsWindow: asDivWindow(p.dividendsWindow),
       accountSort: (ACCOUNT_SORTS as readonly string[]).indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as AccountSort) : 'mine',
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],

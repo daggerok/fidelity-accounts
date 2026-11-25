@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, matches, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, sortPositions, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -236,4 +236,18 @@ test('DRIP: shares or dollars to buy so the next payout buys 0.001 share, minus 
   const ps = [pos({ symbol: 'ON', quantity: 1 }), pos({ symbol: 'NONE', dividendAmount: undefined }), pos({ symbol: 'BUY' })];
   expect(sortPositions(ps, 'drip', -1).map((p) => p.symbol)).toEqual(['BUY', 'ON', 'NONE']);
   expect(sortPositions(ps, 'dripUsd', 1).map((p) => p.symbol)).toEqual(['ON', 'BUY', 'NONE']);
+});
+
+test('upcoming dividends look ahead to the end of the month or quarter, or one or three months, MTD by default', () => {
+  expect(windowEnd('2026-11-24', 'MTD')).toBe('2026-11-30');
+  expect(windowEnd('2026-11-24', '1M')).toBe('2026-12-24');
+  expect(windowEnd('2026-11-24', 'QTD')).toBe('2026-12-31');
+  expect(windowEnd('2026-11-24', '3M')).toBe('2027-02-24');
+  expect(windowEnd('2027-01-05', 'QTD')).toBe('2027-03-31');
+  expect(asDivWindow('QTD')).toBe('QTD');
+  expect(asDivWindow('30D')).toBe('MTD');
+  const pos = (symbol: string, exDate: string): Position => ({ account: 'A', kind: 'position', symbol, description: '', quantity: 1, exDate, fields: {} });
+  const ps = [pos('NOV', '2026-11-28'), pos('DEC', '2026-12-10'), pos('FEB', '2027-02-01')];
+  expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', 'MTD')).map((p) => p.symbol)).toEqual(['NOV']);
+  expect(upcomingDividends(ps, '2026-11-24', windowEnd('2026-11-24', '3M')).map((p) => p.symbol)).toEqual(['NOV', 'DEC', 'FEB']);
 });
