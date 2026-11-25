@@ -17,6 +17,8 @@ describe('scrollEdges', () => {
     expect(scrollEdges(0, 600, 540)).toEqual({ left: false, right: false });
     expect(scrollEdges(0.5, 300, 540)).toEqual({ left: false, right: true });
     expect(scrollEdges(239.5, 300, 540)).toEqual({ left: true, right: false });
+    expect(scrollEdges(0, 600, 602)).toEqual({ left: false, right: false }); // the chips' 2 px ring room
+    expect(scrollEdges(0, 600, 603)).toEqual({ left: false, right: true });
   });
 });
 
