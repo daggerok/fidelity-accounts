@@ -146,12 +146,13 @@ export function App() {
           </header>
           {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
               our navbar, but it will contains only tabs"): the tabs on the left, our read time on the right ("As of": Fidelity's
-              own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards */}
+              own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards, and it is
+              as tall as the navbar (owner 2026-11-25): the tabs are as tall as the navbar buttons (.tb, 2.25rem) */}
           {ds && (
             <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
               <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist">
                 {MAIN_TABS.map((tab) => (
-                  <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab py-1.5 ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
+                  <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab flex h-9 items-center ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
               </div>
               <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
