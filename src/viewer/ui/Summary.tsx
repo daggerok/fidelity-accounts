@@ -24,13 +24,14 @@ import { pct, qty, signedPct, signedUsd, siteDate, tone, usd, usd0 } from './for
 // `expand`: the card's full view, opened big over the page by ⤢ (owner 2026-11-23: maximize for every plate where it
 // makes sense, more rows and details there)
 // `lead` sits right after the title, `tools` at the top right corner
-function Card({ id, title, children, tools, lead, expand }: { id: string; title: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode }) {
+function Card({ id, title, titleHint, children, tools, lead, expand }: { id: string; title: string; titleHint?: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLElement>(null);
   return (
     <section ref={box} className="card mb-4 lg:mb-6 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        {/* card titles in the green of "Fidelity" in the logo (owner 2026-11-24) */}
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }} title={titleHint}>{title}</h2>
         {lead}
         {/* the expand icon sits as far from the top right corner as the title from the top left (owner 2026-11-24) */}
         <span className="-my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
@@ -212,7 +213,8 @@ function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
   );
 }
 
-export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) {
+// `title`: the name of what is shown (All accounts, a group, the accounts chosen), the Balance card's title
+export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accounts: Account[]; title: string; titleHint?: string }) {
   const tot = totalsOf(accounts);
   const ps = positionsIn(ds, accounts);
   const pr = useStore(prefs);
@@ -242,7 +244,7 @@ export function Summary({ ds, accounts }: { ds: Dataset; accounts: Account[] }) 
   return (
     // the space between cards equals the space from the screen edge to the navbar: 16 px, 24 px from lg (owner 2026-11-24)
     <div className="gap-4 md:columns-2 lg:gap-6 xl:columns-3" data-summary>
-      <Card id="balance" title={t('Balance')} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
+      <Card id="balance" title={title} titleHint={titleHint} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
         {/* the balance and today's change on the left, the other facts in a compact table on the right (owner 2026-11-24:
             "move that part to top right"); on a narrow card they wrap under */}
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">

@@ -58,7 +58,7 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
       <div ref={back} className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
       <div ref={panel} className={`card relative flex max-h-full w-full ${narrow ? 'max-w-4xl' : 'max-w-[min(96vw,100rem)]'} flex-col gap-3 overflow-auto`} style={{ transformOrigin: 'top left' }}>
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }}>{title}</h2>
           {tools && <span className="-my-1 flex items-center gap-1">{tools}</span>}
           <button type="button" className={`${CORNER_BUTTON} ml-auto`} title={t('Close')} onClick={onClose}><CloseIcon /></button>
         </div>

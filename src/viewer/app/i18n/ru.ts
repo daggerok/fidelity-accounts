@@ -19,6 +19,7 @@ export const RU: Record<string, string> = {
   'The installed script is {installed}; this page serves {served}': 'Установлен скрипт {installed}; эта страница даёт {served}',
   'Script update {version} →': 'Обновить скрипт до {version} →',
   'read {at}': 'прочитано {at}',
+  'As of {at}': 'на {at}',
 
   // accounts bar
   Accounts: 'Счета',

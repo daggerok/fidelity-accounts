@@ -1,7 +1,7 @@
 /// <reference lib="esnext" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
-import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, toggleFold, validScope } from '../app/derive';
+import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
 import { dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
@@ -89,9 +89,8 @@ export function App() {
   const accounts = ds ? (scope === 'none' ? ds.accounts : accountsIn(ds, scope)) : [];
   const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
-  // a chosen set of accounts is named by its accounts (up to three), else counted
-  const title = !ds ? '' : scope === 'none' || scope === 'all' ? t('All accounts') : scope.startsWith('group:') ? scope.slice(6) : one ? one.name
-    : accounts.length <= 3 ? accounts.map((a) => a.name).join(' + ') : t('{n} accounts', { n: accounts.length });
+  // the name of what is shown titles the Balance card (owner 2026-11-24), the right of the tabs keeps only the time
+  const title = !ds ? '' : scopeTitle(scope, accounts, { all: t('All accounts'), count: (n) => t('{n} accounts', { n }) });
   const year = new Date().getFullYear();
 
   return (
@@ -162,19 +161,17 @@ export function App() {
                 counted at all, text simply should be rendered in between"): the row is exactly one gutter tall (16 px below
                 lg, 24 px from lg), the text is centered in it, the selected tab is told by its color, no underline */}
             <main className="flex flex-col" data-tab={pr.tab}>
-              {/* no big title (owner 2026-11-24): what is shown sits on the right of the tabs in the tabs' own font, the read
-                  time after it (ours: Fidelity's "As of" keeps the page load time after Refresh Positions); one line that never wraps,
-                  the title truncates instead */}
+              {/* no big title (owner 2026-11-24): what is shown is the Balance card's title, the right of the tabs says only
+                  "As of" our read time (Fidelity's own "As of" keeps the page load time after Refresh Positions) */}
               <div className="flex h-4 items-center gap-x-6 text-sm leading-none lg:h-6 lg:text-base" role="tablist">
                 {MAIN_TABS.map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
                 ))}
                 <div className="ml-auto flex min-w-0 items-baseline gap-3" data-scope-title>
-                  <span className="truncate font-medium text-slate-900 dark:text-slate-100" title={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined}>{title}</span>
-                  <span className="flex-none text-xs leading-none text-slate-500 dark:text-slate-400">{t('read {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
+                  <span className="flex-none text-xs leading-none text-slate-500 dark:text-slate-400">{t('As of {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
                 </div>
               </div>
-              {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} /> : <Positions ds={ds} accounts={accounts} />}
+              {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} /> : <Positions ds={ds} accounts={accounts} />}
             </main>
           </div>
         ) : null}
