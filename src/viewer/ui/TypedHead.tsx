@@ -114,18 +114,14 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
           const dir = control.sort && control.sort.key === c.key ? control.sort.dir : 0;
           return (
             <th key={c.key} className={th} title={c.hint} aria-sort={dir === 1 ? 'ascending' : dir === -1 ? 'descending' : undefined} data-col={c.key}>
-              {/* like Fidelity (owner 2026-11-24): a wrapped name keeps its lines aligned left ("Est. annual" / "income") and
-                  the type badge follows its last word on the last line; the name is inline text (a real button would take
-                  the whole width once it wraps and push the badge to a line of its own), so it answers Enter and Space itself */}
+              {/* the name on the left with its lines aligned left like Fidelity ("Est. annual" / "income"), the type badge always in
+                  one place, on the right right above the filter input (owner 2026-11-25: "like we see for DRIP, DRIP $, Cost basis
+                  total"): a short name sits right next to it, a long one wraps and keeps the badge at the bottom right */}
               <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''} ${c.align === 'left' ? '' : 'justify-end'}`}>
-                <span className="min-w-0 text-left">
-                  <span role="button" tabIndex={0} className="cursor-pointer whitespace-normal hover:text-[var(--brand-strong)]"
-                    title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); control.onSort(c.key); } }} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</span>
-                  {' '}
-                  <TypeBadge className="inline-block align-[1px]" type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
-                </span>
+                <button type="button" className="min-w-0 cursor-pointer whitespace-normal text-left font-[inherit] hover:text-[var(--brand-strong)]"
+                  title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
                 {extras[c.key]}
+                <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
               </div>
             </th>
           );
