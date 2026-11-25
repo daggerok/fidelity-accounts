@@ -5,7 +5,7 @@
 import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
 import { cleanFilters, cleanTypes, type ColumnType } from '../../shared/typed-columns';
-import { NEW_COLUMN_KEYS } from './position-columns';
+import { NEW_COLUMNS_BY_V, NEW_COLUMN_KEYS } from './position-columns';
 import { ACCOUNT_SORTS, asDivWindow, asKind, type AccountSort, type DivWindow, type Kind } from './derive';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
@@ -22,7 +22,7 @@ export interface Prefs {
   filters: Record<string, string>; // the filters of the other positions columns, by column key (src/shared/typed-columns.ts)
   types: Record<string, ColumnType>; // column types the owner set with the header badge; the rest are detected
   hidden: string[]; // positions columns switched off
-  columnsV: number; // 2: the rest of Fidelity's columns are known and start hidden (COLUMNS_V)
+  columnsV: number; // the columns list version seen: the columns added after it start hidden once (COLUMNS_V)
   columns: string[]; // the owner's order of the positions columns (src/viewer/app/columns.ts)
   period: Period; // the balance chart's period
   views: Record<string, 'bars' | 'pie'>; // each allocation card its own view (owner 2026-11-23: not one global switch)
@@ -37,7 +37,7 @@ export interface Prefs {
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 2, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 3, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -76,9 +76,11 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
 }
 
 /** the version of the Positions columns list; a lower stored one hides the columns that came after it */
-export const COLUMNS_V = 2;
+export const COLUMNS_V = 3;
 export function withNewColumns(hidden: string[], v: unknown): string[] {
-  return typeof v === 'number' && v >= COLUMNS_V ? hidden : hidden.concat(NEW_COLUMN_KEYS.filter((k) => hidden.indexOf(k) < 0));
+  const seen = typeof v === 'number' ? v : 1;
+  const added = Object.keys(NEW_COLUMNS_BY_V).map(Number).filter((n) => n > seen).reduce<string[]>((all, n) => all.concat(NEW_COLUMNS_BY_V[n]!), []);
+  return hidden.concat(added.filter((k) => hidden.indexOf(k) < 0));
 }
 
 export const prefs = createStore<Prefs>(loadPrefs());

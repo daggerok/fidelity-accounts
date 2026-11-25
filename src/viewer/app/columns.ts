@@ -27,8 +27,8 @@ export const orderAfterDrag = (all: string[], order: string[], hidden: string[],
 export const toggleKeys = (hidden: string[], keys: string[], on: boolean): string[] =>
   on ? hidden.filter((k) => keys.indexOf(k) < 0) : hidden.concat(keys.filter((k) => hidden.indexOf(k) < 0));
 
-/** the columns whose name holds the filter text, any case */
-export function filterColumns<T extends { label: string }>(cols: T[], q: string): T[] {
+/** the columns whose short name or full name (the hint) holds the filter text, any case */
+export function filterColumns<T extends { label: string; hint?: string }>(cols: T[], q: string): T[] {
   const s = q.trim().toLowerCase();
-  return s ? cols.filter((c) => c.label.toLowerCase().includes(s)) : cols;
+  return s ? cols.filter((c) => `${c.label} ${c.hint ?? ''}`.toLowerCase().includes(s)) : cols;
 }

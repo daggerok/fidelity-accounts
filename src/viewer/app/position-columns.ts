@@ -18,7 +18,8 @@ type Cell = Omit<TypedColumn<Position>, 'key'>;
  */
 export type FieldFormat = 'usd' | 'signedUsd' | 'pct' | 'signedPct' | 'num' | 'int' | 'big' | 'date' | 'text' | 'flag' | 'stars';
 export type FieldGroup = 'acct' | 'quote' | 'div' | 'fund' | 'perf' | 'other';
-export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; sortBy?: string; width?: number }
+// `since`: the columns list version that added it (prefs COLUMNS_V): a choice saved before that version gets it hidden once
+export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; sortBy?: string; width?: number; since?: number }
 export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'avgCost', field: 'cstBasShr', format: 'usd', group: 'acct' },
   { key: 'acctType', field: 'meta_acctType', format: 'text', group: 'acct', width: 140 },
@@ -64,10 +65,26 @@ export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'securityType', field: 'meta_securityType', format: 'text', group: 'other', width: 140 },
   { key: 'optionable', field: 'isOptionable', format: 'flag', group: 'other' },
   { key: 'currency', field: 'currency', format: 'text', group: 'other' },
+  // version 3 (owner 2026-11-25: "it also has some other stuff we can add")
+  { key: 'distRateDate', field: 'distYldDate', format: 'date', group: 'div', since: 3 },
+  { key: 'secYieldDate', field: 'secYldDate', format: 'date', group: 'div', since: 3 },
+  { key: 'volatility10', field: 'volatility10Day', format: 'pct', group: 'quote', since: 3 },
+  { key: 'volatility60', field: 'volatility60Day', format: 'pct', group: 'quote', since: 3 },
+  { key: 'volatility90', field: 'volatility90Day', format: 'pct', group: 'quote', since: 3 },
+  { key: 'volatility120', field: 'volatility120Day', format: 'pct', group: 'quote', since: 3 },
+  { key: 'prevShortInterest', field: 'prevShortInterest', format: 'big', group: 'fund', since: 3 },
+  { key: 'industryGroup', field: 'industryGroup', format: 'text', group: 'fund', width: 160, since: 3 },
+  { key: 'news', field: 'headlineTime_text', format: 'text', group: 'other', sortBy: 'headlineTime', since: 3 },
+  { key: 'holdingType', field: 'meta_holdingType', format: 'text', group: 'other', since: 3 },
+  { key: 'loaned', field: 'isLoaned', format: 'flag', group: 'other', since: 3 },
 ];
 
-/** the columns added after the owner's own view: hidden until turned on in the columns window */
-export const NEW_COLUMN_KEYS: string[] = ['todayGlBoth', 'totalGlBoth', 'dayRange'].concat(FIELD_COLUMNS.map((c) => c.key));
+/** the columns added after the owner's own view, by the version that added them: hidden until turned on */
+export const NEW_COLUMNS_BY_V: Record<number, string[]> = {
+  2: ['todayGlBoth', 'totalGlBoth', 'dayRange'].concat(FIELD_COLUMNS.filter((c) => !c.since || c.since === 2).map((c) => c.key)),
+  3: FIELD_COLUMNS.filter((c) => c.since === 3).map((c) => c.key),
+};
+export const NEW_COLUMN_KEYS: string[] = Object.keys(NEW_COLUMNS_BY_V).map(Number).sort((a, b) => a - b).reduce<string[]>((all, v) => all.concat(NEW_COLUMNS_BY_V[v]!), []);
 
 const num0 = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 /** the number behind a field column (its own field, or the one it sorts by) */

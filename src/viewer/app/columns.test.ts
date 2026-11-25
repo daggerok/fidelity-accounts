@@ -32,4 +32,6 @@ test('the filter matches the column name in any case', () => {
   const cols = [{ label: 'DRIP $' }, { label: "Today's gain/loss %" }, { label: 'Total gain/loss $' }];
   expect(filterColumns(cols, '  GAIN ').map((c) => c.label)).toEqual(["Today's gain/loss %", 'Total gain/loss $']);
   expect(filterColumns(cols, '')).toHaveLength(3);
+  // the full Fidelity name counts too: a short name is found by a word of the long one
+  expect(filterColumns([{ label: "Today's %", hint: "Today's gain/loss %" }, { label: 'Value', hint: 'Current value' }], 'current').map((c) => c.label)).toEqual(['Value']);
 });

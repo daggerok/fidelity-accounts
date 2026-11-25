@@ -3,7 +3,7 @@
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
 import { COLUMNS_V, DEFAULT_PREFS, loadPrefs } from './prefs';
-import { NEW_COLUMN_KEYS } from './position-columns';
+import { NEW_COLUMNS_BY_V, NEW_COLUMN_KEYS } from './position-columns';
 
 const load = (json: string | null) => loadPrefs({ getItem: () => json });
 
@@ -49,4 +49,8 @@ test('the columns added later start hidden once: by default and for a choice sav
   // turned on after the upgrade: stays on
   const later = load(JSON.stringify({ hidden: ['sector'], columnsV: COLUMNS_V }));
   expect(later.hidden).toEqual(['sector']);
+  // seen version 2 with a version-2 column turned on: only the version-3 columns get hidden, the chosen one stays
+  const v2 = load(JSON.stringify({ hidden: ['sector'], columnsV: 2 }));
+  expect(v2.hidden).toEqual(['sector'].concat(NEW_COLUMNS_BY_V[3]!));
+  expect(v2.hidden).not.toContain('bid');
 });
