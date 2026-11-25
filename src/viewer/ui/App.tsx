@@ -13,7 +13,7 @@ import { AccountTabs } from './AccountTabs';
 import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
 import { Positions } from './Positions';
-import { SettingsPanel } from './SettingsPanel';
+import { SettingsPanel, SettingsResets } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
 import { Summary } from './Summary';
 import { animate } from './animate';
@@ -146,7 +146,7 @@ export function App() {
           </header>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
-          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings}>
+          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsResets />}>
             <div onKeyDown={onSettingsKey}>
               <SettingsPanel userscript={userscript} done={done} expand={expandSetup} />
             </div>

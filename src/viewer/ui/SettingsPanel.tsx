@@ -7,14 +7,12 @@ import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
 
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
-// (owner 2026-11-23), its header slides it open and shut; the two resets always at the very bottom
+// (owner 2026-11-23), its header slides it open and shut; the two resets live in the panel's header (SettingsResets)
 export function SettingsPanel({ userscript, done, expand }: { userscript: string | null; done: boolean; expand: number }) {
   // Get started on top: expanded while something needs setup, squashed once done; its header toggles it (owner 2026-11-23)
   const [setupOpen, setSetupOpen] = useState(!done);
   useEffect(() => { setSetupOpen(!done); }, [done]);
   useEffect(() => { if (expand) setSetupOpen(true); }, [expand]);
-  // Full reset is off by default and needs its own switch first (owner 2026-11-23); Reset view always works
-  const [fullOn, setFullOn] = useState(false);
   const [lookOpen, setLookOpen] = useState(true);
 
   return (
@@ -26,8 +24,16 @@ export function SettingsPanel({ userscript, done, expand }: { userscript: string
     <Section id="palette" title={`🎨 ${t('Color palette')}`} open={lookOpen} onToggle={() => setLookOpen((v) => !v)}>
       <PalettePicker />
     </Section>
-    {/* always the very bottom of settings (owner 2026-11-23) */}
-    <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700" data-resets>
+    </div>
+  );
+}
+
+// Reset view and Full reset, right after "⚙️ Settings" in the panel's header (owner 2026-11-24; they were at the very
+// bottom). Full reset is off by default and needs its own switch first (owner 2026-11-23); Reset view always works
+export function SettingsResets() {
+  const [fullOn, setFullOn] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-resets>
       <button type="button" className="btn sm" onClick={() => resetView()} title={t('Selected account, tab, sort, columns, theme, palette and language back to their defaults; the setup stays')}>{t('Reset view')}</button>
       <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
         <input type="checkbox" checked={fullOn} onChange={(e) => setFullOn(e.target.checked)} data-full-reset-switch />{t('Enable full reset')}
@@ -36,7 +42,6 @@ export function SettingsPanel({ userscript, done, expand }: { userscript: string
         title={t('Everything this app keeps in this browser: the Google setup, the cached data and the view; the script forgets its data and Google token')}>
         {t('Full reset')}
       </button>
-    </div>
     </div>
   );
 }
