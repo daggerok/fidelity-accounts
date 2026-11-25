@@ -134,6 +134,14 @@ const nameWidth = (text: string): number => {
 const HEAD_ROOM = 16 + 4 + 32 + 14; // padding, gap, badge, arrow
 const width = (c: { key: string; label: string }): number => Math.max(WIDE[c.key] ?? 128, Math.ceil(nameWidth(c.label) + HEAD_ROOM));
 const SYMBOL = 'symbol';
+// the first and the last cell sit one card padding (24 px) from the box edge, like the logo, Summary and the card titles
+// (owner 2026-11-25: "we need to fix spacing here as well"); a cell has 8 px of its own, the edge columns get the rest
+const EDGE = 16;
+const colWidth = (cols: { key: string; label: string }[], i: number): number => width(cols[i]!) + (i === cols.length - 1 ? EDGE : 0);
+/** the column widths both tables share: Symbol, then every chosen column */
+const Cols = ({ cols }: { cols: { key: string; label: string }[] }) => (
+  <colgroup><col style={{ width: SYMBOL_W + EDGE }} />{cols.map((c, i) => <col key={c.key} style={{ width: colWidth(cols, i) }} />)}</colgroup>
+);
 
 interface Line { key: string; cls: string; cells: () => React.ReactNode }
 
@@ -240,7 +248,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left', wrap: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   const on = activeFilters(filters);
-  const tableWidth = SYMBOL_W + cols.reduce((sum, c) => sum + width(c), 0);
+  const tableWidth = SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0);
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
@@ -249,10 +257,10 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       </Zoom>
       {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
-      <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
+      <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
         <div ref={headBox} className="flex-none overflow-hidden bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <colgroup><col style={{ width: SYMBOL_W }} />{cols.map((c) => <col key={c.key} style={{ width: width(c) }} />)}</colgroup>
+          <Cols cols={cols} />
           {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
               the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
           <TypedHead control={control}
@@ -269,7 +277,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <colgroup><col style={{ width: SYMBOL_W }} />{cols.map((c) => <col key={c.key} style={{ width: width(c) }} />)}</colgroup>
+          <Cols cols={cols} />
           <tbody>
             {first > 0 && <tr aria-hidden="true" className="pos-spacer" style={{ height: first * ROW }}><td colSpan={cols.length + 1} /></tr>}
             {lines.slice(first, last).map((l) => <tr key={l.key} className={l.cls} style={{ height: ROW }}>{l.cells()}</tr>)}

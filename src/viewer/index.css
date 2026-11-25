@@ -103,6 +103,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .pos-table th:first-child,.pos-table td:first-child{text-align:left;position:sticky;left:0;z-index:2}
 .pos-table td:first-child{background:inherit}
 .pos-table td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+/* the edge cells sit 24 px (the card padding) from the box edge, like everything else on the page; after the filter row rule */
+.pos-table tr>th:first-child,.pos-table tr>td:first-child{padding-left:1.5rem}
+.pos-table tr>th:last-child,.pos-table tr>td:last-child{padding-right:1.5rem}
 .pos-table tr.pos-spacer td{padding:0;border:0}
 .cell-scroll{overflow-x:auto;white-space:nowrap;scrollbar-width:none;overscroll-behavior-x:contain}
 .cell-scroll::-webkit-scrollbar{display:none}
