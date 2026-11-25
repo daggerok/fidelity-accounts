@@ -4,7 +4,7 @@
 // every silent renew; requests to sheets.googleapis.com go through GM_xmlhttpRequest (page CSP and CORS do not apply)
 import type { Dataset } from '../shared/model';
 import { SheetsClient, type FetchLike } from '../shared/sheets/client';
-import { fingerprint, markUpdated, pushPositions, pushSummary, pushTransactions, type DataSet } from '../shared/sheets/sync';
+import { fingerprint, markUpdated, pushBetas, pushPositions, pushSummary, pushTransactions, type DataSet } from '../shared/sheets/sync';
 import type { TxnStore } from '../shared/transactions';
 
 export const GOOGLE_KEY = 'fidelity-accounts.google'; // JSON { token, expiresAt, spreadsheetId }
@@ -48,7 +48,7 @@ export function usableHandoff(raw: unknown, now: number): GoogleHandoff | null {
 export type Prints = Partial<Record<DataSet, string>>;
 
 /**
- * Write the given sets (summary, positions, transactions) from the script's copies, skipping a set with nothing in it
+ * Write the given sets (summary, positions, transactions, betas) from the script's copies, skipping a set with nothing in it
  * or with the same content as its last write (`prints`), then mark the written ones in fidelity_updates. Returns the
  * sets written and the prints to keep
  */
@@ -67,6 +67,7 @@ export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | 
     if (set === 'summary') await pushSummary(client, data.ds!, log);
     if (set === 'positions') await pushPositions(client, data.ds!, log);
     if (set === 'transactions') await pushTransactions(client, data.store!, log);
+    if (set === 'betas') await pushBetas(client, data.ds!, log);
     next[set] = print;
     done.push(set);
   }

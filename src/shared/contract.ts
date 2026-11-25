@@ -26,6 +26,9 @@ export const CLAUSES: Clause[] = [
   { id: 'asOf', what: 'the line "As of Nov-23-2026 9:37 p.m. ET"', source: 'portfolio pages', usedIn: ['src/userscript/read.ts', 'src/shared/sheets/sync.ts'] },
   { id: 'refresh', what: 'a button named "Refresh Positions" (👀 Watch presses it)', source: 'positions grid toolbar', usedIn: ['src/userscript/watch.ts'] },
   { id: 'balanceHistory', what: 'POST /ftgw/digital/portfolio/api/BalanceHistory { range, acctList } answers balHistoryDetail.balances [{ value, date MM/DD/YYYY }]', source: 'the Summary balance chart', usedIn: ['src/shared/history.ts', 'src/userscript/history-sync.ts'] },
+  { id: 'betas.stock', what: 'POST research2.fidelity.com/pi/stock-screener/LoadResults (form, ResultFields[] FI.Beta5y, FI.Beta3y, FI.Beta1y, Criteria ticker Like) answers JSON { html } with rows [data-symbol] and td.fibeta5y, .fibeta3y, .fibeta1y ("--" = none)', source: 'the stock screener', usedIn: ['src/shared/beta.ts', 'src/userscript/beta-sync.ts'] },
+  { id: 'betas.etf', what: 'POST research2.fidelity.com/pi/etf-screener/LoadResults (ResultFields[] FIETF.BetaMonthEnd3Yr) answers JSON { html } with rows [data-symbol] and td.fietfbetamonthend3yr', source: 'the ETF screener', usedIn: ['src/shared/beta.ts', 'src/userscript/beta-sync.ts'] },
+  { id: 'betas.chart', what: 'GET fastquote.fidelity.com/service/marketdata/historical/chart/json (symbols, startDate, endDate, barWidth, callback) answers JSONP { Symbol: [{ RequestedSymbol, BarList.BarRecord [{ lt YYYY/MM/DD-.., cl }], CorporateActions.CorporateActionsList [{ actionType CD.*, rate, exDate epoch s }] }] }', source: 'the quote pages\' price chart', usedIn: ['src/shared/beta.ts', 'src/userscript/beta-sync.ts'] },
   { id: 'login', what: 'the login page has a username field, a password field and a "Log In" button; a one-time code page has a code field', source: '/prgw/digital/login/full-page', usedIn: ['src/userscript/signin.ts'] },
 ];
 

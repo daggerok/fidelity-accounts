@@ -348,6 +348,18 @@ export const RU: Record<string, string> = {
   'Date and time filter: >2024-06-01T09:30, 2024-06-01 (the whole day), 2024-01..2024-06, today, -7d.., space = AND, comma = OR, ! = NOT, ? = empty.': 'Фильтр даты и времени: >2024-06-01T09:30, 2024-06-01 (весь день), 2024-01..2024-06, today, -7d.., пробел = И, запятая = ИЛИ, ! = НЕ, ? = пусто.',
   'Time filter: >09:30, 09:30..16:00, =12:00 (the whole minute), space = AND, comma = OR, ! = NOT, ? = empty.': 'Фильтр времени: >09:30, 09:30..16:00, =12:00 (вся минута), пробел = И, запятая = ИЛИ, ! = НЕ, ? = пусто.',
   'Frequency filter: monthly, quarterly, semi-annually, annually, or payments a year: >=4, 2..12, space = AND, comma = OR, ! = NOT, ? = empty.': 'Фильтр частоты: monthly, quarterly, semi-annually, annually или выплат в год: >=4, 2..12, пробел = И, запятая = ИЛИ, ! = НЕ, ? = пусто.',
+  // beta of the accounts (ui/Beta.tsx)
+  Beta: 'Бета',
+  'Beta: how the value moves with the S&P 500 (1 = like it, 0 = cash), the average of the positions\' betas weighted by their value. From Fidelity: stocks 5Y (else 3Y, 1Y), ETFs 3Y (Morningstar); the rest computed from Fidelity\'s prices against SPY over up to 36 months (daily when the history is shorter); cash 0': 'Бета: как стоимость движется вместе с S&P 500 (1 = так же, 0 = наличные), средняя бета позиций, взвешенная по их стоимости. Из Fidelity: акции 5 лет (иначе 3 года, 1 год), ETF 3 года (Morningstar); остальное посчитано по ценам Fidelity против SPY за последние до 36 месяцев (по дням, когда история короче); наличные 0',
+  'Here: {sources}': 'Здесь: {sources}',
+  'Covers {pct} of the value, the rest has no beta yet': 'Покрывает {pct} стоимости, у остального беты пока нет',
+  'stocks 5Y': 'акции 5 лет',
+  'stocks 3Y': 'акции 3 года',
+  'stocks 1Y': 'акции 1 год',
+  'ETFs 3Y': 'ETF 3 года',
+  'computed monthly': 'посчитано по месяцам',
+  'computed daily': 'посчитано по дням',
+  cash: 'наличные',
   // log lines
   'could not read the data (another version?)': 'не удалось прочитать данные (другая версия?)',
   'no spreadsheet: set it in ⚙️ Settings': 'нет таблицы: укажи её в ⚙️ Настройках',

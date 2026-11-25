@@ -13,6 +13,7 @@ import { historyDue, pagePost, readHistory } from './history-sync';
 import { mergeHistory } from '../shared/history';
 import { parseTxnStore } from '../shared/transactions';
 import { EMPTY_STORE, readTransactions } from './transactions-sync';
+import { betaRequest, betasDue, readBetas } from './beta-sync';
 import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, marketOpen, sheetsDue } from './watch';
 import { readAsOf, readSidebar } from './read';
@@ -124,6 +125,7 @@ function onPortfolio(): void {
     }
     historyBusy = false;
     if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date()) && !txnsBusy) void syncTransactions();
+    else if (betasDue(parseDataset(gmGet<string>(DATASET_KEY, '')), new Date()) && !betasBusy && !txnsBusy) void syncBetas();
   };
 
   // the transactions history once a day, right after the daily values: facts for income, deposits and holdings
@@ -145,6 +147,35 @@ function onPortfolio(): void {
       badge.status(`!transactions: ${err instanceof Error ? err.message : String(err)}`);
     }
     txnsBusy = false;
+    if (betasDue(parseDataset(gmGet<string>(DATASET_KEY, '')), new Date()) && !betasBusy) void syncBetas();
+  };
+
+  // the beta of every held symbol once a day, after the transactions (beta-sync.ts: Fidelity's screeners and price
+  // history, reads only). A run that found nothing is tried again at most once an hour in this tab
+  let betasBusy = false;
+  let betasTried = 0;
+  const syncBetas = async () => {
+    if (Date.now() - betasTried < 60 * 60 * 1000 || typeof GM_xmlhttpRequest !== 'function') return;
+    betasBusy = true;
+    betasTried = Date.now();
+    try {
+      const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
+      if (stored && stored.positions.length) {
+        badge.status('beta: reading…');
+        const run = await readBetas(stored, stored.betas, betaRequest(gmFetch(GM_xmlhttpRequest)), new Date());
+        report(['betas.stock', 'betas.etf', 'betas.chart'], run.problems);
+        // saved when today brought something (or there is nothing to ask): a run that found nothing tries again later
+        if (run.today || !run.asked) {
+          const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
+          gmSet(DATASET_KEY, JSON.stringify({ ...latest, betas: run.betas, betasAt: new Date().toISOString() }));
+          void sheetsQueue.add(['betas']);
+        }
+        badge.status(`${run.problems.length ? '!' : ''}beta: ${run.found} of ${run.held}${run.problems.length ? ` (${run.problems.map((p) => p.id).join(', ')} failed)` : ''} · ${time()}`);
+      }
+    } catch (err) {
+      badge.status(`!beta: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    betasBusy = false;
   };
 
   window.addEventListener('message', (e) => {
@@ -199,7 +230,8 @@ function onPortfolio(): void {
     const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
     if (!stored || !stored.accounts.length) return;
     if (historyDue(stored.historyAt, new Date())) { if (!historyBusy) void syncHistory(); }
-    else if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date()) && !txnsBusy) void syncTransactions();
+    else if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date())) { if (!txnsBusy) void syncTransactions(); }
+    else if (betasDue(stored, new Date()) && !betasBusy) void syncBetas();
   }, 3000);
 
   // ⬇ Sync in the viewer: this tab was opened (or is reused) for it
