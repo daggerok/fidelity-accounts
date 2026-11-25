@@ -122,8 +122,8 @@ function MoversBig({ list, by }: { list: Position[]; by: 'pct' | 'usd' }) {
     { key: 'symbol', label: t('Symbol'), align: 'left', text: (p) => p.symbol },
     { key: 'name', label: t('Name'), align: 'left', text: (p) => p.description },
     by === 'usd'
-      ? { key: 'today', label: t("Today's gain/loss"), text: (p) => signedUsd(p.todayGl), value: (p) => p.todayGl }
-      : { key: 'today', label: t("Today's gain/loss"), text: (p) => signedPct(p.todayGlPct), value: (p) => p.todayGlPct },
+      ? { key: 'today', label: t("Today's"), text: (p) => signedUsd(p.todayGl), value: (p) => p.todayGl }
+      : { key: 'today', label: t("Today's"), text: (p) => signedPct(p.todayGlPct), value: (p) => p.todayGlPct },
   ];
   const table = useTypedTable(cols, list);
   return (
@@ -253,7 +253,7 @@ const RANGE_COLS = (): (TypedColumn<RangeLine> & HeadColumn)[] => [
   { key: 'fromLow', label: t('From the low'), text: (r) => signedPct(r.fromLow), value: (r) => r.fromLow },
   { key: 'shares', label: t('Shares'), text: (r) => qty(r.shares), value: (r) => r.shares },
   { key: 'value', label: t('Value'), text: (r) => usd(r.value), value: (r) => r.value },
-  { key: 'totalGl', label: t('Total gain/loss'), text: (r) => signedUsd(r.totalGl), value: (r) => r.totalGl },
+  { key: 'totalGl', label: t('Total'), text: (r) => signedUsd(r.totalGl), value: (r) => r.totalGl },
 ];
 
 function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {

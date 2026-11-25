@@ -39,7 +39,8 @@ function Range({ p }: { p: Position }) {
 
 const dripOf = (p: Position, f: (d: { shares: number; usd: number }) => React.ReactNode) => { const d = dripGap(p); return d ? f(d) : DASH; };
 
-// the groups of the columns window, in Fidelity's words where it has them
+// the groups of the columns window, in Fidelity's words where it has them; the column names are short (owner 2026-11-25:
+// Today's gain/loss -> Today's, Total gain/loss -> Total, Est. annual income -> Est. income, Payment frequency -> Frequency)
 const OURS = () => t('Our columns');
 const GL = () => t('Gain/loss');
 const ACCT = () => t('Account specifics');
@@ -74,10 +75,10 @@ const lowHigh = (p: Position): string => { const lo = p.fields.dayRange_low; con
 export const COLUMNS = (): Col[] => [
   { key: 'drip', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
   { key: 'dripUsd', label: 'DRIP $', group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
-  { key: 'todayGlPct', group: GL(), label: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
-  { key: 'todayGl', group: GL(), label: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
-  { key: 'totalGlPct', group: GL(), label: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
-  { key: 'totalGl', group: GL(), label: t('Total gain/loss $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
+  { key: 'todayGlPct', group: GL(), label: t("Today's %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
+  { key: 'todayGl', group: GL(), label: t("Today's $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
+  { key: 'totalGlPct', group: GL(), label: t('Total %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
+  { key: 'totalGl', group: GL(), label: t('Total $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
   { key: 'costBasisTotal', group: ACCT(), label: t('Cost basis total'), cell: (p) => usd(p.costBasisTotal) },
   { key: 'currentValue', group: ACCT(), label: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
   { key: 'quantity', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
@@ -85,16 +86,16 @@ export const COLUMNS = (): Col[] => [
   { key: 'percentOfAccount', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
   { key: 'distRate', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
   { key: 'secYield', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield) },
-  { key: 'estAnnualIncome', group: DIV(), label: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
-  { key: 'paymentFrequency', group: DIV(), label: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
+  { key: 'estAnnualIncome', group: DIV(), label: t('Est. income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
+  { key: 'paymentFrequency', group: DIV(), label: t('Frequency'), cell: (p) => p.paymentFrequency ?? DASH },
   { key: 'marketCap', group: QUOTE(), label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
   { key: 'high52', group: QUOTE(), label: t('52-week range'), cell: (p) => <Range p={p} /> },
   { key: 'exDate', group: DIV(), label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
   { key: 'payDate', group: DIV(), label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
   { key: 'sector', group: QUOTE(), label: t('Sector'), cell: (p) => p.sector ?? DASH },
   // the rest of Fidelity's columns, hidden until turned on (prefs NEW_COLUMN_KEYS)
-  { key: 'todayGlBoth', group: GL(), label: t("Today's gain/loss ($ and %)"), cell: (p) => glCell(p.todayGl, p.todayGl === undefined ? DASH : signedUsdPct(p.todayGl, p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsdPct(x.todayGl, x.todayGlPct)); } },
-  { key: 'totalGlBoth', group: GL(), label: t('Total gain/loss ($ and %)'), cell: (p) => glCell(p.totalGl, p.totalGl === undefined ? DASH : signedUsdPct(p.totalGl, p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsdPct(x.totalGl, x.totalGlPct)); } },
+  { key: 'todayGlBoth', group: GL(), label: t("Today's ($ and %)"), cell: (p) => glCell(p.todayGl, p.todayGl === undefined ? DASH : signedUsdPct(p.todayGl, p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsdPct(x.todayGl, x.todayGlPct)); } },
+  { key: 'totalGlBoth', group: GL(), label: t('Total ($ and %)'), cell: (p) => glCell(p.totalGl, p.totalGl === undefined ? DASH : signedUsdPct(p.totalGl, p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsdPct(x.totalGl, x.totalGlPct)); } },
   { key: 'dayRange', group: QUOTE(), label: t("Day's range"), cell: lowHigh },
   ...fieldCols(),
 ];
