@@ -41,7 +41,7 @@ export function ColumnPicker({ cols, order, hidden, onChange }: { cols: PickColu
         </div>
         <div className={BOX}>
           <div className={ROW}>
-            <input className="h-7 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-600 dark:bg-slate-900"
+            <input className="h-7 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-[var(--brand-ring)] focus:outline-none dark:border-slate-600 dark:bg-slate-900"
               placeholder={t('Filter by column name')} aria-label={t('Filter by column name')} value={q} onChange={(e) => setQ(e.target.value)} data-column-filter />
           </div>
           {groups.map((g) => {

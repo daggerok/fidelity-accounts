@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { describe, expect, test } from 'bun:test';
-import { DEFAULT_THEME_MODE, THEME_KEY, isDarkTheme, isThemeMode, nextThemeMode, readThemeMode, saveThemeMode, themeIcon, themeTitle } from './index';
+import { DEFAULT_PALETTE, DEFAULT_THEME_MODE, PALETTES, PALETTE_KEY, THEME_KEY, isDarkTheme, isThemeMode, nextThemeMode, readPalette, readThemeMode, savePalette, saveThemeMode, themeIcon, themeTitle } from './index';
 
 const memory = (init: Record<string, string> = {}) => {
   const m = new Map(Object.entries(init));
@@ -47,5 +47,23 @@ describe('theme', () => {
     saveThemeMode(s, 'light');
     expect(s.m.get(THEME_KEY)).toBe('light');
     expect(isThemeMode('nope')).toBe(false);
+  });
+});
+
+describe('palette', () => {
+  test('Fidelity green by default, a stored palette is kept, junk falls back', () => {
+    expect(readPalette(memory())).toBe(DEFAULT_PALETTE);
+    expect(DEFAULT_PALETTE).toBe('green');
+    expect(readPalette(memory({ [PALETTE_KEY]: 'indigo' }))).toBe('indigo');
+    expect(readPalette(memory({ [PALETTE_KEY]: 'pink' }))).toBe('green');
+    expect(readPalette(undefined)).toBe('green');
+    expect(PALETTES).toEqual(['green', 'indigo', 'blue']);
+  });
+
+  test('saves the choice', () => {
+    const s = memory();
+    savePalette(s, 'blue');
+    expect(s.m.get(PALETTE_KEY)).toBe('blue');
+    expect(readPalette(s)).toBe('blue');
   });
 });

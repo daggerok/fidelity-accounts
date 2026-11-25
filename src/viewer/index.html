@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <title>fidelity-accounts</title>
     <script id="theme-boot">
-      // No flash: set .dark before the first paint. Same logic as shared/theme (tests/theme-inline.test.ts)
+      // No flash: set .dark and the color palette before the first paint. Same logic as shared/theme (tests/theme-inline.test.ts)
       (function () {
         var m = 'system';
         try { var v = localStorage.getItem('fidelity-accounts-theme'); if (v === 'light' || v === 'dark' || v === 'system') m = v; } catch (e) {}
@@ -15,6 +15,9 @@
         var dark = m === 'system' ? sys : m === 'dark';
         document.documentElement.classList.toggle('dark', dark);
         document.documentElement.dataset.themeMode = m;
+        var p = 'green';
+        try { var q = localStorage.getItem('fidelity-accounts-palette'); if (q === 'green' || q === 'indigo' || q === 'blue') p = q; } catch (e) {}
+        document.documentElement.dataset.palette = p;
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

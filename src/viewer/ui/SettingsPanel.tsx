@@ -3,6 +3,7 @@ import { t } from '../app/i18n';
 import { resetView } from '../app/prefs';
 import { fullReset } from '../app/reset';
 import { GetStarted } from './GetStarted';
+import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
 
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
@@ -14,15 +15,20 @@ export function SettingsPanel({ userscript, done, expand }: { userscript: string
   useEffect(() => { if (expand) setSetupOpen(true); }, [expand]);
   // Full reset is off by default and needs its own switch first (owner 2026-11-23); Reset view always works
   const [fullOn, setFullOn] = useState(false);
+  const [lookOpen, setLookOpen] = useState(true);
 
   return (
     <div className="flex flex-col gap-6 text-sm">
     <Section id="get-started" title={`🚀 ${t('Get started')}`} note={done ? t('all set') : t('needs setup')} open={setupOpen} onToggle={() => setSetupOpen((v) => !v)}>
       <GetStarted userscript={userscript} all={done} />
     </Section>
+    {/* the color palette of the whole app (owner 2026-11-24, like gex's Settings -> Color palette) */}
+    <Section id="palette" title={`🎨 ${t('Color palette')}`} open={lookOpen} onToggle={() => setLookOpen((v) => !v)}>
+      <PalettePicker />
+    </Section>
     {/* always the very bottom of settings (owner 2026-11-23) */}
     <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700" data-resets>
-      <button type="button" className="btn sm" onClick={() => resetView()} title={t('Selected account, tab, sort, columns, theme and language back to their defaults; the setup stays')}>{t('Reset view')}</button>
+      <button type="button" className="btn sm" onClick={() => resetView()} title={t('Selected account, tab, sort, columns, theme, palette and language back to their defaults; the setup stays')}>{t('Reset view')}</button>
       <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
         <input type="checkbox" checked={fullOn} onChange={(e) => setFullOn(e.target.checked)} data-full-reset-switch />{t('Enable full reset')}
       </label>

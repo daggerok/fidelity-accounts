@@ -43,7 +43,7 @@ const CODE = (text: string) => <code className="rounded bg-slate-100 px-1 text-[
 function Step({ n, title, optional, done, children }: { n: number; title: string; optional?: boolean; done?: boolean; children: React.ReactNode }) {
   return (
     <li className="flex gap-3" data-step={n} data-done={done ? 'yes' : 'no'}>
-      <span className={`flex size-7 flex-none items-center justify-center rounded-full text-sm font-semibold ${done ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>{done ? '✓' : n}</span>
+      <span className={`flex size-7 flex-none items-center justify-center rounded-full text-sm font-semibold ${done ? 'bg-[var(--brand-btn)] text-white' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>{done ? '✓' : n}</span>
       <div className="min-w-0 flex-1">
         <div className="font-semibold">{title}{optional && <span className="ml-2 text-xs font-normal text-slate-500">{t('optional')}</span>}</div>
         <div className="mt-1 flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">{children}</div>
@@ -127,7 +127,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   const sheetUrl = sheetId ? spreadsheetUrl(sheetId) : '';
   // Google Sheets is part of Get started (owner 2026-11-23): the connection, the sheet link and its actions
   const sheetsBox = (cfg.clientId || s.connected) && (
-    <div className={`rounded-xl border p-3 ${g.connected ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40'}`} data-sheets-box>
+    <div className={`rounded-xl border p-3 ${g.connected ? 'border-[var(--brand-line)] bg-[var(--brand-soft)]' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40'}`} data-sheets-box>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-medium">{g.connected ? t('Connected to Google Sheets') : t('Not connected to Google Sheets')}</div>
