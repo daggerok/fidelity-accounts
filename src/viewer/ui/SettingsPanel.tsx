@@ -4,7 +4,7 @@ import { resetView } from '../app/prefs';
 import { fullReset } from '../app/reset';
 import type { ThemeMode } from '../../shared/theme';
 import { GetStarted } from './GetStarted';
-import { LanguageSetting, ThemeSetting, WatchSetting } from './LookSettings';
+import { ThemeLanguageSetting, WatchSetting } from './LookSettings';
 import { NotifySetting } from './NotifySetting';
 import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
@@ -28,10 +28,7 @@ export function SettingsPanel({ userscript, done, expand, theme }: { userscript:
     </Section>
     {/* the navbar's theme, language and 👀 switches once more (owner 2026-11-25), ui/LookSettings.tsx */}
     <Section id="look" title={`🌗 ${t('Theme and language')}`} open={themeOpen} onToggle={() => setThemeOpen((v) => !v)}>
-      <div className="flex flex-col gap-3">
-        <ThemeSetting theme={theme} />
-        <LanguageSetting />
-      </div>
+      <ThemeLanguageSetting theme={theme} />
     </Section>
     {/* the color palette of the whole app (owner 2026-11-24, like gex's Settings -> Color palette) */}
     <Section id="palette" title={`🎨 ${t('Color palette')}`} open={lookOpen} onToggle={() => setLookOpen((v) => !v)}>

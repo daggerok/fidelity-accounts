@@ -8,13 +8,13 @@ import { SettingRow } from './SettingRow';
 // in settings"): the very buttons of the navbar (ui/IconButtons.tsx), each with a line that says what it does. The
 // navbar buttons stay where they are
 
-/** the theme: light, dark or the system's; `theme` comes from App's useTheme, the one owner of the theme */
-export function ThemeSetting({ theme }: { theme: { mode: ThemeMode; systemDark: boolean; cycle: () => void } }) {
-  return <SettingRow control={<ThemeButton theme={theme} />}>{t('Light, dark, or the same as your system')}</SettingRow>;
-}
-
-export function LanguageSetting() {
-  return <SettingRow control={<LangButton />}>{t('The language of the app')}</SettingRow>;
+/**
+ * The theme and the language on one line: the theme button says its mode by its icon (the system mode carries an "A"),
+ * so it has no words beside it (owner 2026-11-25: the text "Light, dark, or the same as your system" "is not needed");
+ * `theme` comes from App's useTheme, the one owner of the theme
+ */
+export function ThemeLanguageSetting({ theme }: { theme: { mode: ThemeMode; systemDark: boolean; cycle: () => void } }) {
+  return <SettingRow control={<><ThemeButton theme={theme} /><LangButton /></>}>{t('The language of the app')}</SettingRow>;
 }
 
 export function WatchSetting({ userscript }: { userscript: string | null }) {
