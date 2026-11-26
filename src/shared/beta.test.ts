@@ -3,7 +3,7 @@
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
 import type { Position } from './model';
-import { accountBeta, askable, chartUrl, cleanBetas, computedBeta, mixBeta, parseChart, parseJsonp, parseScreenerRows, periodReturns, regressBeta, scopeBeta, screenerBetas, screenerBody, slashVariant, type Series } from './beta';
+import { accountBreakdown, askable, betaBreakdown, chartUrl, cleanBetas, computedBeta, mixBeta, parseChart, parseJsonp, parseScreenerRows, periodReturns, regressBeta, scopeBeta, screenerBetas, screenerBody, slashVariant, type Series } from './beta';
 
 // made-up rows shaped like the screener's answer: a header row, result rows with data-symbol and the field cells
 const STOCK_HTML = [
@@ -117,11 +117,11 @@ const BETAS = cleanBetas({ AAA: { beta: 1.2, source: 'stock5y', asOf: 't' }, BBB
 
 test('account beta: value-weighted, cash counts as 0, unknown left out and lowers the coverage, pending ignored', () => {
   const ps = [pos('X1', 'position', 'AAA', 600), pos('X1', 'position', 'BBB', 200), pos('X1', 'core', 'MMM', 200), pos('X1', 'position', 'ZZZ', 1000), pos('X1', 'pending', 'Pending activity', -500), pos('X2', 'position', 'BBB', 100)];
-  const a = accountBeta(ps, 'X1', BETAS);
+  const a = accountBreakdown(ps, 'X1', BETAS);
   expect(a.beta).toBeCloseTo((600 * 1.2 + 200 * 0.6 + 200 * 0) / 1000, 9);
   expect(a.coverage).toBeCloseTo(0.5, 9);
   expect(a.sources).toEqual(['stock5y', 'etf3y', 'cash']);
-  expect(accountBeta(ps, 'X2', BETAS)).toEqual({ beta: 0.6, coverage: 1, sources: ['etf3y'] });
+  expect(mixBeta(ps.filter((p) => p.account === 'X2'), BETAS)).toEqual({ beta: 0.6, coverage: 1, sources: ['etf3y'] });
   const both = scopeBeta(ps, ['X1', 'X2'], BETAS);
   expect(both.beta).toBeCloseTo((720 + 120 + 60) / 1100, 9);
   // only cash is a real 0; before any betas are read, or with nothing known, no beta
@@ -130,4 +130,60 @@ test('account beta: value-weighted, cash counts as 0, unknown left out and lower
   expect(mixBeta([pos('X3', 'position', 'ZZZ', 50)], BETAS)).toEqual({ beta: null, coverage: 0, sources: [] });
   expect(mixBeta([pos('X3', 'position', 'ZZZ', 50)], undefined)).toEqual({ beta: null, coverage: 0, sources: [] });
   expect(mixBeta([], BETAS)).toEqual({ beta: null, coverage: 0, sources: [] });
+});
+
+// the breakdown in the ⤢ window of an account's beta: what each made-up position weighs and adds
+const view = (b: ReturnType<typeof betaBreakdown>) => b.rows.map((r) => [r.symbol, r.weight === null ? null : Number(r.weight.toFixed(4)), r.beta?.source ?? null, r.contribution === null ? null : Number(r.contribution.toFixed(4))]);
+
+test('breakdown: a plain account, one with cash, one with a position without a beta', () => {
+  const plain = betaBreakdown([pos('X1', 'position', 'BBB', 400), pos('X1', 'position', 'AAA', 600)], BETAS);
+  expect(plain.beta).toBeCloseTo(0.96, 9);
+  expect([plain.coverage, plain.missing]).toEqual([1, 0]);
+  expect(view(plain)).toEqual([['AAA', 0.6, 'stock5y', 0.72], ['BBB', 0.4, 'etf3y', 0.24]]);
+  const withCash = betaBreakdown([pos('X1', 'core', 'MMM', 100), pos('X1', 'position', 'AAA', 300)], BETAS);
+  expect(withCash.beta).toBeCloseTo(0.9, 9);
+  expect(view(withCash)).toEqual([['AAA', 0.75, 'stock5y', 0.9], ['MMM', 0.25, 'cash', 0]]);
+  // the one without a beta is listed last with no contribution, and lowers the coverage, not the beta
+  const gap = betaBreakdown([pos('X1', 'position', 'ZZZ', 700), pos('X1', 'position', 'AAA', 300), pos('X1', 'position', 'BBB', 100), pos('X1', 'pending', 'Pending activity', 50)], BETAS);
+  expect(gap.beta).toBeCloseTo((300 * 1.2 + 100 * 0.6) / 400, 9);
+  expect(gap.coverage).toBeCloseTo(400 / 1100, 9);
+  expect(gap.missing).toBe(1);
+  expect(view(gap)).toEqual([['AAA', 0.2727, 'stock5y', 0.9], ['BBB', 0.0909, 'etf3y', 0.15], ['ZZZ', 0.6364, null, null]]);
+});
+
+test('breakdown: only cash, nothing known, a margin debit', () => {
+  const cash = betaBreakdown([pos('X1', 'core', 'MMM', 50)], BETAS);
+  expect([cash.beta, cash.coverage, cash.missing]).toEqual([0, 1, 0]);
+  expect(view(cash)).toEqual([['MMM', 1, 'cash', 0]]);
+  const unknown = betaBreakdown([pos('X1', 'position', 'ZZZ', 50)], BETAS);
+  expect([unknown.beta, unknown.coverage, unknown.missing]).toEqual([null, 0, 1]);
+  expect(view(unknown)).toEqual([['ZZZ', 1, null, null]]);
+  // before any betas are read there is no beta, so nothing adds to one; cash still says it is 0
+  const unread = betaBreakdown([pos('X1', 'position', 'AAA', 300), pos('X1', 'core', 'MMM', 100)], undefined);
+  expect(unread.beta).toBeNull();
+  expect(view(unread)).toEqual([['MMM', 0.25, 'cash', null], ['AAA', 0.75, null, null]]);
+  expect(betaBreakdown([], BETAS)).toEqual({ beta: null, coverage: 0, sources: [], rows: [], missing: 0 });
+  // a margin debit: the core is negative, the stock weighs more than the account and the beta goes above the stock's
+  const margin = betaBreakdown([pos('X1', 'core', 'MMM', -200), pos('X1', 'position', 'AAA', 1000)], BETAS);
+  expect(margin.beta).toBeCloseTo(1.5, 9);
+  expect(margin.coverage).toBe(1);
+  expect(view(margin).map((r) => r.slice(0, 3))).toEqual([['AAA', 1.25, 'stock5y'], ['MMM', -0.25, 'cash']]);
+  expect(margin.rows[0]!.contribution).toBeCloseTo(1.5, 9);
+  expect(margin.rows[1]!.contribution).toBeCloseTo(0, 9);
+});
+
+test('breakdown and the card agree: the contributions sum to mixBeta, the coverage is the same', () => {
+  const accounts: Position[][] = [
+    [pos('X1', 'position', 'AAA', 600), pos('X1', 'position', 'BBB', 400)],
+    [pos('X1', 'position', 'AAA', 250), pos('X1', 'core', 'MMM', 750), pos('X1', 'position', 'ZZZ', 125)],
+    [pos('X1', 'core', 'MMM', -300), pos('X1', 'position', 'BBB', 900), pos('X1', 'position', 'AAA', 450), pos('X1', 'pending', 'Pending activity', 80)],
+    [pos('X1', 'position', 'AAA', 10), pos('X1', 'position', 'BBB', -40), pos('X1', 'position', 'ZZZ', 3)],
+  ];
+  accounts.forEach((ps) => {
+    const mix = mixBeta(ps, BETAS);
+    const b = betaBreakdown(ps, BETAS);
+    expect(b.rows.reduce((s, r) => s + (r.contribution ?? 0), 0)).toBeCloseTo(mix.beta!, 9);
+    expect(b.coverage).toBe(mix.coverage);
+    expect(b.sources).toEqual(mix.sources);
+  });
 });

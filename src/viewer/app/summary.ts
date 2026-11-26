@@ -5,7 +5,7 @@
 // and ~18k transactions, most of it in the three Income periods)
 import type { Account, Dataset, Position } from '../../shared/model';
 import type { TxnStore } from '../../shared/transactions';
-import { accountBeta, type BetaMix } from '../../shared/beta';
+import { accountBreakdown, type BetaBreakdown } from '../../shared/beta';
 import { combine, type Point } from '../../shared/history';
 import { allocation, estAnnualOf, incomeFacts, near52, ofKind, periodBounds, positionsIn, totalsOf, upcomingDividends, windowEnd, type DivWindow, type IncomeFacts, type Kind, type Slice, type Totals, type Upcoming } from './derive';
 
@@ -42,7 +42,7 @@ export function incomeView(txns: TxnStore | null, accounts: Account[], ps: Posit
   return { Y: facts(bounds.year), Q: facts(bounds.quarter), M: facts(bounds.month), estAnnual: estAnnualOf(kind, accountsEstimate, ps) };
 }
 
-/** each account's beta from its positions' sizes, by account number (the Accounts card) */
-export function accountBetas(ps: Position[], accounts: Account[], betas: Dataset['betas']): Map<string, BetaMix> {
-  return new Map(accounts.map((a) => [a.number, accountBeta(ps, a.number, betas)] as [string, BetaMix]));
+/** each account's beta from its positions' sizes with the positions behind it, by account number (the Accounts card) */
+export function accountBetas(ps: Position[], accounts: Account[], betas: Dataset['betas']): Map<string, BetaBreakdown> {
+  return new Map(accounts.map((a) => [a.number, accountBreakdown(ps, a.number, betas)] as [string, BetaBreakdown]));
 }

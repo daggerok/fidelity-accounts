@@ -10,7 +10,7 @@ import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
 import { useFitRows } from './useFitRows';
-import { BetaValue } from './Beta';
+import { AccountBeta } from './BetaBreakdown';
 import { Card } from './Card';
 import { Movers, MoversBig } from './Movers';
 import { Allocation, AllocationBig, ViewSwitch } from './Allocation';
@@ -111,8 +111,10 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="min-w-0 flex-1"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400"><span title={a.number}>{maskAccount(a.number)}</span> · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
               <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs" title={totalView ? t('Total gain/loss') : t("Today's gain/loss")}>{totalView ? <GainLoss usd={a.totalGl} pct={a.totalGlPct} /> : <GainLoss usd={a.todayGl} pct={a.todayGlPct} />}</div></div>
-              {/* the account's beta from its positions' sizes, the right-most column (owner 2026-11-25) */}
-              <div className="w-10 shrink-0 text-right"><div><BetaValue mix={betas.get(a.number)!} /></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('Beta')}</div></div>
+              {/* the account's beta from its positions' sizes, the right-most column (owner 2026-11-25); 1.17β with the
+                  covered share under it instead of the word Beta (owner 2026-11-26), a click opens where it comes from.
+                  A fixed width keeps the amounts column aligned from row to row */}
+              <div className="w-11 shrink-0 text-right" data-beta-cell><AccountBeta name={a.name} breakdown={betas.get(a.number)!} /></div>
             </div>
           ))}
         </div>

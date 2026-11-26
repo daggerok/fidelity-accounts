@@ -168,3 +168,31 @@ test('useKeepFocus gives the focus back to the kept item after a new order, and 
   expect(document.activeElement).toBe(elsewhere);
   await act(async () => root.unmount());
 });
+
+test('an account\'s beta is a button named in words that opens its breakdown and gets the focus back', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { AccountBeta } = await import('./BetaBreakdown');
+  const { betaBreakdown } = await import('../../shared/beta');
+  // made-up positions: a stock with a beta, a bond without one, cash
+  const pos = (kind: 'position' | 'core', symbol: string, currentValue: number) => ({ account: 'X1', kind, symbol, description: `${symbol} name`, currentValue, fields: {} });
+  const breakdown = betaBreakdown([pos('position', 'AAA', 600), pos('position', '912828ZZ9', 300), pos('core', 'MMM', 100)], { AAA: { beta: 1.4, source: 'stock5y', asOf: '2026-11-25T15:00:00.000Z' } });
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => root.render(<AccountBeta name="Made-up account" breakdown={breakdown} />));
+  const button = document.querySelector<HTMLButtonElement>('[data-beta-button]')!;
+  expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+  expect(button.querySelector('.sr-only')!.textContent).toBe('Beta 1.20');
+  expect(button.querySelector('[aria-hidden="true"]')!.textContent).toBe('1.20β');
+  // 700 of 1000 has a beta: the line under the number says 70%
+  expect(document.querySelector('[data-beta-coverage]')!.textContent).toBe('70%');
+  button.focus();
+  await act(async () => button.click());
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(dialog.getAttribute('aria-label')).toBe('Made-up account, beta 1.20');
+  expect(Array.from(dialog.querySelectorAll('[data-beta-row]')).map((r) => r.getAttribute('data-beta-row'))).toEqual(['stock5y', 'cash', 'none']);
+  expect(dialog.querySelector('[data-beta-totals]')!.textContent).toBe('Beta 1.20, covers 70.00% of the value; positions without a beta: 1');
+  await act(async () => { window.dispatchEvent(key('Escape')); });
+  expect(document.activeElement).toBe(button);
+  await act(async () => root.unmount());
+});
