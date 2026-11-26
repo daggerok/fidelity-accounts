@@ -3,7 +3,10 @@
 // the userscript (GM_xmlhttpRequest + the token the viewer shared) run the same code. Rewritten after
 // daggerok/twitter src/sheets.ts: writes are "overwrite rows 2..n+1 in one PUT, then clear the tail",
 // so a failed PUT leaves the old rows in place; the clear ends at the grid row count (a range past the
-// grid is a 400). A 401 asks the getter for a fresh token once and repeats the call once
+// grid is a 400). A 401 asks the getter for a fresh token once and repeats the call once.
+// One client is one run of writes (the userscript makes a new one per writeSets): the tab list is read once and kept,
+// updated after a tab is added, frozen or grown by a write, so a run of 6 tabs no longer lists them 6 times (review
+// 2026-11-25: 14 of 29 calls of a summary plus positions write were this overhead)
 import { columnLetter, type Cell, type TabSpec } from './tabs';
 
 const API = 'https://sheets.googleapis.com/v4';
@@ -58,6 +61,33 @@ const toInfo = (p: SheetProps | undefined): TabInfo => ({
   frozenRows: (p && p.gridProperties && p.gridProperties.frozenRowCount) || 0,
 });
 
+/**
+ * One part of a big write (writeAll in parts under CHUNK_CHARS): its first row number, its row count and a print of
+ * exactly the cells it sent. A caller that keeps the parts of its last successful write of a tab to this spreadsheet
+ * hands them back, and the parts with the same print, first row and count are not sent again (fidelity_transactions:
+ * rows are sorted by date, new ones land in the last part)
+ */
+export interface ChunkPrint { start: number; count: number; print: string }
+
+/** stored chunk prints read back from storage: anything malformed reads as none (then everything is written) */
+export function chunkPrintsOf(raw: unknown): ChunkPrint[] {
+  if (!Array.isArray(raw)) return [];
+  const ok = raw.every((c) => !!c && typeof c === 'object' && Number.isInteger((c as ChunkPrint).start) && Number.isInteger((c as ChunkPrint).count) && (c as ChunkPrint).count > 0 && typeof (c as ChunkPrint).print === 'string');
+  return ok ? (raw as ChunkPrint[]).map((c) => ({ start: c.start, count: c.count, print: c.print })) : [];
+}
+
+// two independent 32-bit hashes and the length of the part's JSON: a changed part with the same print is out of reach
+function printOf(json: string, count: number): string {
+  let h1 = 5381;
+  let h2 = 0x811c9dc5;
+  for (let i = 0; i < json.length; i++) {
+    const c = json.charCodeAt(i);
+    h1 = ((h1 * 33) ^ c) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x01000193) >>> 0;
+  }
+  return `${count}:${json.length}:${h1.toString(36)}:${h2.toString(36)}`;
+}
+
 export interface UpsertOptions<T> {
   // how a stored record and an incoming one with the same id combine (default: the incoming one wins)
   merge?: (stored: T, incoming: T) => T;
@@ -67,6 +97,8 @@ export interface UpsertOptions<T> {
 
 export class SheetsClient {
   private readonly opts: SheetsClientOptions;
+  // the tab list of this run (null until the first listTabs)
+  private tabsCache: TabInfo[] | null = null;
 
   constructor(opts: SheetsClientOptions) {
     this.opts = opts;
@@ -119,7 +151,18 @@ export class SheetsClient {
   async listTabs(): Promise<{ title: string; tabs: TabInfo[] }> {
     const m = await this.call<Meta>('GET', this.base + '?fields=properties.title,sheets.properties(title,sheetId,gridProperties(rowCount,frozenRowCount))', undefined, 'list tabs');
     const tabs = (m && m.sheets ? m.sheets : []).map((s) => toInfo(s.properties)).filter((t) => !!t.title);
+    this.tabsCache = tabs.slice();
     return { title: (m && m.properties && m.properties.title) || '', tabs };
+  }
+
+  // the tabs as this run knows them: listed once, then kept up to date by remember()
+  private async knownTabs(): Promise<TabInfo[]> {
+    return this.tabsCache ?? (await this.listTabs()).tabs;
+  }
+
+  private remember(tab: TabInfo): void {
+    if (!this.tabsCache) return;
+    this.tabsCache = this.tabsCache.filter((t) => t.title !== tab.title).concat([tab]);
   }
 
   /** A new spreadsheet (Create in Setup); does not need the bound spreadsheet id. */
@@ -133,8 +176,15 @@ export class SheetsClient {
 
   /** The tab exists, row 1 holds the header and is frozen. Returns the tab with its grid size. */
   async ensureTab<T>(spec: TabSpec<T>): Promise<TabInfo> {
-    const { tabs } = await this.listTabs();
+    return (await this.ensure(spec)).tab;
+  }
+
+  // `fresh`: the tab was not there when this run listed the tabs, or its header was empty, so nothing a caller kept
+  // about its rows (chunk prints) describes it
+  private async ensure<T>(spec: TabSpec<T>): Promise<{ tab: TabInfo; fresh: boolean }> {
+    const tabs = await this.knownTabs();
     let tab: TabInfo | undefined = tabs.filter((t) => t.title === spec.name)[0];
+    const fresh = !tab;
     if (!tab) {
       try {
         const r = await this.call<{ replies?: { addSheet?: { properties?: SheetProps } }[] }>('POST', this.base + ':batchUpdate', {
@@ -146,31 +196,40 @@ export class SheetsClient {
         // a concurrent writer (viewer and userscript) may have added it: 400 "already exists"; others surface
         if (statusOf(e) !== 400) throw e;
       }
+      // the 400 path lists the tabs again (and so refreshes this run's list)
       if (!tab) tab = (await this.listTabs()).tabs.filter((t) => t.title === spec.name)[0];
       if (!tab) throw new SheetsError('Tab ' + spec.name + ' could not be created', 0);
+      this.remember(tab);
     } else if (tab.frozenRows < 1 && tab.sheetId >= 0) {
       await this.call('POST', this.base + ':batchUpdate', {
         requests: [{ updateSheetProperties: { properties: { sheetId: tab.sheetId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } }],
       }, 'freeze header of ' + spec.name);
       tab = { title: tab.title, sheetId: tab.sheetId, rows: tab.rows, frozenRows: 1 };
+      this.remember(tab);
     }
     // The header must start with this version's columns; extra columns on the right (the owner's notes, formulas)
     // are kept. A different layout is never cleared (review 2026-11-22: a hand-edited header or a viewer newer than
     // the installed script would wipe the tab): writing stops with a clear error instead
     const head = await this.call<{ values?: unknown[][] }>('GET', this.base + '/values/' + enc(spec.name, '1:1') + '?valueRenderOption=UNFORMATTED_VALUE', undefined, 'read header of ' + spec.name);
-    const current = (head && head.values && head.values[0] ? head.values[0] : []).map((v) => String(v).trim());
+    const stored = (head && head.values && head.values[0] ? head.values[0] : []).map((v) => String(v));
+    const current = stored.map((v) => v.trim());
     const ours = current.slice(0, spec.columns.length);
     const empty = ours.every((v) => v === '');
     if (!empty && ours.join('\u0001') !== spec.columns.join('\u0001')) {
       throw new SheetsError(`${spec.name}: its header differs from this version (${ours.slice(0, 4).join(', ')}…): update the script and the page to the same version, or rename the tab to start it fresh`, 409);
     }
-    const cells = 'A1:' + spec.lastCol + '1';
-    await this.call('PUT', this.base + '/values/' + enc(spec.name, cells) + '?valueInputOption=RAW', {
-      range: a1(spec.name, cells),
-      majorDimension: 'ROWS',
-      values: [spec.columns.slice()],
-    }, 'write header of ' + spec.name);
-    return tab;
+    // the PUT would write exactly what is there: skipped only when the stored cells equal this version's columns
+    // character for character (a cell with spaces around a name still gets rewritten, as before)
+    const same = spec.columns.length > 0 && spec.columns.every((c, i) => stored[i] === c);
+    if (!same) {
+      const cells = 'A1:' + spec.lastCol + '1';
+      await this.call('PUT', this.base + '/values/' + enc(spec.name, cells) + '?valueInputOption=RAW', {
+        range: a1(spec.name, cells),
+        majorDimension: 'ROWS',
+        values: [spec.columns.slice()],
+      }, 'write header of ' + spec.name);
+    }
+    return { tab, fresh: fresh || empty };
   }
 
   /**
@@ -178,7 +237,7 @@ export class SheetsClient {
    * never reordered) and writes it back when it changed. A missing tab is created later by writeAll with this header
    */
   async growTabHeader(name: string, keys: string[], grow: (stored: string[], keys: string[]) => string[]): Promise<string[]> {
-    const { tabs } = await this.listTabs();
+    const tabs = await this.knownTabs();
     let stored: string[] = [];
     if (tabs.some((t) => t.title === name)) {
       const head = await this.call<{ values?: unknown[][] }>('GET', this.base + '/values/' + enc(name, '1:1') + '?valueRenderOption=UNFORMATTED_VALUE', undefined, 'read header of ' + name);
@@ -205,39 +264,65 @@ export class SheetsClient {
 
   /**
    * Replace the tab's rows with these records: header ensured, rows 2..n+1 in one PUT (the grid grows as
-   * needed), then the old rows past n+1 cleared up to the grid row count. Duplicate ids: the last one wins
+   * needed), then the old rows past n+1 cleared up to the grid row count. Duplicate ids: the last one wins.
+   * `prev` (fidelity_transactions only): the chunk prints of the last successful write of this tab to this spreadsheet;
+   * the parts before the first one that differs are not sent again, and the prints of this write come back in `chunks`.
+   * Without `prev` every part is written, as always. The accepted limit, the same as the per-set prints have for whole
+   * sets: rows changed by hand in the sheet are not repaired while their part is unchanged on our side. A tab created
+   * in this run, an empty header or a grid shorter than the stored parts write everything
    */
-  async writeAll<T>(spec: TabSpec<T>, records: T[]): Promise<{ written: number }> {
-    return this.writeRows(spec, await this.ensureTab(spec), records);
+  async writeAll<T>(spec: TabSpec<T>, records: T[], prev?: ChunkPrint[]): Promise<{ written: number; chunks?: ChunkPrint[] }> {
+    const { tab, fresh } = await this.ensure(spec);
+    return this.writeRows(spec, tab, records, prev ? (fresh ? [] : prev) : undefined);
   }
 
-  private async writeRows<T>(spec: TabSpec<T>, tab: TabInfo, records: T[]): Promise<{ written: number }> {
+  private async writeRows<T>(spec: TabSpec<T>, tab: TabInfo, records: T[], prev?: ChunkPrint[]): Promise<{ written: number; chunks?: ChunkPrint[] }> {
     const rows = dedupe(spec, records).map(spec.toRow);
+    const chunks: ChunkPrint[] | undefined = prev ? [] : undefined;
+    // the stored parts are trusted only while the grid still reaches their last row (a shrunk tab writes everything)
+    const lastPrev = prev && prev.length ? prev[prev.length - 1]! : null;
+    let skipping = !!lastPrev && tab.rows >= lastPrev.start + lastPrev.count - 1;
     // big tabs go in parts (fidelity: ~1,100 positions with every field are a few MB), each PUT under about 1 MB
     let start = 0;
+    let part = 0;
     while (start < rows.length) {
       let end = start;
       let size = 0;
-      while (end < rows.length && (end === start || size < CHUNK_CHARS)) { size += JSON.stringify(rows[end]).length; end += 1; }
+      const json: string[] = [];
+      while (end < rows.length && (end === start || size < CHUNK_CHARS)) { const j = JSON.stringify(rows[end]); json.push(j); size += j.length; end += 1; }
       const cells = 'A' + (start + 2) + ':' + spec.lastCol + (end + 1);
-      await this.call('PUT', this.base + '/values/' + enc(spec.name, cells) + '?valueInputOption=RAW', {
-        range: a1(spec.name, cells),
-        majorDimension: 'ROWS',
-        values: rows.slice(start, end) as Cell[][],
-      }, 'write ' + spec.name);
+      let send = true;
+      if (chunks) {
+        const c: ChunkPrint = { start: start + 2, count: end - start, print: printOf('[' + json.join(',') + ']', end - start) };
+        chunks.push(c);
+        const old = prev![part];
+        // the first part that differs and every part after it are written
+        if (skipping && old && old.start === c.start && old.count === c.count && old.print === c.print) send = false;
+        else skipping = false;
+      }
+      if (send) {
+        await this.call('PUT', this.base + '/values/' + enc(spec.name, cells) + '?valueInputOption=RAW', {
+          range: a1(spec.name, cells),
+          majorDimension: 'ROWS',
+          values: rows.slice(start, end) as Cell[][],
+        }, 'write ' + spec.name);
+      }
       start = end;
+      part += 1;
     }
     // the PUT only adds grid rows up to n+1, so the grid size seen before it bounds the old tail
     if (tab.rows > rows.length + 1) {
       const tail = 'A' + (rows.length + 2) + ':' + spec.lastCol + tab.rows;
       await this.call('POST', this.base + '/values/' + enc(spec.name, tail) + ':clear', {}, 'clear the tail of ' + spec.name);
     }
-    return { written: rows.length };
+    // a write past the grid grew it: a later write of this tab in the same run clears its tail up to the new size
+    if (rows.length + 1 > tab.rows) this.remember({ title: tab.title, sheetId: tab.sheetId, rows: rows.length + 1, frozenRows: tab.frozenRows });
+    return chunks ? { written: rows.length, chunks } : { written: rows.length };
   }
 
   /** Read the tab, merge the records in by id, write it back. */
   async upsertById<T>(spec: TabSpec<T>, records: T[], options?: UpsertOptions<T>): Promise<{ inserted: number; updated: number; total: number }> {
-    const tab = await this.ensureTab(spec);
+    const { tab } = await this.ensure(spec);
     const stored = await this.readRows(spec);
     const merge = options && options.merge;
     const order: string[] = [];

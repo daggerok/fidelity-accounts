@@ -4,7 +4,8 @@
 import { expect, test } from 'bun:test';
 import { nyDate } from '../shared/transactions';
 import { pagePost } from './history-sync';
-import { EMPTY_STORE, readTransactions, startDay } from './transactions-sync';
+import { EMPTY_STORE, lastTxnsRead, readTransactions, sameTxns, startDay } from './transactions-sync';
+import { parseTxnStore, type TxnStore } from '../shared/transactions';
 
 const accounts = [{ number: 'X1', name: 'A', group: 'G', asOf: 't' }, { number: 'X2', name: 'B', group: 'G', asOf: 't' }];
 type Body = { filter: { accounts: Array<{ acctNum: string }>; searchCriteriaDetail: { txnFromDate: number; txnToDate: number } } };
@@ -41,4 +42,28 @@ test('reads month by month, splits a full window, keeps a failed account for tom
 test('the page POST allows only the two reads', async () => {
   await expect(pagePost('/ftgw/digital/trade/api/order', {})).rejects.toThrow('not allowed');
   await expect(pagePost('/ftgw/digital/activityapi/api/v1/transactions/history/../order', {})).rejects.toThrow('not allowed');
+});
+
+test('a read that changed nothing is told apart from one that did (the store is then not stored again)', () => {
+  const r = { account: 'X1', date: '2026-11-20', mnemonic: 'DIV', cat: 'DV', sub: 'VP', dir: 'D', symbol: 'AAAA', qty: 0, net: 1.25, desc: 'MADE UP', cancelled: false };
+  const stored: TxnStore = { version: 1, at: '2026-11-24T15:00:00.000Z', synced: { X1: '2026-11-24', X2: '2026-11-24' }, rows: [r, { ...r, account: 'X2' }] };
+  // the same content read again later: a new time and new objects, nothing else
+  const again = parseTxnStore(JSON.stringify({ ...stored, at: '2026-11-24T15:10:00.000Z' }))!;
+  expect(sameTxns(stored, again)).toBe(true);
+  expect(sameTxns(stored, { ...again, rows: again.rows.concat([{ ...r, net: 2 }]) })).toBe(false);
+  expect(sameTxns(stored, { ...again, rows: [again.rows[0]!, { ...again.rows[1]!, cancelled: true }] })).toBe(false);
+  expect(sameTxns(stored, { ...again, synced: { X1: '2026-11-24', X2: '2026-11-25' } })).toBe(false);
+  expect(sameTxns(stored, { ...again, synced: { X2: '2026-11-24', X1: '2026-11-24' } })).toBe(false); // another order: another JSON
+  const { cancelled: _c, ...noFlag } = again.rows[0]!;
+  expect(sameTxns(stored, { ...again, rows: [noFlag as typeof r, again.rows[1]!] })).toBe(false);
+});
+
+test('the time of the last read: the store\'s own or a later check that changed nothing', () => {
+  const store: TxnStore = { ...EMPTY_STORE, at: '2026-11-24T15:00:00.000Z' };
+  expect(lastTxnsRead(store, null)).toBe('2026-11-24T15:00:00.000Z');
+  expect(lastTxnsRead(store, '2026-11-24T15:10:00.000Z')).toBe('2026-11-24T15:10:00.000Z');
+  expect(lastTxnsRead(store, '2026-11-24T14:00:00.000Z')).toBe('2026-11-24T15:00:00.000Z');
+  expect(lastTxnsRead(store, 'garbage')).toBe('2026-11-24T15:00:00.000Z');
+  expect(lastTxnsRead(null, null)).toBe('');
+  expect(lastTxnsRead({ ...store, at: '' }, '2026-11-24T15:10:00.000Z')).toBe('2026-11-24T15:10:00.000Z');
 });

@@ -3,8 +3,9 @@
 // sync.ts): the viewer hands over its Google token and the spreadsheet id through Tampermonkey storage after ☁️ and on
 // every silent renew; requests to sheets.googleapis.com go through GM_xmlhttpRequest (page CSP and CORS do not apply)
 import type { Dataset } from '../shared/model';
-import { SheetsClient, type FetchLike } from '../shared/sheets/client';
+import { SheetsClient, chunkPrintsOf, type ChunkPrint, type FetchLike } from '../shared/sheets/client';
 import { fingerprint, markUpdated, pushBetas, pushPositions, pushSummary, pushTransactions, type DataSet } from '../shared/sheets/sync';
+import { TRANSACTIONS } from '../shared/sheets/tabs';
 import type { TxnStore } from '../shared/transactions';
 
 export const GOOGLE_KEY = 'fidelity-accounts.google'; // JSON { token, expiresAt, spreadsheetId }
@@ -57,13 +58,17 @@ export function handoffSheet(raw: unknown): string {
 }
 
 export type Prints = Partial<Record<DataSet, string>>;
+/** the chunk prints of a tab written in parts, by tab name (only fidelity_transactions has them) */
+export type TabChunks = Partial<Record<string, ChunkPrint[]>>;
 
 /**
  * Write the given sets (summary, positions, transactions, betas) from the script's copies, skipping a set with nothing in it
  * or with the same content as its last write (`prints`), then mark the written ones in fidelity_updates. Returns the
- * sets written and the prints to keep
+ * sets written and the prints to keep. `chunks`: the parts of fidelity_transactions as last written to this spreadsheet
+ * (sync.ts pushTransactions); `starting` is called right before a set is written, so the caller can drop what it keeps
+ * about that set first: a write cut short (an error, the page left) must not leave prints that claim the new content
  */
-export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | null; store: TxnStore | null }, prints: Prints, g: GoogleHandoff, fetcher: FetchLike, log: (line: string) => void): Promise<{ done: DataSet[]; prints: Prints }> {
+export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | null; store: TxnStore | null }, prints: Prints, g: GoogleHandoff, fetcher: FetchLike, log: (line: string) => void, more: { chunks?: TabChunks; starting?: (set: DataSet) => void } = {}): Promise<{ done: DataSet[]; prints: Prints; chunks: TabChunks }> {
   const client = new SheetsClient({
     fetch: fetcher,
     spreadsheetId: g.spreadsheetId,
@@ -72,16 +77,43 @@ export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | 
   });
   const done: DataSet[] = [];
   const next: Prints = { ...prints };
+  const chunks: TabChunks = { ...(more.chunks ?? {}) };
   for (const set of sets) {
     const print = fingerprint(set, data);
     if (!print || print === prints[set]) continue;
+    if (more.starting) more.starting(set);
     if (set === 'summary') await pushSummary(client, data.ds!, log);
     if (set === 'positions') await pushPositions(client, data.ds!, log);
-    if (set === 'transactions') await pushTransactions(client, data.store!, log);
+    if (set === 'transactions') chunks[TRANSACTIONS.name] = await pushTransactions(client, data.store!, log, chunkPrintsOf(chunks[TRANSACTIONS.name]));
     if (set === 'betas') await pushBetas(client, data.ds!, log);
     next[set] = print;
     done.push(set);
   }
   if (done.length) await markUpdated(client, done, new Date().toISOString());
-  return { done, prints: next };
+  return { done, prints: next, chunks };
+}
+
+/** what the script keeps in Tampermonkey storage about its writes (main.ts PRINTS_KEY), for one spreadsheet */
+export interface KeptPrints { id?: string; prints?: Prints; chunks?: TabChunks }
+
+/**
+ * writeSets with the prints kept in storage. They belong to one spreadsheet: a new one gets every set. Right before the
+ * transactions go out, their print and parts are dropped from storage, so a write cut short (an error, the page left
+ * on the way back) writes that tab whole next time and never trusts parts it may have changed. The new prints are
+ * stored only after the whole run succeeded, as the set prints always were. Returns the sets written
+ */
+export async function writeKept(sets: readonly DataSet[], data: { ds: Dataset | null; store: TxnStore | null }, g: GoogleHandoff, fetcher: FetchLike, storage: { get: () => KeptPrints | null; set: (k: KeptPrints) => void }): Promise<DataSet[]> {
+  const kept = storage.get() ?? {};
+  const same = kept.id === g.spreadsheetId;
+  const starting = (set: DataSet) => {
+    if (!same || set !== 'transactions') return;
+    const prints: Prints = { ...(kept.prints ?? {}) };
+    delete prints.transactions;
+    const chunks: TabChunks = { ...(kept.chunks ?? {}) };
+    delete chunks[TRANSACTIONS.name];
+    storage.set({ id: g.spreadsheetId, prints, chunks });
+  };
+  const { done, prints, chunks } = await writeSets(sets, data, same ? kept.prints ?? {} : {}, g, fetcher, () => {}, { chunks: same ? kept.chunks ?? {} : {}, starting });
+  storage.set({ id: g.spreadsheetId, prints, chunks });
+  return done;
 }

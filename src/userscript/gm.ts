@@ -13,6 +13,9 @@ export const DATASET_KEY = 'fidelity-accounts.dataset';
 export const RUN_KEY = 'fidelity-accounts.run';
 // the transactions history (shared/transactions TxnStore): read once a day, written to the sheet from here
 export const TXNS_KEY = 'fidelity-accounts.transactions';
+// the time of the last transactions read that changed nothing (transactions-sync.ts lastTxnsRead): a small key instead of
+// writing the whole store again only for its new time
+export const TXNS_CHECKED_KEY = 'fidelity-accounts.transactionsCheckedAt';
 // the signal after a sheet write, { at, sets } (shared/sheets/sync SheetsSignal): the viewer reads those sets back
 export const SHEETS_KEY = 'fidelity-accounts.sheets';
 
