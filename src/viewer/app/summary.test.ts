@@ -2,7 +2,7 @@
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
 import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
-import { accountBeta } from '../../shared/beta';
+import { accountBreakdown } from '../../shared/beta';
 import { combine } from '../../shared/history';
 import { buildDataset } from '../../shared/parse';
 import { allocation, estAnnualOf, incomeFacts, near52, ofKind, periodBounds, positionsIn, totalsOf, upcomingDividends, windowEnd } from './derive';
@@ -33,7 +33,7 @@ test('the Summary parts give what the cards worked out inline before', () => {
       });
     });
     const betas = accountBetas(ps, accounts, ds.betas);
-    accounts.forEach((a) => expect(betas.get(a.number)).toEqual(accountBeta(ps, a.number, ds.betas)));
+    accounts.forEach((a) => expect(betas.get(a.number)).toEqual(accountBreakdown(ps, a.number, ds.betas)));
   });
 });
 

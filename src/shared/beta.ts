@@ -1,10 +1,12 @@
 /// <reference lib="esnext" />
 // Beta of each held security and of an account (owner 2026-11-25: "calculated according to our account positions
-// sizes"). Every beta comes from Fidelity: its stock screener (5Y, else 3Y, else 1Y), its ETF screener (Morningstar
-// 3Y, month end), and for the rest (mutual funds, young ETFs, stocks the screener lacks) our own number from
-// Fidelity's price history the way Fidelity defines beta: how the security moved as the S&P 500 moved over the last
-// 36 months (SPY as the index). Cash (the core money market) is 0. Framework free: the userscript collects, the viewer
-// only reads the fidelity_betas tab
+// sizes"), all read from Fidelity and measured against the S&P 500 the way Fidelity defines beta: how the security moved
+// as the index moved (SPY as the index). Stocks: Fidelity's stock screener (5Y, else 3Y, else 1Y). Everything else (ETFs,
+// mutual funds, stocks the screener lacks): our own number from Fidelity's price history, 36 months (at least 12), else
+// daily over the last year. Only what has too little history for both falls back to the ETF screener's 3Y beta, which is
+// Morningstar's and may be measured against the fund's category index, not the S&P 500 (owner 2026-11-26: "I have a
+// feeling that my beta numbers are not so low"). Cash (the core money market) is 0. Framework free: the userscript
+// collects, the viewer only reads the fidelity_betas tab
 import type { Position } from './model';
 
 export type BetaSource = 'stock5y' | 'stock3y' | 'stock1y' | 'etf3y' | 'calcMonthly' | 'calcDaily' | 'cash';
@@ -221,38 +223,67 @@ export function computedBeta(s: Series, index: Series, bar: 'MONTHLY' | 'DAILY',
 export interface BetaMix { beta: number | null; coverage: number; sources: BetaSource[] }
 
 /**
- * The value-weighted beta of some positions: weights are the current values of the securities and the cash core
- * (pending activity left out), cash counts with beta 0, a security without a beta is left out of both sums.
- * coverage = the share of the value that has a beta (cash included), 0..1
+ * One position in the breakdown of a beta: `weight` its share of the value of the positions (signed, so a margin debit
+ * is negative; null when they sum to 0), `contribution` what it adds to the beta (the rows with one sum to the beta),
+ * null for a position without a beta or when there is no beta to add to
  */
-export function mixBeta(positions: Position[], betas: Betas | undefined): BetaMix {
+export interface BetaRow { symbol: string; description: string; value: number; weight: number | null; beta: Beta | null; contribution: number | null }
+/** the beta with the positions behind it; `missing`: how many of them have no beta */
+export interface BetaBreakdown extends BetaMix { rows: BetaRow[]; missing: number }
+
+const CASH_BETA: Beta = { beta: 0, source: 'cash', asOf: '' };
+
+/**
+ * The value-weighted beta of some positions and every position behind it (owner 2026-11-26: "check if we did good",
+ * the number must be traceable): weights are the current values of the securities and the cash core (pending activity
+ * left out), cash counts with beta 0, a security without a beta is left out of both sums. coverage = the share of the
+ * value that has a beta (cash included), 0..1. Rows: those with a beta first, then those without, each by value
+ */
+export function betaBreakdown(positions: Position[], betas: Betas | undefined): BetaBreakdown {
   let total = 0;
+  let net = 0;
   let covered = 0;
   let weighted = 0;
   let weight = 0;
   const sources = new Set<BetaSource>();
+  const kept: Array<{ p: Position; v: number; b: Beta | null }> = [];
   positions.forEach((p) => {
     if (p.kind === 'pending') return;
     const v = p.currentValue;
     if (typeof v !== 'number' || !Number.isFinite(v)) return;
     total += Math.abs(v);
-    const b: Beta | undefined = p.kind === 'core' ? { beta: 0, source: 'cash', asOf: '' } : betas?.[p.symbol];
-    if (!b || !Number.isFinite(b.beta)) return;
+    net += v;
+    const found = p.kind === 'core' ? CASH_BETA : betas?.[p.symbol];
+    const b = found && Number.isFinite(found.beta) ? found : null;
+    kept.push({ p, v, b });
+    if (!b) return;
     covered += Math.abs(v);
     weighted += v * b.beta;
     weight += v;
     sources.add(b.source);
   });
-  return {
-    // no betas read yet, or nothing with a beta: none to show; only cash is a real 0 (cash does not move with the market)
-    beta: betas && weight !== 0 ? weighted / weight : null,
-    coverage: total > 0 ? covered / total : 0,
-    sources: BETA_SOURCES.filter((s) => sources.has(s)),
-  };
+  // no betas read yet, or nothing with a beta: none to show; only cash is a real 0 (cash does not move with the market)
+  const beta = betas && weight !== 0 ? weighted / weight : null;
+  const rows: BetaRow[] = kept.map(({ p, v, b }) => ({
+    symbol: p.symbol,
+    description: p.description,
+    value: v,
+    weight: net !== 0 ? v / net : null,
+    beta: b,
+    contribution: b && beta !== null ? (v * b.beta) / weight : null,
+  }));
+  rows.sort((x, y) => (x.beta ? 0 : 1) - (y.beta ? 0 : 1) || y.value - x.value);
+  return { beta, coverage: total > 0 ? covered / total : 0, sources: BETA_SOURCES.filter((s) => sources.has(s)), rows, missing: rows.filter((r) => !r.beta).length };
 }
 
-/** one account's beta */
-export const accountBeta = (positions: Position[], account: string, betas: Betas | undefined): BetaMix => mixBeta(positions.filter((p) => p.account === account), betas);
+/** the beta alone, taken from the breakdown, so the card and its window can never disagree */
+export function mixBeta(positions: Position[], betas: Betas | undefined): BetaMix {
+  const { beta, coverage, sources } = betaBreakdown(positions, betas);
+  return { beta, coverage, sources };
+}
+
+/** one account's beta with the positions behind it (the Accounts card and its breakdown window) */
+export const accountBreakdown = (positions: Position[], account: string, betas: Betas | undefined): BetaBreakdown => betaBreakdown(positions.filter((p) => p.account === account), betas);
 /** the beta of several accounts together (the scope shown) */
 export const scopeBeta = (positions: Position[], accounts: string[], betas: Betas | undefined): BetaMix => {
   const set = new Set(accounts);
