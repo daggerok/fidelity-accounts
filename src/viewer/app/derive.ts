@@ -400,6 +400,24 @@ export function symbolDrip(parts: { drip: Drip | null }[], add: 'short' | 'all' 
   return { shares: Math.round(summed.reduce((x, d) => x + d.shares, 0) * 1000) / 1000 || 0, usd: Math.round(summed.reduce((x, d) => x + d.usd, 0) * 100) / 100 || 0 };
 }
 
+/**
+ * Adj. DRIP $ and Adj. min. DRIP $ (owner 2026-11-25: "because we cannot buy less than for 1$ in Fidelity, for every
+ * <= 0.99 we should always show 1$", "calculations are the same, but show and calculate actual minimums"): the dollars
+ * of DRIP $ or Min. DRIP $ as an order Fidelity takes, so an amount to buy under a dollar becomes one dollar. Nothing to
+ * buy (zero, or a minus: the dividend already buys 0.001 share) stays as it is
+ */
+export const FIDELITY_MIN_BUY_USD = 1;
+export const adjustedBuy = (usd: number): number => (usd > 0 && usd < FIDELITY_MIN_BUY_USD ? FIDELITY_MIN_BUY_USD : usd);
+/** Adj. DRIP $ of a Positions row: a merged line carries its own (each account's order adjusted, then added up: every
+ * account buys on its own), a row of one account adjusts its DRIP $ */
+export const rowDripAdjUsd = (p: Position & { drip?: Drip | null; dripAdjUsd?: number | null }): number | null => {
+  if (p.dripAdjUsd !== undefined) return p.dripAdjUsd;
+  const d = rowDrip(p);
+  return d ? adjustedBuy(d.usd) : null;
+};
+/** Adj. min. DRIP $: the dollars of Min. DRIP as an order Fidelity takes */
+export const dripMinAdjUsd = (p: Position): number | null => { const d = dripMin(p); return d ? adjustedBuy(d.usd) : null; };
+
 /** the DRIP of a Positions row: a merged line carries its own (symbolDrip 'all' over its accounts, app/merge.ts), a row
  * of one account works it out (dripGap) */
 export const rowDrip = (p: Position & { drip?: Drip | null }): Drip | null => (p.drip !== undefined ? p.drip : dripGap(p));

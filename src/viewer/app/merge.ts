@@ -15,7 +15,7 @@
 //   as one account shows it, when none has it on
 // - blank: no meaning across accounts (the account type)
 import type { Account, Position } from '../../shared/model';
-import { dripGap, symbolDrip, type Drip } from './derive';
+import { adjustedBuy, dripGap, symbolDrip, type Drip } from './derive';
 import { FIELD_COLUMNS } from './position-columns';
 import type { MainTab } from './prefs';
 
@@ -28,7 +28,7 @@ export const MERGE_KINDS: readonly MergeKind[] = ['sum', 'static', 'recomputed',
  * row), like the gains (owner 2026-11-25: "when we have merge, we want to aggregate drips similarly like we do for
  * gains"), never a DRIP of the summed shares
  */
-export type MergedPosition = Position & { accounts: string[]; drip: Drip | null };
+export type MergedPosition = Position & { accounts: string[]; drip: Drip | null; dripAdjUsd: number | null };
 
 type Prop = Exclude<keyof Position, 'fields'>;
 /** every field of the model, required: a new one in shared/model.ts does not type-check here until it has a kind */
@@ -102,7 +102,8 @@ function mergeGroup(rows: Position[], base: number): MergedPosition {
     const pct = percentOfAccount(p.currentValue);
     const fields = { ...p.fields };
     if (pct === undefined) delete fields.actPer; else if ('actPer' in fields) fields.actPer = pct;
-    const own: MergedPosition = { ...p, percentOfAccount: pct, fields, accounts, drip: dripGap(p) };
+    const d = dripGap(p);
+    const own: MergedPosition = { ...p, percentOfAccount: pct, fields, accounts, drip: d, dripAdjUsd: d ? adjustedBuy(d.usd) : null };
     if (pct === undefined) delete own.percentOfAccount;
     return own;
   }
@@ -136,8 +137,13 @@ function mergeGroup(rows: Position[], base: number): MergedPosition {
     const v = k in RAW_OF ? (m[RAW_OF[k]!] as number | undefined) : kind === 'sum' ? sumOf(vs) : kind === 'static' ? firstOf(vs) : kind === 'agree' ? agreed(vs) : kind === 'any' ? anyOf(vs) : undefined;
     if (v !== undefined) fields[k] = v;
   });
-  const drip = symbolDrip(rows.map((p) => ({ drip: dripGap(p) })), 'all');
-  const merged = { ...(m as Omit<Position, 'fields' | 'account'>), account: (m.account as string | undefined) ?? '', fields, accounts, drip } as MergedPosition;
+  const drips = rows.map((p) => dripGap(p));
+  const drip = symbolDrip(drips.map((d) => ({ drip: d })), 'all');
+  // Adj. DRIP $: every account places its own order, so each account's dollars are adjusted to Fidelity's one dollar
+  // first and added up after (derive.ts adjustedBuy); no account that can tell -> empty
+  const told = drips.filter((d): d is Drip => d !== null);
+  const dripAdjUsd = told.length ? Math.round(told.reduce((s, d) => s + adjustedBuy(d.usd), 0) * 100) / 100 || 0 : null;
+  const merged = { ...(m as Omit<Position, 'fields' | 'account'>), account: (m.account as string | undefined) ?? '', fields, accounts, drip, dripAdjUsd } as MergedPosition;
   // no key left with nothing in it: an empty cell reads its field as missing
   const loose = merged as unknown as Record<string, unknown>;
   Object.keys(loose).forEach((k) => { if (loose[k] === undefined) delete loose[k]; });
