@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
 import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
-import { dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
+import { autoWatch, dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -10,6 +10,8 @@ import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
+import { Banner } from './Banner';
+import { ErrorBoundary } from './ErrorBoundary';
 import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
 import { Notices } from './Notices';
@@ -59,12 +61,13 @@ export function App() {
   const done = setupDone(setupState(userscript));
   // Google connected, the sheet read and still no data, the script installed: start watching by itself, so the first
   // data comes with no other click (owner 2026-11-23); once per page, and never after the owner switched 👀 on or off
-  // (owner 2026-11-24: "do not want if it was disabled previously")
+  // (owner 2026-11-24: "do not want if it was disabled previously"). No click here: a blocked window changes nothing
+  // and a popup asks for 👀 (autoWatch)
   const autoWatched = useRef(false);
   useEffect(() => {
     if (!g.connected || g.busy || ds || !userscript || watch || chosen || autoWatched.current) return;
     autoWatched.current = true;
-    setWatch(true);
+    autoWatch();
   }, [g.connected, g.busy, ds, userscript, watch, chosen]);
   // ☁️ and 🚀 wait for the same 1.5 s (owner 2026-11-24: on a reload 🚀 flashed and went away): the script mark, the saved
   // data and the saved Google sign-in come a moment after the first paint
@@ -169,14 +172,17 @@ export function App() {
             </div>
           </SlidePanel>
 
-        {error && <div className="mt-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
+        {/* what is wrong with the data and with Google (a lost sign-in says "press ☁️", and ☁️ is back in the navbar) */}
+        {[error, g.error].filter((m): m is string => !!m).map((m, i) => <Banner key={i}>{m}</Banner>)}
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
           <div className="flex flex-col">
             {/* the cards start one gutter below the tabs panel (or below the open settings) */}
             <main className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
-              {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} /> : <Positions ds={ds} accounts={accounts} />}
+              <ErrorBoundary resetKey={`${ds.builtAt}|${pr.tab}`}>
+                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} /> : <Positions ds={ds} accounts={accounts} />}
+              </ErrorBoundary>
             </main>
           </div>
         ) : null}

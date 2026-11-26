@@ -5,10 +5,10 @@
 // fidelity_updates marks newer. The sheet is watched with a small read of fidelity_updates every 10 minutes while the page
 // is visible (Google sends no change events to a browser) and at once when the script signals a write
 import { SheetsClient } from '../../shared/sheets/client';
-import { GoogleAuth, loadConfig, saveConfig } from '../../shared/sheets/gis';
+import { GoogleAuth, authFailed, loadConfig, parseSpreadsheetId, saveConfig } from '../../shared/sheets/gis';
 import { DATA_SETS, changedSets, datasetFromTabs, parseSignal, readSets, readUpdates, txnStoreFromTabs, type DataSet } from '../../shared/sheets/sync';
 import { createStore } from '../../shared/store';
-import { accept, acceptTxns, dataset, requestSync } from './data';
+import { accept, acceptTxns, cacheRestored, clearData, dataset, requestSync } from './data';
 import { t } from './i18n';
 
 export const auth = new GoogleAuth({ config: loadConfig });
@@ -50,8 +50,10 @@ function keepFresh(): void {
   renewTimer = setInterval(() => {
     if (!sheets.get().connected) return;
     const tok = auth.peek();
+    // a failed renew means the sign-in is gone: ☁️ comes back in the navbar (it shows only while not connected), so the
+    // "press ☁️" of the banner has a button to press
     void auth.get(!!tok && tok.expiresAt - Date.now() < 15 * 60 * 1000).then(handOff, (err: unknown) => {
-      sheets.set((st) => ({ ...st, error: t('could not renew the Google token: {error}; press ☁️', { error: err instanceof Error ? err.message : String(err) }) }));
+      sheets.set((st) => ({ ...st, connected: false, error: t('could not renew the Google token: {error}; press ☁️', { error: err instanceof Error ? err.message : String(err) }) }));
     });
   }, 10 * 60 * 1000);
 }
@@ -69,6 +71,10 @@ export async function connectGoogle(): Promise<void> {
 
 async function connected(line: string): Promise<void> {
   try {
+    // the cached copy first (main.tsx starts both at once): with a saved sign-in this runs before IndexedDB answers, saw
+    // no data and read every set on each reload; waiting before `connected: true` also keeps App's auto 👀 from seeing
+    // "connected, no data" in between
+    await cacheRestored();
     sheets.set((s) => ({ ...s, connected: true, error: null }));
     add(line);
     handOff();
@@ -89,6 +95,33 @@ export function disconnectGoogle(): void {
   window.postMessage({ type: 'fidelity-accounts:google', json: JSON.stringify({ token: '', expiresAt: 0, spreadsheetId: '' }) }, location.origin);
   sheets.set((s) => ({ ...s, connected: false }));
   add(t('disconnected'));
+}
+
+// a failed Sheets read: a lost sign-in turns ☁️ back on; anything else (offline) only shows, the next good check clears it
+function readFailed(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (authFailed(err)) sheets.set((s) => ({ ...s, busy: false, connected: false, error: t('Google sign-in needed: {error}; press ☁️', { error: msg }) }));
+  else sheets.set((s) => ({ ...s, busy: false, error: t('could not read the sheet: {error}', { error: msg }) }));
+  return msg;
+}
+
+/**
+ * Another spreadsheet confirmed in Get started (the field left or Enter): the shown data and the read marks belong to
+ * the old one, so both go, every set is read from the new one and the userscript gets the new id once. The same id
+ * again does nothing; an empty or unusable value clears the id (as typing it did before)
+ */
+export function switchSpreadsheet(value: string): boolean {
+  const id = parseSpreadsheetId(value);
+  if (id === loadConfig().spreadsheetId) return false;
+  saveConfig({ spreadsheetId: id });
+  generation += 1;
+  seen = {};
+  saveSeen();
+  handOff();
+  // a read of the old sheet still running ends dropped and no longer clears `busy`: this line does, the new read sets it
+  sheets.set((s) => ({ ...s, busy: false }));
+  if (id) { clearData(); void loadFromSheets(); }
+  return true;
 }
 
 /** Get started: a new spreadsheet in the owner's Drive, its id saved at once */
@@ -148,16 +181,20 @@ const loadSeen = (): Partial<Record<DataSet, string>> => { try { return JSON.par
 const saveSeen = (): void => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch { /* private window */ } };
 let seen: Partial<Record<DataSet, string>> = typeof localStorage === 'undefined' ? {} : loadSeen();
 let again = false;
+// bumped on a switch of the spreadsheet: a read of the old one that ends later is dropped
+let generation = 0;
 
 /** ↻ read data sets from the sheet into the viewer (all of them by default) */
 export async function loadFromSheets(sets: readonly DataSet[] = DATA_SETS): Promise<void> {
   if (!loadConfig().spreadsheetId || !sheets.get().connected || !sets.length) return;
   sheets.set((s) => ({ ...s, busy: true, error: null }));
+  const gen = generation;
   try {
     const c = client();
     // the marks first: a write that lands during this read is picked up by the next check
     const marks = await readUpdates(c).catch(() => ({} as Partial<Record<DataSet, string>>));
     const tabs = await readSets(c, sets);
+    if (gen !== generation) return;
     const ds = datasetFromTabs(dataset.get().ds, tabs);
     if (ds) accept(JSON.stringify(ds), 'sheets');
     if (tabs.txns && tabs.synced) { const store = txnStoreFromTabs(tabs.txns, tabs.synced); if (store) acceptTxns(JSON.stringify(store)); }
@@ -166,9 +203,8 @@ export async function loadFromSheets(sets: readonly DataSet[] = DATA_SETS): Prom
     sheets.set((s) => ({ ...s, busy: false }));
     add(t('loaded from the sheet: {sets}', { sets: sets.join(', ') }));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    sheets.set((s) => ({ ...s, busy: false, error: msg }));
-    add(t('load failed: {error}', { error: msg }));
+    if (gen !== generation) return;
+    add(t('load failed: {error}', { error: readFailed(err) }));
   }
   if (again) { again = false; void checkSheet(); }
 }
@@ -177,10 +213,13 @@ export async function loadFromSheets(sets: readonly DataSet[] = DATA_SETS): Prom
 export async function checkSheet(): Promise<void> {
   if (!loadConfig().spreadsheetId || !sheets.get().connected) return;
   if (sheets.get().busy) { again = true; return; }
-  try {
-    const changed = changedSets(await readUpdates(client()), seen);
-    if (changed.length) await loadFromSheets(changed);
-  } catch { /* no fidelity_updates yet (an older script): the next write of the Fidelity tab creates it */ }
+  let marks: Partial<Record<DataSet, string>>;
+  // a missing fidelity_updates (an older script) reads as empty in readTab, so whatever fails here is real: shown, and a
+  // lost sign-in turns ☁️ back on
+  try { marks = await readUpdates(client()); } catch (err) { add(t('check failed: {error}', { error: readFailed(err) })); return; }
+  sheets.set((s) => (s.error ? { ...s, error: null } : s));
+  const changed = changedSets(marks, seen);
+  if (changed.length) await loadFromSheets(changed);
 }
 
 export const CHECK_EVERY_MS = 10 * 60_000; // rare (owner 2026-11-24: "very not often" polling when no signal comes)

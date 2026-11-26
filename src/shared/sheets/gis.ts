@@ -3,11 +3,16 @@
 // initTokenClient with the spreadsheets scope, the access token kept in memory only with its expiry,
 // renewed silently (prompt '') and 'consent' only on the first connect. localStorage keeps the public
 // config {clientId, spreadsheetId, email}, never the token. Nothing here logs the token
+import { statusOf } from './client';
+
 export const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 export const CONFIG_KEY = 'fidelity-accounts-gs-config';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 // a token with less than this left is renewed before use
 const MARGIN_MS = 60000;
+// the start of every sign-in failure below and of get() after Disconnect: authFailed() tells them from a network failure
+export const SIGN_IN_ERROR = 'Google sign-in';
+const DISCONNECTED_ERROR = 'Google is disconnected';
 
 export interface GsConfig {
   clientId: string;
@@ -199,7 +204,7 @@ export class GoogleAuth {
   }
 
   async get(force = false): Promise<string> {
-    if (this.disabled) throw new Error('Google is disconnected: press Connect in Setup');
+    if (this.disabled) throw new Error(DISCONNECTED_ERROR + ': press Connect in Setup');
     if (!force && this.token && this.now() + MARGIN_MS < this.token.expiresAt) return this.token.value;
     return (await this.renew(false)).value;
   }
@@ -241,12 +246,12 @@ export class GoogleAuth {
         scope: SCOPE,
         login_hint: cfg.email || undefined,
         callback: (r) => {
-          if (r.error) return reject(new Error('Google sign-in: ' + (r.error_description || r.error)));
-          if (!r.access_token) return reject(new Error('Google sign-in returned no access token'));
+          if (r.error) return reject(new Error(SIGN_IN_ERROR + ': ' + (r.error_description || r.error)));
+          if (!r.access_token) return reject(new Error(SIGN_IN_ERROR + ' returned no access token'));
           const expiresIn = Number(r.expires_in) || 3600;
           resolve({ value: r.access_token, expiresAt: this.now() + expiresIn * 1000 });
         },
-        error_callback: (e) => reject(new Error('Google sign-in: ' + ((e && (e.type || e.message)) || 'failed'))),
+        error_callback: (e) => reject(new Error(SIGN_IN_ERROR + ': ' + ((e && (e.type || e.message)) || 'failed'))),
       });
       client.requestAccessToken({ prompt: consent ? 'consent' : '' });
     });
@@ -275,6 +280,19 @@ export class GoogleAuth {
       if (g) g.accounts.oauth2.revoke(t.value, () => { /* done */ });
     } catch { /* GIS gone */ }
   }
+}
+
+/**
+ * The Google sign-in is gone, so the viewer must show ☁️ again: a Sheets 401 (still refused after the client's one renew,
+ * SheetsError.status) or a failed token request of GoogleAuth (the sign-in errors above). Anything else (offline, a 5xx,
+ * Google Identity Services not loading, a 403: this account may not open that spreadsheet, and signing in again with it
+ * changes nothing) leaves the sign-in as it is and the next check tries again
+ */
+export function authFailed(err: unknown): boolean {
+  const status = statusOf(err);
+  if (status === 401) return true;
+  const msg = err instanceof Error ? err.message : '';
+  return msg.startsWith(SIGN_IN_ERROR) || msg.startsWith(DISCONNECTED_ERROR);
 }
 
 /** A spreadsheet link with the middle of its id hidden (twitter and youtube Setup): the 👁 button shows it whole. */

@@ -74,6 +74,21 @@ export function accept(json: string, source: Source): boolean {
 /** ask an open Fidelity tab to read the positions now (a read; the command is used once and only for 2 minutes) */
 export const requestSync = (): void => { window.postMessage({ type: 'fidelity-accounts:command', mode: 'sync' }, location.origin); };
 
+// settles once the cached copies are restored, read or not (cacheGet answers null on any failure): app/google.ts waits
+// for it before choosing between the changed sets and a full read, else a reload with a saved Google sign-in saw no data
+// yet and read every set, the whole transactions tab included. Resolved at once where startData never runs (tests)
+export const RESTORE_WAIT_MS = 3000;
+let restored: Promise<void> = Promise.resolve();
+export const cacheRestored = (): Promise<void> => restored;
+
+/** another spreadsheet: the shown copy belongs to the old one, so it goes from the screen and from IndexedDB */
+export function clearData(): void {
+  dataset.set({ ds: null, source: null, error: null });
+  transactions.set(null);
+  void cacheSet(CACHE_KEY, null);
+  void cacheSet(TXNS_CACHE_KEY, null);
+}
+
 export function startData(): void {
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || typeof e.data.json !== 'string') return;
@@ -101,8 +116,12 @@ export function startData(): void {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }
     }
   });
-  void cacheGet(CACHE_KEY).then((json) => { if (json && !dataset.get().ds) accept(json, 'cache'); });
-  void cacheGet(TXNS_CACHE_KEY).then((json) => { if (json && !transactions.get()) acceptTxns(json); });
+  const restore = Promise.all([
+    cacheGet(CACHE_KEY).then((json) => { if (json && !dataset.get().ds) accept(json, 'cache'); }),
+    cacheGet(TXNS_CACHE_KEY).then((json) => { if (json && !transactions.get()) acceptTxns(json); }),
+  ]).then(() => undefined, () => undefined);
+  // an IndexedDB that never answers must not hold the Google connection: after RESTORE_WAIT_MS it goes on without the cache
+  restored = Promise.race([restore, new Promise<void>((resolve) => { setTimeout(resolve, RESTORE_WAIT_MS); })]);
   window.postMessage({ type: 'fidelity-accounts:request' }, location.origin);
   window.postMessage({ type: 'fidelity-accounts:hello' }, location.origin);
   // a reload of the viewer asks for fresh positions (owner 2026-11-24: "cmd+r doest helped"): when the script is there,
@@ -115,11 +134,29 @@ export function startData(): void {
 
 export const openFidelity = (): void => { window.open(POSITIONS_URL, 'fidelity-accounts-sync'); };
 
-/** 👀 on: Fidelity opens on Positions (one named tab, reused) and keeps refreshing; off: the tab stops refreshing */
-export function setWatch(on: boolean): void {
+function applyWatch(on: boolean): void {
   window.postMessage({ type: 'fidelity-accounts:watch-set', on }, location.origin);
   watching.set(on);
   watchChosen.set(true);
   remember(on);
+}
+
+/** 👀 on: Fidelity opens on Positions (one named tab, reused) and keeps refreshing; off: the tab stops refreshing */
+export function setWatch(on: boolean): void {
+  applyWatch(on);
   if (on) window.open(POSITIONS_URL, 'fidelity-accounts-sync');
+}
+
+/**
+ * 👀 switched on by the page itself, with no click (App's first data): the browser may block that window, and then 👀
+ * would look on and chosen with no Fidelity tab reading. So the window comes first; when it did not open nothing is
+ * posted or remembered and a popup asks for the click (no `noopener` here: with it window.open always returns null)
+ */
+export function autoWatch(): boolean {
+  if (!window.open(POSITIONS_URL, 'fidelity-accounts-sync')) {
+    notices.set(pushNotice(notices.get(), { at: Date.now(), level: 'error', text: t('The browser blocked the Fidelity window: press 👀 to start watching') }));
+    return false;
+  }
+  applyWatch(true);
+  return true;
 }
