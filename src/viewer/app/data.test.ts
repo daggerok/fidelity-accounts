@@ -43,3 +43,28 @@ test('a transactions store built from the sheet is taken as it is; a newer one s
   acceptTxns({ version: 2 } as never);
   expect(transactions.get()).toBe(store);
 });
+
+test('bridge status: a spreadsheet waiting for Allow on Fidelity, and a notice shows as a popup while 🔔 is on', async () => {
+  const { startData, sheetPin, notifyOn, notices } = await import('./data');
+  const { makeNotice } = await import('../../shared/notice');
+  startData();
+  const send = (type: string, json: string) => window.dispatchEvent(new MessageEvent('message', { data: { type, json }, origin: location.origin }));
+  send('fidelity-accounts:sheet-pin', JSON.stringify({ waiting: 'ask', tail: '…bbbbbb' }));
+  expect(sheetPin.get()).toEqual({ waiting: 'ask', tail: '…bbbbbb' });
+  send('fidelity-accounts:sheet-pin', JSON.stringify({ waiting: 'declined', tail: '…bbbbbb' }));
+  expect(sheetPin.get()?.waiting).toBe('declined');
+  send('fidelity-accounts:sheet-pin', JSON.stringify({ waiting: null }));
+  expect(sheetPin.get()).toBeNull();
+  // the whole id never shows, even if a longer value came
+  send('fidelity-accounts:sheet-pin', JSON.stringify({ waiting: 'ask', tail: 'made-up-whole-id-123456' }));
+  expect(sheetPin.get()?.tail).toBe('-123456');
+  // another origin is ignored
+  window.dispatchEvent(new MessageEvent('message', { data: { type: 'fidelity-accounts:sheet-pin', json: JSON.stringify({ waiting: null }) }, origin: 'https://example.com' }));
+  expect(sheetPin.get()).not.toBeNull();
+  // a visible viewer is where the notice shows (no browser notification then): with 🔔 on it pops up
+  notices.set([]);
+  send('fidelity-accounts:notify', JSON.stringify({ on: true }));
+  expect(notifyOn.get()).toBe(true);
+  send('fidelity-accounts:notice', makeNotice('ok', 'read: 2 accounts', Date.now()));
+  expect(notices.get().map((n) => n.text)).toEqual(['read: 2 accounts']);
+});

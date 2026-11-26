@@ -1,7 +1,19 @@
 /// <reference types="bun" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { NOTICE_MAX_AGE_MS, freshNotice, makeNotice, pushNotice, type Notice } from './notice';
+import { NOTICE_MAX_AGE_MS, VIEWER_BEAT_MS, freshNotice, makeNotice, pushNotice, viewerOnScreen, type Notice } from './notice';
+
+test('a viewer is on screen only while its heartbeat is fresh', () => {
+  const now = 5_000_000;
+  expect(viewerOnScreen(now, now)).toBe(true);
+  expect(viewerOnScreen(now - VIEWER_BEAT_MS, now)).toBe(true); // one beat ago
+  expect(viewerOnScreen(now - 2 * VIEWER_BEAT_MS + 1, now)).toBe(true);
+  expect(viewerOnScreen(now - 2 * VIEWER_BEAT_MS, now)).toBe(false); // stale: the viewer went away without a word
+  expect(viewerOnScreen(undefined, now)).toBe(false); // missing (cleared when hidden)
+  expect(viewerOnScreen(null, now)).toBe(false);
+  expect(viewerOnScreen('5000000', now)).toBe(false);
+  expect(viewerOnScreen(now + 1_000, now)).toBe(false); // from the future
+});
 
 test('a notice is shown only while fresh and well formed', () => {
   const now = 5_000_000;

@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { gmFetch, usableHandoff } from './sheets-gm';
+import { gmFetch, handoffSheet, usableHandoff } from './sheets-gm';
 
 test('gmFetch turns GM_xmlhttpRequest into a Response', async () => {
   const seen: Array<{ method: string; url: string; headers?: Record<string, string>; data?: string }> = [];
@@ -23,4 +23,11 @@ test('a handed-over token is used only with more than a minute left', () => {
   expect(usableHandoff(raw(now + 30_000), now)).toBeNull();
   expect(usableHandoff('{bad', now)).toBeNull();
   expect(usableHandoff(JSON.stringify({ token: 't', expiresAt: now + 999_999 }), now)).toBeNull();
+});
+
+test('the spreadsheet of a handoff is known even when its token expired', () => {
+  expect(handoffSheet(JSON.stringify({ token: 't', expiresAt: 0, spreadsheetId: 's' }))).toBe('s');
+  expect(handoffSheet(JSON.stringify({ token: '', expiresAt: 0, spreadsheetId: '' }))).toBe('');
+  expect(handoffSheet('{bad')).toBe('');
+  expect(handoffSheet(null)).toBe('');
 });

@@ -1,7 +1,7 @@
 /// <reference lib="esnext" />
 // Where the dataset comes from in the viewer: only Google Sheets (one way data flow: Fidelity tab -> sheet -> viewer,
 // app/google.ts reads it), kept in IndexedDB of the viewer origin for a fast next visit. The userscript bridge brings
-// status only: the last run, the login yes or no, 👀 and the contract report
+// status only: the last run, the login yes or no, 👀, the contract report and a spreadsheet waiting for Allow
 import { mergeHistory } from '../../shared/history';
 import { parseTxnStore, type TxnStore } from '../../shared/transactions';
 import { parseDataset, type Dataset } from '../../shared/model';
@@ -35,6 +35,10 @@ export const contract = createStore<Report | null>(null);
 // 🔔 notifications (shared/notice.ts): off by default, kept in the script's storage like 👀, so this switch and the 🔔 of
 // the Fidelity panel are one; while on, each notice of the Fidelity tab shows here as a popup
 export const notifyOn = createStore<boolean>(false);
+// the spreadsheet this page hands over is not the one the script may write to (userscript/pin.ts): it waits for Allow
+// on the Fidelity panel, or was declined there; only the tail of its id crosses the bridge
+export interface SheetPin { waiting: 'ask' | 'declined'; tail: string }
+export const sheetPin = createStore<SheetPin | null>(null);
 export const notices = createStore<Notice[]>([]);
 export function setNotify(on: boolean): void {
   window.postMessage({ type: 'fidelity-accounts:notify-set', on }, location.origin);
@@ -113,6 +117,14 @@ export function startData(): void {
     if (e.data.type === 'fidelity-accounts:notify') {
       try { notifyOn.set(!!(JSON.parse(e.data.json) as { on?: boolean }).on); } catch { /* ignore */ }
     }
+    if (e.data.type === 'fidelity-accounts:sheet-pin') {
+      try {
+        const p = JSON.parse(e.data.json) as { waiting?: unknown; tail?: unknown };
+        sheetPin.set((p.waiting === 'ask' || p.waiting === 'declined') && typeof p.tail === 'string' ? { waiting: p.waiting, tail: p.tail.slice(-7) } : null);
+      } catch { /* ignore */ }
+    }
+    // a visible viewer is where the Fidelity tab's notices show (no browser notification then, shared/notice.ts): they
+    // come here only while 🔔 is on (the script sends none otherwise), and notifyOn mirrors that same switch
     if (e.data.type === 'fidelity-accounts:notice') {
       const n = freshNotice(e.data.json, Date.now());
       if (n && notifyOn.get()) notices.set(pushNotice(notices.get(), n));

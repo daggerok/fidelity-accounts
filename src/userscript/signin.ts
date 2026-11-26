@@ -9,7 +9,7 @@ export interface Login { user: string; pass: string }
 
 export const ATTEMPT_GAP_MS = 30 * 60 * 1000;
 
-export type SigninStep = 'mfa' | 'filled-user' | 'filled-pass' | 'nothing' | 'too-soon';
+export type SigninStep = 'mfa' | 'filled-user' | 'filled-pass' | 'nothing' | 'too-soon' | 'not-login';
 
 function deepAll(root: Document | ShadowRoot | Element, selector: string): HTMLElement[] {
   const out: HTMLElement[] = [];
@@ -22,6 +22,8 @@ function deepAll(root: Document | ShadowRoot | Element, selector: string): HTMLE
 }
 
 const visible = (el: HTMLElement) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true' && (el as HTMLInputElement).type !== 'hidden' && !(el as HTMLInputElement).disabled;
+// laid out on the page (no display: none on it or a parent); without checkVisibility (an old browser) as before
+const rendered = (el: HTMLElement) => typeof el.checkVisibility !== 'function' || el.checkVisibility();
 const label = (el: HTMLElement) => `${el.id} ${el.getAttribute('name') ?? ''} ${el.getAttribute('autocomplete') ?? ''} ${el.getAttribute('aria-label') ?? ''} ${el.getAttribute('placeholder') ?? ''}`.toLowerCase();
 
 export function findFields(doc: Document) {
@@ -32,8 +34,18 @@ export function findFields(doc: Document) {
   const buttons = deepAll(doc, 'button, [role="button"], input[type="submit"], sdf-button').filter(visible);
   const submit = buttons.find((b) => /^(sign in|log in|next|continue|submit)$/i.test((b.textContent || (b as HTMLInputElement).value || '').trim()))
     ?? buttons.find((b) => (b as HTMLButtonElement).type === 'submit');
-  return { user, pass, code, submit };
+  // what a person sees of the form: how many password fields, whether a user name field (loginShaped)
+  const passwords = inputs.filter((i) => i.type === 'password' && rendered(i)).length;
+  return { user, pass, code, submit, passwords, userShown: !!user && rendered(user) };
 }
+
+/**
+ * The saved password goes only into the shape of a login form: exactly one password field a person sees, and a user
+ * name field next to it, or the user name typed on the page before (a two-step form, `flow`). A change-password or reset
+ * form that Fidelity might serve under the login path has two or three password fields and usually no user name field,
+ * so the saved password is never typed into it (review 2026-11-25)
+ */
+export const loginShaped = (s: { passwords: number; userShown: boolean; flow: boolean }): boolean => s.passwords === 1 && (s.userShown || s.flow);
 
 // set a value the way a person typing would: native setter + input and change events (frameworks listen to them)
 export function typeInto(input: HTMLInputElement, value: string): void {
@@ -44,11 +56,13 @@ export function typeInto(input: HTMLInputElement, value: string): void {
 }
 
 // allow: what this page may do now (decided by the caller from the Tampermonkey storage marks, see planSignin):
-// the user name once per 30 minutes, the password once per flow, right after its user name step
-export function signinStep(doc: Document, login: Login, allow: { user: boolean; pass: boolean }): SigninStep {
+// the user name once per 30 minutes, the password once per flow, right after its user name step; `flow`: this flow typed
+// the user name on the page before (inFlow)
+export function signinStep(doc: Document, login: Login, allow: { user: boolean; pass: boolean; flow?: boolean }): SigninStep {
   const f = findFields(doc);
   if (f.code) return 'mfa';
   if (f.pass && !f.pass.value) {
+    if (!loginShaped({ passwords: f.passwords, userShown: f.userShown, flow: allow.flow === true })) return 'not-login';
     if (!allow.pass) return 'too-soon';
     if (f.user && !f.user.value) typeInto(f.user, login.user);
     typeInto(f.pass, login.pass);
@@ -69,10 +83,12 @@ export const FLOW_MS = 2 * 60 * 1000;
 // marks kept in Tampermonkey storage across the sign-in pages: when the last flow started (user name typed) and
 // when a password was last sent. A flow may send one password within 2 minutes of its start; a new flow may start
 // once per 30 minutes. A page where only a password field shows (one-page form) counts as a new flow
+// a flow typed its user name less than 2 minutes ago and has not sent a password yet
+export const inFlow = (marks: { flowAt: number; passAt: number }, now: number): boolean => now - marks.flowAt < FLOW_MS && marks.passAt < marks.flowAt;
+
 export function planSignin(marks: { flowAt: number; passAt: number }, now: number): { user: boolean; pass: boolean } {
   const newFlowOk = now - marks.flowAt >= ATTEMPT_GAP_MS;
-  const inFlow = now - marks.flowAt < FLOW_MS && marks.passAt < marks.flowAt;
-  return { user: newFlowOk, pass: inFlow || (newFlowOk && now - marks.passAt >= ATTEMPT_GAP_MS) };
+  return { user: newFlowOk, pass: inFlow(marks, now) || (newFlowOk && now - marks.passAt >= ATTEMPT_GAP_MS) };
 }
 
 // a sign-in form shown again after this flow already sent its password (within 10 minutes) means the saved password

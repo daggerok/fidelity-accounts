@@ -1,18 +1,26 @@
 /// <reference lib="esnext" />
 // Corner panel on Fidelity in a shadow root (the site's CSS never touches it), the mykplan-adp panel made smaller:
-// one fact per line, ⬇ read now, {} JSON, 🔑 optional login, minimize to a round icon (remembered)
+// one fact per line, ⬇ read now, {} JSON, 🔑 optional login, minimize to a round icon (remembered). The root is closed
+// and its reference stays in this module: with an open one any script of the Fidelity page could reach the 🔑 form
+// through `host.shadowRoot`, read the password while it is typed or press Save with other values, and press Allow of a
+// new spreadsheet (review 2026-11-25). A page script that replaces attachShadow before this script runs could still
+// catch it; that is beyond what a userscript panel can prevent
 export const MIN_KEY = 'fidelity-accounts-badge-minimized';
 
 // the saved user name shown on the panel: its first 3 characters and stars; short names show less
 export const maskUser = (u: string): string => `${u.slice(0, Math.min(3, Math.max(1, u.length - 2)))}****`;
 
-export type Action = 'read' | 'json' | 'watch' | 'notify';
+export type Action = 'read' | 'json' | 'watch' | 'notify' | 'sheet-allow' | 'sheet-keep';
+
+// a spreadsheet the viewer handed over that is not the pinned one (pin.ts): only tails of ids, never a whole id
+export interface SheetAsk { tail: string; current: string; declined: boolean }
 
 export interface Badge {
   status(line: string): void;
   sheets(note: string): void;
   watching(on: boolean): void;
   notifying(on: boolean): void;
+  askSheet(ask: SheetAsk | null): void;
   host: HTMLElement;
 }
 
@@ -27,7 +35,7 @@ export interface LoginHooks {
 export function mountBadge(version: string, onAction: (a: Action) => void, login: LoginHooks): Badge {
   const host = document.createElement('div');
   host.id = 'fidelity-accounts-badge';
-  const root = host.attachShadow({ mode: 'open' });
+  const root = host.attachShadow({ mode: 'closed' });
   root.innerHTML = `
     <style>
       .b { position: fixed; right: 12px; bottom: 12px; z-index: 2147483647; display: flex; flex-direction: column; gap: 6px;
@@ -52,6 +60,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       .lg input[type=text], .lg input[type=password] { all: unset; background: #1e293b; border-radius: 6px; padding: 4px 8px; color: #e2e8f0; }
       .lg input[type=text]:focus-visible, .lg input[type=password]:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
       .hint { color: #94a3b8; }
+      .ask { color: #fcd34d; }
       /* icons only, the tooltip says what they do (owner 2026-11-24): a green ⬇ reads now, an amber {} downloads JSON */
       .ic { font-weight: 700; min-width: 14px; text-align: center; }
       .read { color: #22c55e; }
@@ -70,9 +79,12 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       </div>
       <div class="st"></div>
       <div class="line" data-sheets-line></div>
+      <div class="row ask" data-sheet-ask hidden><span class="ask-text"></span>
+        <button data-a="sheet-allow" title="Write the Fidelity data to this spreadsheet from now on">Allow</button>
+        <button data-a="sheet-keep" class="keep"></button></div>
       <div class="line" data-login-line></div>
       <div class="lg" hidden>
-        <div class="hint">Optional. Kept in this script's Tampermonkey storage on this computer (never in the repo, the viewer or Sheets); Tampermonkey itself can read it, like anything this script keeps. Want no copy anywhere? Do not save it: log in yourself (Chrome's password manager or a passkey) and the script goes on after the login. One try per 30 minutes; a refused password stops it; a one-time code you type yourself.</div>
+        <div class="hint">Optional. Kept in this script's Tampermonkey storage on this computer (never in the repo, the viewer or Sheets); Tampermonkey itself can read it, like anything this script keeps, and a Tampermonkey backup or export of script storage includes it. Want no copy anywhere? Do not save it: log in yourself (Chrome's password manager or a passkey) and the script goes on after the login. One try per 30 minutes; a refused password stops it; a one-time code you type yourself.</div>
         <input class="lu" type="text" placeholder="Fidelity username" autocomplete="off" spellcheck="false">
         <input class="lp" type="password" placeholder="password" autocomplete="new-password">
         <label class="row hint"><input class="la" type="checkbox"> log in by itself whenever the login page opens</label>
@@ -110,6 +122,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
   q('[data-m="login-forget"]').addEventListener('click', () => { login.forget(); showSaved(); });
   q<HTMLInputElement>('.la').addEventListener('change', (e) => { login.setAuto((e.target as HTMLInputElement).checked); showSaved(); });
   showSaved();
+  let openedFor = ''; // the spreadsheet a question last opened the panel for
   let remembered = false;
   try { remembered = localStorage.getItem(MIN_KEY) === '1'; } catch { /* open */ }
   setMin(remembered);
@@ -145,6 +158,22 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       b.textContent = on ? '🔔' : '🔕';
       b.title = on ? 'Notifications: on, one per finished job or error. Click to stop' : 'Notifications: off. Click to get one when a job is done or fails';
       host.dataset.notifying = on ? 'yes' : 'no';
+    },
+    askSheet(ask) {
+      const row = q('[data-sheet-ask]');
+      row.hidden = !ask;
+      host.dataset.sheetAsk = ask ? (ask.declined ? 'declined' : 'ask') : 'no';
+      if (!ask) return;
+      q('.ask-text').textContent = ask.declined
+        ? `Spreadsheet ${ask.tail} was declined: nothing is written to it.`
+        : `Write your data to spreadsheet ${ask.tail}?`;
+      // a declined one keeps only Allow (changed my mind); the other button names what stays
+      const keep = q('[data-a="sheet-keep"]');
+      keep.hidden = ask.declined;
+      keep.textContent = ask.current ? 'Keep the current one' : 'Not now';
+      keep.title = ask.current ? `Keep writing to spreadsheet ${ask.current}; this one is not asked again` : 'Write nowhere; this spreadsheet is not asked again';
+      // the question needs the panel: a minimized one opens once per spreadsheet (minimized again, it stays so)
+      if (!ask.declined && ask.tail !== openedFor) { openedFor = ask.tail; setMin(false); }
     },
   };
 }
