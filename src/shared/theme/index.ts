@@ -15,10 +15,11 @@ export const nextThemeMode = (m: ThemeMode): ThemeMode => (m === 'light' ? 'dark
 
 export const isDarkTheme = (m: ThemeMode, systemDark: boolean): boolean => (m === 'system' ? systemDark : m === 'dark');
 
-// light and dark show the icon of the other theme (a moon on the light page, a sun on the dark one);
-// system shows the current theme with an "A" badge
+// The icon is the theme in use, like every icon switch of the app (owner 2026-11-25: "if I see some button it should
+// represent what is enabled"; a sun on the dark page read as "light" while a click went to the system mode): a sun for
+// light, a moon for dark, and for system the one the system shows now with an "A" badge. The title says what a click does
 export const themeIcon = (m: ThemeMode, systemDark: boolean): { icon: string; auto: boolean } =>
-  m === 'system' ? { icon: systemDark ? '🌙' : '☀', auto: true } : { icon: m === 'dark' ? '☀' : '🌙', auto: false };
+  m === 'system' ? { icon: systemDark ? '🌙' : '☀', auto: true } : { icon: m === 'dark' ? '🌙' : '☀', auto: false };
 
 export const themeTitle = (m: ThemeMode, systemDark: boolean): string =>
   m === 'light'
