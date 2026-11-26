@@ -288,6 +288,28 @@ export function periodBounds(today: string): { month: [string, string]; quarter:
 }
 
 /**
+ * The pay dates of one position inside [from, to], oldest first: its pay date stepped by `step` months up to two years
+ * each way (no step: the pay date alone). Only the steps that can land inside are built (the Income card asked for 49
+ * dates of a monthly payer three times on every draw): addMonths moves the month by exactly n and only clamps the day
+ * inside that month, so step k falls in the month of the pay date + k * step, and the steps whose month lies outside
+ * from's to to's month cannot be inside
+ */
+export function payDatesIn(payDate: string, step: number | undefined, from: string, to: string): string[] {
+  if (!step) return payDate >= from && payDate <= to ? [payDate] : [];
+  const reach = Math.ceil(24 / step);
+  const month = (iso: string) => Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
+  const at = month(payDate);
+  const first = Math.max(-reach, Math.ceil((month(from) - at) / step));
+  const last = Math.min(reach, Math.floor((month(to) - at) / step));
+  const out: string[] = [];
+  for (let k = first; k <= last; k += 1) {
+    const d = addMonths(payDate, k * step);
+    if (d >= from && d <= to) out.push(d);
+  }
+  return out;
+}
+
+/**
  * Dividends paid and still to come in [from, to] (owner 2026-11-24: Income 1Q and 1M, "will/was in total this current
  * Q/month"). Fidelity gives one pay date per position (the last or the next) and the frequency; the other pay dates are
  * that date stepped by the frequency, each paying the dividend per share times the shares held now. An estimate: past
@@ -299,10 +321,7 @@ export function incomeIn(ps: Position[], from: string, to: string, today: string
   securities(ps).forEach((p) => {
     if (p.dividendAmount === undefined || !p.payDate || !p.quantity) return;
     const amount = p.dividendAmount * p.quantity;
-    const step = STEP_MONTHS[p.paymentFrequency ?? ''];
-    const dates = step ? Array.from({ length: 2 * Math.ceil(24 / step) + 1 }, (_, i) => addMonths(p.payDate!, (i - Math.ceil(24 / step)) * step)) : [p.payDate];
-    dates.forEach((d) => {
-      if (d < from || d > to) return;
+    payDatesIn(p.payDate, STEP_MONTHS[p.paymentFrequency ?? ''], from, to).forEach((d) => {
       if (d <= today) paid += amount; else coming += amount;
     });
   });
@@ -315,10 +334,18 @@ export function incomeIn(ps: Position[], from: string, to: string, today: string
  * card): the account's shares of the symbol and its part of the payout
  */
 export interface PayoutPart { account: Account; shares: number; payout?: number; drip: Drip | null }
-export function payoutParts(ps: Position[], accounts: Account[], u: Upcoming): PayoutPart[] {
+/** the securities of `ps` by symbol, each list in the order of `ps`: built once for a table that splits many payouts */
+export function securitiesBySymbol(ps: Position[]): Map<string, Position[]> {
+  const out = new Map<string, Position[]>();
+  securities(ps).forEach((p) => { const list = out.get(p.symbol); if (list) list.push(p); else out.set(p.symbol, [p]); });
+  return out;
+}
+/** `ps`: the positions, or their securitiesBySymbol (the big Upcoming dividends table calls this for every row) */
+export function payoutParts(ps: Position[] | Map<string, Position[]>, accounts: Account[], u: Upcoming): PayoutPart[] {
+  const held = (ps instanceof Map ? ps.get(u.symbol) : securities(ps).filter((p) => p.symbol === u.symbol)) ?? [];
   return accounts
     .map((a) => {
-      const shares = securities(ps).filter((p) => p.account === a.number && p.symbol === u.symbol).reduce((x, p) => x + (p.quantity ?? 0), 0);
+      const shares = held.filter((p) => p.account === a.number).reduce((x, p) => x + (p.quantity ?? 0), 0);
       // DRIP runs per account: each account's own payout has to buy the 0.001 share
       return { account: a, shares, payout: u.dividendAmount !== undefined ? Math.round(u.dividendAmount * shares * 100) / 100 : undefined, drip: dripGap({ ...u, account: a.number, kind: 'position', quantity: shares }) };
     })

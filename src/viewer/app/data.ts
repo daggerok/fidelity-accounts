@@ -48,18 +48,23 @@ const TXNS_CACHE_KEY = 'transactions';
 
 // the transactions history the script reads once a day (shared/transactions), from the sheet, kept in IndexedDB too
 export const transactions = createStore<TxnStore | null>(null);
-export function acceptTxns(json: string): void {
-  const store = parseTxnStore(json);
+// `input`: the cached JSON, or the store just built from the sheet (not turned into JSON and read back first)
+export function acceptTxns(input: string | TxnStore): void {
+  const store = parseTxnStore(input);
   if (!store) return;
   const cur = transactions.get();
   if (cur && cur.at > store.at) return;
   transactions.set(store);
-  void cacheSet(TXNS_CACHE_KEY, json);
+  void cacheSet(TXNS_CACHE_KEY, typeof input === 'string' ? input : JSON.stringify(store));
 }
 
-/** a new copy replaces the shown one unless it is older */
-export function accept(json: string, source: Source): boolean {
-  const ds = parseDataset(json);
+/**
+ * a new copy replaces the shown one unless it is older. `input`: JSON (the cache), checked here; or a dataset already
+ * checked by parseDataset (the sheet: datasetFromTabs), taken as it is, so a load no longer writes it to JSON and reads it
+ * back before the one JSON the cache needs
+ */
+export function accept(input: string | Dataset, source: Source): boolean {
+  const ds = typeof input === 'string' ? parseDataset(input) : input;
   if (!ds) { dataset.set((s) => ({ ...s, error: t('could not read the data (another version?)') })); return false; }
   const cur = dataset.get();
   if (cur.ds && cur.ds.builtAt > ds.builtAt) return false;
@@ -67,7 +72,7 @@ export function accept(json: string, source: Source): boolean {
   // (owner 2026-11-24: the balance chart vanished when the sheet copy of the same time replaced the script's)
   const next = cur.ds?.history ? { ...ds, history: mergeHistory(cur.ds.history, ds.history), historyAt: [cur.ds.historyAt, ds.historyAt].filter(Boolean).sort().pop() } : ds;
   dataset.set({ ds: next, source, error: null });
-  void cacheSet(CACHE_KEY, next === ds ? json : JSON.stringify(next));
+  void cacheSet(CACHE_KEY, next === ds && typeof input === 'string' ? input : JSON.stringify(next));
   return true;
 }
 

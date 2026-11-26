@@ -1,7 +1,8 @@
 /// <reference lib="esnext" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
-import { accountsIn, groupsOf, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
+import type { Account } from '../../shared/model';
+import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
 import { autoWatch, dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
@@ -28,6 +29,8 @@ const tabName = (tab: MainTab): string => ({ summary: t('Summary'), positions: t
 // open or closed panels are remembered per browser (twitter: `${PREFIX}-panel-setup`)
 const PANEL_KEY = 'fidelity-accounts-panel-settings';
 const panelOpen = (): boolean => { try { return localStorage.getItem(PANEL_KEY) === 'open'; } catch { return false; } };
+// one empty list for no data, so the screens below see the same accounts from draw to draw
+const NO_ACCOUNTS: Account[] = [];
 
 export function App() {
   const theme = useTheme();
@@ -89,13 +92,16 @@ export function App() {
   };
 
   const scope = validScope(ds, pr.scope);
-  // nothing ticked shows the same as everything ticked (owner 2026-11-24): the boxes stay clear, the numbers are all
-  const accounts = ds ? (scope === 'none' ? ds.accounts : accountsIn(ds, scope)) : [];
+  // nothing ticked shows the same as everything ticked (owner 2026-11-24): the boxes stay clear, the numbers are all.
+  // Kept from draw to draw: App draws again on every status message of the script and every Sheets log line, and a new
+  // list made Summary and Positions work every number out again
+  const accounts = useMemo(() => (ds ? (scope === 'none' ? ds.accounts : accountsIn(ds, scope)) : NO_ACCOUNTS), [ds, scope]);
   const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
   // the name of what is shown titles the Balance card (owner 2026-11-24), the right of the tabs keeps only the time
   const title = !ds ? '' : scopeTitle(scope, accounts, { all: t('All accounts'), count: (n) => t('{n} accounts', { n }) });
   const year = new Date().getFullYear();
+  const today = localToday();
 
   return (
     // the page is exactly one screen tall (owner 2026-11-23: the footer must always be visible): the navbar on top, the
@@ -181,7 +187,7 @@ export function App() {
             {/* the cards start one gutter below the tabs panel (or below the open settings) */}
             <main className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
               <ErrorBoundary resetKey={`${ds.builtAt}|${pr.tab}`}>
-                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} /> : <Positions ds={ds} accounts={accounts} />}
+                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : <Positions ds={ds} accounts={accounts} />}
               </ErrorBoundary>
             </main>
           </div>

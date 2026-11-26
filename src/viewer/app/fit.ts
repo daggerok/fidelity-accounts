@@ -8,3 +8,14 @@ export function fitCount(current: number, roomPx: number, stepPx: number, min: n
   const next = roomPx >= 0 ? current + Math.floor(roomPx / stepPx) : current - Math.ceil(-roomPx / stepPx);
   return Math.max(min, Math.min(Math.max(min, max), next));
 }
+
+/**
+ * A size change after a card's own row change is not a reason to start counting rounds again (useFitRows): the card that
+ * grew pushes the cards in the packed columns, and two cards that answer each other's change could go on forever. The
+ * page around the cards (the settings, the tabs panel, the window) always starts again; a change of the cards themselves
+ * only when no card changed its rows in the last `FIT_SELF_MS` (new data, a card of another column growing)
+ */
+export const FIT_SELF_MS = 300;
+export function fitRestarts(byPage: boolean, msSinceOwnChange: number): boolean {
+  return byPage || msSinceOwnChange > FIT_SELF_MS;
+}

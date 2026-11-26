@@ -1,12 +1,12 @@
 /// <reference lib="esnext" />
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
 import { dripGap, positionsIn, rangePos, securities, totalsOf } from '../app/derive';
 import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
 import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
-import { t } from '../app/i18n';
+import { lang, t } from '../app/i18n';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
@@ -15,6 +15,7 @@ import { CellScroll } from './CellScroll';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
+import { rowWindow, sameWindow } from '../app/row-window';
 import { DASH, bigUsd, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
@@ -138,20 +139,50 @@ const SYMBOL = 'symbol';
 // (owner 2026-11-25: "we need to fix spacing here as well"); a cell has 8 px of its own, the edge columns get the rest
 const EDGE = 16;
 const colWidth = (cols: { key: string; label: string }[], i: number): number => width(cols[i]!) + (i === cols.length - 1 ? EDGE : 0);
-/** the column widths both tables share: Symbol, then every chosen column */
-const Cols = ({ cols }: { cols: { key: string; label: string }[] }) => (
-  <colgroup><col style={{ width: SYMBOL_W + EDGE }} />{cols.map((c, i) => <col key={c.key} style={{ width: colWidth(cols, i) }} />)}</colgroup>
-);
+/** the column widths both tables share: Symbol, then every chosen column (memo: the widths measure the names in a canvas) */
+const Cols = memo(function Cols({ cols }: { cols: { key: string; label: string }[] }) {
+  return <colgroup><col style={{ width: SYMBOL_W + EDGE }} />{cols.map((c, i) => <col key={c.key} style={{ width: colWidth(cols, i) }} />)}</colgroup>;
+});
+
+// The header table, a child of its own so a scroll of the rows does not draw it again: its props stay the same until the
+// columns (new with the language too), the sort, the filters or the counts change
+const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left', wrap: true }];
+  cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
+  return (
+    <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+      <Cols cols={cols} />
+      {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
+          the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
+      <TypedHead control={control}
+        cols={head}
+        inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown, total }) : t('{n} positions', { n: total }) } }}
+        extras={{ [SYMBOL]: (
+          <span className="ml-auto flex flex-none items-center gap-1">
+            {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
+            {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
+            <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
+          </span>
+        ) }} />
+    </table>
+  );
+});
 
 interface Line { key: string; cls: string; cells: () => React.ReactNode }
 
-export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }) {
+// Memoised with stable props from App (the accounts under useMemo), so App drawing again on a status message of the script
+// does not draw the table again
+export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }) {
   const pr = useStore(prefs);
+  // the column names are words: built again on a switch of the language only, not on every draw (~93 columns, ~250 t())
+  const language = useStore(lang);
   const [showCols, setShowCols] = useState(false);
   const colsButton = useRef<HTMLButtonElement>(null);
-  const every = COLUMNS();
-  const byKey = new Map(every.map((c) => [c.key, c]));
-  const cols = shownKeys(every.map((c) => c.key), pr.columns, pr.hidden).map((k) => byKey.get(k)!);
+  const every = useMemo(() => COLUMNS(), [language]);
+  const cols = useMemo(() => {
+    const byKey = new Map(every.map((c) => [c.key, c]));
+    return shownKeys(every.map((c) => c.key), pr.columns, pr.hidden).map((k) => byKey.get(k)!);
+  }, [every, pr.columns, pr.hidden]);
   const colKeys = cols.map((c) => c.key).join(',');
   const all = useMemo(() => positionsIn(ds, accounts), [ds, accounts]);
   const several = accounts.length > 1;
@@ -168,12 +199,12 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     const kept = test ? securities(all).filter(test) : securities(all);
     return sortRows(kept, positionColumn(pr.sort.key), types[pr.sort.key] ?? columnTypes([positionColumn(pr.sort.key)], kept).types[pr.sort.key]!, pr.sort.dir);
   }, [all, typed, types, filters, pr.sort.key, pr.sort.dir]);
-  const control: TableControl = {
+  const control = useMemo((): TableControl => ({
     sort: pr.sort, filters, types, detected,
     onSort: (key) => setPrefs({ sort: nextSort(pr.sort, key, types[key] ?? 'string') }),
     onFilter: (key, value) => setPrefs(key === SYMBOL ? { search: value } : { filters: withFilter(prefs.get().filters, key, value) }),
     onType: (key, reset) => setPrefs({ types: withType(prefs.get().types, key, types[key] ?? 'string', detected[key] ?? 'string', reset) }),
-  };
+  }), [pr.sort, filters, types, detected]);
 
   const lines = useMemo(() => {
     const out: Line[] = [];
@@ -205,12 +236,17 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
   const box = useRef<HTMLDivElement>(null);
   const headBox = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState({ top: 0, height: 800 });
+  // the window of rows drawn, kept as the first and the end index: a scroll inside one row keeps the same window and the
+  // same state, so React skips the draw (a new { top, height } every frame drew the whole table on every frame)
+  const [win, setWin] = useState(() => rowWindow(0, 800, ROW, OVERSCAN));
   useEffect(() => {
     const el = box.current;
     if (!el) return undefined;
     let frame = 0;
-    const on = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => setView({ top: el.scrollTop, height: el.clientHeight })); };
+    const on = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { const next = rowWindow(el.scrollTop, el.clientHeight, ROW, OVERSCAN); setWin((w) => (sameWindow(w, next) ? w : next)); });
+    };
     on();
     el.addEventListener('scroll', on, { passive: true });
     const ro = new ResizeObserver(on);
@@ -242,13 +278,11 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
     if (el.parentElement) ro.observe(el.parentElement);
     return () => { window.removeEventListener('resize', measure); ro.disconnect(); };
   }, []);
-  const first = Math.max(0, Math.floor(view.top / ROW) - OVERSCAN);
-  const last = Math.min(lines.length, Math.ceil((view.top + view.height) / ROW) + OVERSCAN);
-  const total = securities(all).length;
-  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left', wrap: true }];
-  cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
+  const first = win.first;
+  const last = Math.min(lines.length, win.end);
+  const total = useMemo(() => securities(all).length, [all]);
   const on = activeFilters(filters);
-  const tableWidth = SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0);
+  const tableWidth = useMemo(() => SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0), [cols]);
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
@@ -259,21 +293,7 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
         <div ref={headBox} className="flex-none overflow-hidden bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
-        <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <Cols cols={cols} />
-          {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
-              the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
-          <TypedHead control={control}
-            cols={head}
-            inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown.length}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown.length, total }) : t('{n} positions', { n: total }) } }}
-            extras={{ [SYMBOL]: (
-              <span className="ml-auto flex flex-none items-center gap-1">
-                {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
-                {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
-                <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => setShowCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
-              </span>
-            ) }} />
-        </table>
+          <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
         <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
@@ -288,4 +308,4 @@ export function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }
       </div>
     </div>
   );
-}
+});
