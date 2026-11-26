@@ -34,7 +34,8 @@ function Popup({ n }: { n: Notice }) {
   const language = useStore(lang);
   const error = n.level === 'error';
   const accent = error ? 'var(--loss)' : 'var(--brand-ring)';
-  // one item a line (owner 2026-11-25: "toast should contain 1 line per item"): what happened first, in a heavier weight
+  // one item a line (owner 2026-11-25: "toast should contain 1 line per item"): the operation first, in bold (owner: "make
+  // operation in bold"), the numbers or the error details under it
   const rows = n.words ? lines(n.words, (key) => t(key), language === 'ru' ? 'ru-RU' : 'en-US') : [n.text];
   return (
     <div role={error ? 'alert' : 'status'} data-notice={n.level} data-leaving={leaving || undefined}
@@ -42,7 +43,7 @@ function Popup({ n }: { n: Notice }) {
       style={{ borderColor: accent }}>
       <span aria-hidden className="mt-1.5 size-2 flex-none rounded-full" style={{ background: accent }} />
       <span className="flex min-w-0 flex-1 flex-col break-words" data-notice-lines>
-        {rows.map((row, i) => <span key={i} className={i === 0 && rows.length > 1 ? 'font-semibold' : undefined}>{row}</span>)}
+        {rows.map((row, i) => <span key={i} className={i === 0 && n.words ? 'font-bold' : undefined}>{row}</span>)}
       </span>
       <button type="button" className="hit flex-none text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label={t('Close')} onClick={() => setLeaving(true)}>✕</button>
     </div>
