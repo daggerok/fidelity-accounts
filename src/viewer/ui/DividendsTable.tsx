@@ -15,11 +15,11 @@ import { maskAccount, qty, signedQty, signedUsd, siteDate, usd } from './format'
 // The total follows the filters: it sums the rows left
 interface DivRow { u: Upcoming; parts: PayoutPart[]; drip: Drip | null; one: Account | null }
 const DIV_COLS = (): (TypedColumn<DivRow> & HeadColumn)[] => [
-  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.u.symbol} ${r.u.description}` },
+  { key: 'symbol', label: t('Symbol'), text: (r) => `${r.u.symbol} ${r.u.description}` },
   // every account that holds it, so an account's name finds its symbols
-  { key: 'account', label: t('Account'), align: 'left', text: (r) => r.parts.map((p) => p.account.name).join(' ') },
-  { key: 'exDate', label: t('Ex-date'), align: 'left', text: (r) => siteDate(r.u.exDate) },
-  { key: 'payDate', label: t('Pay date'), align: 'left', text: (r) => siteDate(r.u.payDate) },
+  { key: 'account', label: t('Account'), text: (r) => r.parts.map((p) => p.account.name).join(' ') },
+  { key: 'exDate', label: t('Ex-date'), text: (r) => siteDate(r.u.exDate) },
+  { key: 'payDate', label: t('Pay date'), text: (r) => siteDate(r.u.payDate) },
   { key: 'perShare', label: t('Per share'), text: (r) => usd(r.u.dividendAmount), value: (r) => r.u.dividendAmount },
   { key: 'shares', label: t('Shares'), text: (r) => qty(r.u.shares), value: (r) => r.u.shares },
   { key: 'drip', label: 'DRIP', hint: DRIP_HINT(), text: (r) => signedQty(r.drip?.shares), value: (r) => r.drip?.shares },

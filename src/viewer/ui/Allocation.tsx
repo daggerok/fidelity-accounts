@@ -44,7 +44,7 @@ function Bars({ slices, all }: { slices: Slice[]; all?: boolean }) {
 // the zoomed card follows its own toggle (owner 2026-11-24 bug: bars had no effect in the big window): bars = every
 // slice as a bar, donut = the donut and the full table
 const SLICE_COLS = (): (TypedColumn<Slice> & HeadColumn)[] => [
-  { key: 'name', label: t('Name'), align: 'left', text: (s) => s.name },
+  { key: 'name', label: t('Name'), text: (s) => s.name },
   { key: 'value', label: t('Value'), text: (s) => usd(s.value), value: (s) => s.value },
   { key: 'pct', label: t('% of total'), text: (s) => pct(s.pct), value: (s) => s.pct },
 ];

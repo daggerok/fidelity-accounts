@@ -36,8 +36,8 @@ export function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' 
 // one list of the big movers window with the shared head: the change sorts and filters by what the % and $ switch shows
 export function MoversBig({ list, by }: { list: Position[]; by: 'pct' | 'usd' }) {
   const cols: (TypedColumn<Position> & HeadColumn)[] = [
-    { key: 'symbol', label: t('Symbol'), align: 'left', text: (p) => p.symbol },
-    { key: 'name', label: t('Name'), align: 'left', text: (p) => p.description },
+    { key: 'symbol', label: t('Symbol'), text: (p) => p.symbol },
+    { key: 'name', label: t('Name'), text: (p) => p.description },
     by === 'usd'
       ? { key: 'today', label: t("Today's"), text: (p) => signedUsd(p.todayGl), value: (p) => p.todayGl }
       : { key: 'today', label: t("Today's"), text: (p) => signedPct(p.todayGlPct), value: (p) => p.todayGlPct },
