@@ -115,6 +115,16 @@ export function describe(f: Finding): string {
   return `${f.level === 'error' ? '✗' : '!'} ${f.id}: ${f.problem} (fix in ${c ? c.usedIn.join(', ') : '?'})`;
 }
 
+/**
+ * what a notice says about a broken read: the problems of every check that has an error, the errors first, then the
+ * warnings of the same checks (a missing row kind next to "a new row kind: X" names the rename)
+ */
+export function brokenProblems(findings: readonly Finding[]): string[] {
+  const ids = new Set(findings.filter((f) => f.level === 'error').map((f) => f.id));
+  const of = (level: Finding['level']) => findings.filter((f) => f.level === level && ids.has(f.id)).map((f) => f.problem);
+  return Array.from(new Set(of('error').concat(of('warning'))));
+}
+
 /** the newest report wins per check, so a page that only checks the sidebar keeps the grid's last result */
 export function mergeReport(prev: Report | null, next: Report): Report {
   if (!prev) return next;

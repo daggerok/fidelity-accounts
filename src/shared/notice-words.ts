@@ -39,7 +39,6 @@ const K = {
   // the reason as it came, a line of its own with no label (owner 2026-11-25: "Failed Google sheets update / Error details...")
   reason: '{error}',
   changed: 'Fidelity changed something this script reads',
-  changedWhat: 'What: {what}',
   changedWhere: 'Details are in ⚙️ Settings of the viewer',
   sheetsWaiting: 'Not saved to Google Sheets yet',
   connect: 'Connect Google with ☁️ in the viewer',
@@ -85,7 +84,10 @@ const FAIL = { positions: K.failPositions, balances: K.failBalances, transaction
 /** a job that threw */
 export const jobFailed = (job: keyof typeof FAIL, err: unknown): Word[] => [line(FAIL[job]), line(K.reason, { error: why(err) })];
 /** Fidelity's page or answers no longer look as this version expects (contract.ts ids) */
-export const fidelityChanged = (what: string): Word[] => [line(K.changed), line(K.changedWhat, { what: what.slice(0, 200) }), line(K.changedWhere)];
+// each thing that is wrong on a line of its own, the same one never twice (owner 2026-11-26, about "What: grid.rowTypes,
+// grid.rowTypes, grid.rowTypes": three different problems hid behind one id said three times)
+export const fidelityChanged = (problems: readonly string[]): Word[] =>
+  [line(K.changed)].concat(Array.from(new Set(problems)).slice(0, NOTICE_LINES - 2).map((p) => line(K.reason, { error: p.slice(0, 120) })), [line(K.changedWhere)]);
 export const SHEETS_WAITING: Word[] = [line(K.sheetsWaiting), line(K.connect)];
 export const sheetsFailed = (err: unknown): Word[] => [line(K.sheetsFailed), line(K.reason, { error: why(err) })];
 export const sheetWaitsAllow = (tail: string): Word[] => [line(K.sheetWaits), line(K.sheetTail, { tail }), line(K.sheetAllow)];

@@ -14,7 +14,7 @@ import { mergeHistory } from '../shared/history';
 import { parseTxnStore } from '../shared/transactions';
 import { EMPTY_STORE, OVERLAP_DAYS, RECENT_DAYS, lastTxnsRead, readTransactions, sameTxns } from './transactions-sync';
 import { betaRequest, betasDue, readBetas } from './beta-sync';
-import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
+import { brokenProblems, checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { FORCE_READ_MS, WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { DUE_TICK_MS, historyDue, marketOpen, txnsPlan } from './schedule';
 import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
@@ -241,7 +241,7 @@ function onPortfolio(): void {
       const line = `daily values: ${Object.keys(fresh).length} of ${stored.accounts.length} accounts`;
       badge.status(`${line} · ${time()}`);
       const saved = await saveSets(['summary']);
-      announce(seen.length ? 'error' : 'ok', seen.length ? fidelityChanged(seen[0]!.problem) : balancesRead(Object.keys(fresh).length, stored.accounts.length, saved));
+      announce(seen.length ? 'error' : 'ok', seen.length ? fidelityChanged([seen[0]!.problem]) : balancesRead(Object.keys(fresh).length, stored.accounts.length, saved));
     } catch (err) {
       const line = `daily values: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
@@ -364,7 +364,7 @@ function onPortfolio(): void {
       const told = wasAsked || first;
       void (async () => {
         const saved = write ? await saveSets(['summary', 'positions']) : false;
-        if (broken.length) announce('error', fidelityChanged(broken.map((f) => f.id).join(', ')));
+        if (broken.length) announce('error', fidelityChanged(brokenProblems(r.findings)));
         else if (told) announce('ok', positionsRead(ds.accounts.length, ds.positions.length, saved));
         readDone = true;
       })();

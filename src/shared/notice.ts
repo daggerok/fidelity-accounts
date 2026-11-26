@@ -40,9 +40,12 @@ export function makeNotice(level: NoticeLevel, what: string | readonly Word[], a
   return JSON.stringify({ at, level, text: say(what).slice(0, 300), words: what });
 }
 
-/** the popups on screen: the new notice last, the same one never twice, at most `max` */
+/**
+ * the popups on screen: the new notice last, at most `max`. A notice that says what one on screen already says takes
+ * its place (owner 2026-11-26: two reads in a row stacked the same error twice)
+ */
 export function pushNotice(list: readonly Notice[], n: Notice, max = 3): Notice[] {
-  return list.filter((x) => x.at !== n.at || x.text !== n.text).concat(n).slice(-max);
+  return list.filter((x) => x.level !== n.level || x.text !== n.text).concat(n).slice(-max);
 }
 
 /** a notice worth showing now: well formed and fresh */

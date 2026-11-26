@@ -32,6 +32,9 @@ test('popups: newest last, no repeats, at most three', () => {
   expect(pushNotice([n(1), n(2)], n(2)).map((x) => x.at)).toEqual([1, 2]);
   expect(pushNotice([n(1), n(2), n(3)], n(4)).map((x) => x.at)).toEqual([2, 3, 4]);
   expect(pushNotice([], n(5)).map((x) => x.at)).toEqual([5]);
+  // the same words again: the new one takes the place of the one on screen
+  expect(pushNotice([n(1, 'same'), n(2)], n(3, 'same')).map((x) => x.at)).toEqual([2, 3]);
+  expect(pushNotice([{ at: 1, level: 'error', text: 'same' }], n(3, 'same')).map((x) => x.at)).toEqual([1, 3]);
 });
 
 test('a click elsewhere on the page closes a popup only after its first 2 seconds, a click inside never', () => {

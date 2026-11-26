@@ -434,7 +434,6 @@ export const RU: Record<string, string> = {
   'Failed page read': 'Не удалось прочитать страницу',
   '{error}': '{error}',
   'Fidelity changed something this script reads': 'Fidelity изменил то, что читает скрипт',
-  'What: {what}': 'Что: {what}',
   'Details are in ⚙️ Settings of the viewer': 'Подробности в ⚙️ настройках',
   'Not saved to Google Sheets yet': 'Пока не сохранено в Google Sheets',
   'Connect Google with ☁️ in the viewer': 'Подключите Google кнопкой ☁️',
