@@ -20,8 +20,9 @@ describe('notification words', () => {
     expect(lines(betasRead(210, 217, true))).toEqual(['Google Sheets updated', 'Betas: 210 of 217']);
     expect(lines(transactionsRead(18000, 0, false))).toEqual(['Transactions checked', 'Nothing new', 'Total: 18,000']);
     expect(lines(betasRead(210, 217, false))).toEqual(['Betas updated', 'Found: 210 of 217']);
-    expect(lines(jobFailed('positions', new Error('no grid')))).toEqual(['Could not read the positions', 'Reason: no grid']);
+    expect(lines(jobFailed('positions', new Error('no grid')))).toEqual(['Failed positions update', 'no grid']);
     expect(say(sheetsFailed('x'.repeat(500))).length).toBeLessThan(260);
+    expect(lines(sheetsFailed(new Error('403 forbidden')))).toEqual(['Failed Google Sheets update', '403 forbidden']);
   });
 
   test('no line is glued from several things and no notice is longer than the popup holds', () => {

@@ -25,24 +25,25 @@ const K = {
   added: 'New: {n}',
   nothingNew: 'Nothing new',
   total: 'Total: {n}',
-  txnsFailed: 'Transactions could not be read',
+  txnsFailed: 'Failed transactions update',
   accountsFailed: 'Accounts failed: {n}',
   betas: 'Betas updated',
-  betasFailed: 'Some betas could not be read',
+  betasFailed: 'Failed betas update',
   found: 'Found: {found} of {held}',
   failedParts: 'Failed: {parts}',
-  failPositions: 'Could not read the positions',
-  failBalances: 'Could not read the daily balances',
-  failTransactions: 'Could not read the transactions',
-  failBetas: 'Could not read the betas',
-  failPage: 'Could not read the page',
-  reason: 'Reason: {error}',
+  failPositions: 'Failed positions update',
+  failBalances: 'Failed daily balances update',
+  failTransactions: 'Failed transactions read',
+  failBetas: 'Failed betas read',
+  failPage: 'Failed page read',
+  // the reason as it came, a line of its own with no label (owner 2026-11-25: "Failed Google sheets update / Error details...")
+  reason: '{error}',
   changed: 'Fidelity changed something this script reads',
   changedWhat: 'What: {what}',
   changedWhere: 'Details are in ⚙️ Settings of the viewer',
   sheetsWaiting: 'Not saved to Google Sheets yet',
   connect: 'Connect Google with ☁️ in the viewer',
-  sheetsFailed: 'Could not save to Google Sheets',
+  sheetsFailed: 'Failed Google Sheets update',
   sheetWaits: 'The viewer points to another spreadsheet',
   sheetTail: 'Spreadsheet: {tail}',
   sheetAllow: 'Nothing is saved until you press Allow on the Fidelity panel',
@@ -58,6 +59,8 @@ export const NOTICE_LINES = 6;
 
 const why = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 200);
 const line = (key: string, params?: Record<string, string | number>): Word => (params ? { key, params } : { key });
+// A failure is titled "Failed ..." with the error details on the line under it (owner 2026-11-25: "Failed Google
+// sheets update / Error details...")
 // A job whose result reached the sheet is announced by that (owner 2026-11-25: not "Positions updated ... Saved to Google
 // Sheets" but "Google Sheets updated" on top and the numbers under it): the first line is the sheet, and each line under
 // it names what it counts, since the title no longer does. A job that did not write the sheet keeps its own title
