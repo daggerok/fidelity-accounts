@@ -13,7 +13,11 @@ const K = {
   positions: 'Positions updated',
   accounts: 'Accounts: {n}',
   positionsCount: 'Positions: {n}',
-  saved: 'Saved to Google Sheets',
+  sheets: 'Google Sheets updated',
+  balancesOf: 'Daily balances, accounts: {read} of {accounts}',
+  txnsAdded: 'New transactions: {n}',
+  txnsTotal: 'Transactions: {n}',
+  betasOf: 'Betas: {found} of {held}',
   balances: 'Daily balances updated',
   accountsOf: 'Accounts: {read} of {accounts}',
   txnsNew: 'Transactions updated',
@@ -54,18 +58,24 @@ export const NOTICE_LINES = 6;
 
 const why = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 200);
 const line = (key: string, params?: Record<string, string | number>): Word => (params ? { key, params } : { key });
-const withSaved = (lines: Word[], saved: boolean): Word[] => (saved ? lines.concat(line(K.saved)) : lines);
+// A job whose result reached the sheet is announced by that (owner 2026-11-25: not "Positions updated ... Saved to Google
+// Sheets" but "Google Sheets updated" on top and the numbers under it): the first line is the sheet, and each line under
+// it names what it counts, since the title no longer does. A job that did not write the sheet keeps its own title
+const sheet = (...lines: Word[]): Word[] => [line(K.sheets)].concat(lines);
 
 /** the positions were read; `saved`: this read also reached the sheet */
-export const positionsRead = (accounts: number, positions: number, saved: boolean): Word[] => withSaved([line(K.positions), line(K.accounts, { n: accounts }), line(K.positionsCount, { n: positions })], saved);
+export const positionsRead = (accounts: number, positions: number, saved: boolean): Word[] =>
+  (saved ? sheet : (...l: Word[]) => [line(K.positions)].concat(l))(line(K.accounts, { n: accounts }), line(K.positionsCount, { n: positions }));
 /** the daily account values for the balance chart */
-export const balancesRead = (read: number, accounts: number, saved: boolean): Word[] => withSaved([line(K.balances), line(K.accountsOf, { read, accounts })], saved);
+export const balancesRead = (read: number, accounts: number, saved: boolean): Word[] => (saved ? sheet(line(K.balancesOf, { read, accounts })) : [line(K.balances), line(K.accountsOf, { read, accounts })]);
 /** the transactions history: how many rows are new, how many there are */
-export const transactionsRead = (total: number, added: number, saved: boolean): Word[] =>
-  withSaved(added > 0 ? [line(K.txnsNew), line(K.added, { n: added }), line(K.total, { n: total })] : [line(K.txnsSame), line(K.nothingNew), line(K.total, { n: total })], saved);
+export const transactionsRead = (total: number, added: number, saved: boolean): Word[] => {
+  if (saved) return sheet(line(K.txnsAdded, { n: Math.max(0, added) }), line(K.txnsTotal, { n: total }));
+  return added > 0 ? [line(K.txnsNew), line(K.added, { n: added }), line(K.total, { n: total })] : [line(K.txnsSame), line(K.nothingNew), line(K.total, { n: total })];
+};
 export const transactionsFailed = (accounts: number): Word[] => [line(K.txnsFailed), line(K.accountsFailed, { n: accounts })];
 /** the betas of the held symbols */
-export const betasRead = (found: number, held: number, saved: boolean): Word[] => withSaved([line(K.betas), line(K.found, { found, held })], saved);
+export const betasRead = (found: number, held: number, saved: boolean): Word[] => (saved ? sheet(line(K.betasOf, { found, held })) : [line(K.betas), line(K.found, { found, held })]);
 export const betasFailed = (found: number, held: number, parts: string[]): Word[] => [line(K.betasFailed), line(K.found, { found, held }), line(K.failedParts, { parts: parts.join(', ') })];
 
 const FAIL = { positions: K.failPositions, balances: K.failBalances, transactions: K.failTransactions, betas: K.failBetas, page: K.failPage } as const;
