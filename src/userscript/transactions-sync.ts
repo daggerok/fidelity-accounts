@@ -14,6 +14,30 @@ const FIRST_DAY = '2024-01-01'; // an account with no daily values yet starts he
 export const OVERLAP_DAYS = 10; // a full read goes this far back again
 export const RECENT_DAYS = 1; // a recent read: yesterday and today
 
+/**
+ * The same rows and the same `synced` marks: a read that brought nothing new (👀 every 10 minutes of the session). The
+ * store is then not written to Tampermonkey storage again (a few MB) only for its new `at`: that time goes under
+ * TXNS_CHECKED_KEY, and `lastTxnsRead` gives the scheduler and the sheet the newer of the two, the same time as before
+ */
+export function sameTxns(a: TxnStore, b: TxnStore): boolean {
+  // every key in the same order with the same value: the JSON of rows and marks (and so the set's print) is the same
+  const same = (x: object, y: object): boolean => {
+    const kx = Object.keys(x);
+    const ky = Object.keys(y);
+    return kx.length === ky.length && kx.every((k, i) => k === ky[i] && (x as Record<string, unknown>)[k] === (y as Record<string, unknown>)[k]);
+  };
+  if (!same(a.synced, b.synced) || a.rows.length !== b.rows.length) return false;
+  for (let i = 0; i < a.rows.length; i++) if (a.rows[i] !== b.rows[i] && !same(a.rows[i]!, b.rows[i]!)) return false;
+  return true;
+}
+
+/** the time of the last transactions read: the store's own `at` or the later check of a read that changed nothing */
+export function lastTxnsRead(store: TxnStore | null, checked: unknown): string {
+  const at = store?.at ?? '';
+  if (typeof checked !== 'string' || Number.isNaN(Date.parse(checked))) return at;
+  return !at || Number.isNaN(Date.parse(at)) || Date.parse(checked) > Date.parse(at) ? checked : at;
+}
+
 /** the first day to read for an account */
 export function startDay(account: string, store: TxnStore, history: History | undefined, overlap = OVERLAP_DAYS): string {
   const last = store.synced[account];

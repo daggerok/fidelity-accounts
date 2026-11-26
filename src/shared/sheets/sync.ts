@@ -10,7 +10,7 @@
 import type { Betas } from '../beta';
 import { DATASET_VERSION, parseDataset, type Account, type Dataset } from '../model';
 import type { Txn, TxnStore } from '../transactions';
-import { statusOf, type SheetsClient } from './client';
+import { statusOf, type ChunkPrint, type SheetsClient } from './client';
 import type { TabSpec } from './tabs';
 import { ACCOUNTS, BALANCES, BETAS, POSITIONS, TRANSACTIONS, TXN_SYNCED, UPDATES, WIDE_FIRST, WIDE_TAB, growHeader, wideSpec, type BalanceRow, type BetaRow, type PositionRow, type TxnSyncedRow, type UpdateRow } from './tabs';
 
@@ -84,12 +84,17 @@ export async function pushPositions(client: SheetsClient, ds: Dataset, log: Log)
 
 export const syncedRows = (store: TxnStore): TxnSyncedRow[] => Object.keys(store.synced).sort().map((account) => ({ account, synced: store.synced[account]!, at: store.at }));
 
-/** transactions: every row, and how far each account was read */
-export async function pushTransactions(client: SheetsClient, store: TxnStore, log: Log): Promise<void> {
-  const r = await client.writeAll(TRANSACTIONS, store.rows);
+/**
+ * transactions: every row, and how far each account was read. fidelity_transactions grows by about 18k rows a year and
+ * is written in parts: with `chunks` (the prints of its last successful write to this spreadsheet) only the parts from
+ * the first changed one on are sent (client.writeAll); the prints of this write come back for the caller to keep
+ */
+export async function pushTransactions(client: SheetsClient, store: TxnStore, log: Log, chunks: ChunkPrint[] = []): Promise<ChunkPrint[]> {
+  const r = await client.writeAll(TRANSACTIONS, store.rows, chunks);
   log(`${TRANSACTIONS.name}: ${r.written} rows`);
   const s = await client.writeAll(TXN_SYNCED, syncedRows(store));
   log(`${TXN_SYNCED.name}: ${s.written} rows`);
+  return r.chunks ?? [];
 }
 
 export const betaRows = (betas: Betas): BetaRow[] => Object.keys(betas).sort().map((symbol) => ({ symbol, ...betas[symbol]! }));

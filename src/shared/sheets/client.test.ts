@@ -2,7 +2,8 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { describe, expect, test } from 'bun:test';
-import { CHUNK_CHARS, SheetsClient, type FetchLike } from './client';
+import { CHUNK_CHARS, SheetsClient, chunkPrintsOf, type ChunkPrint } from './client';
+import { fakeSheets, type FakeCall } from './fake-sheets';
 import { columnLetter, defineTab, growHeader, wideSpec } from './tabs';
 
 // a record shape of 11 columns (A..K) for the generic client tests (the client knows nothing about fidelity data)
@@ -30,81 +31,6 @@ const RATE = defineTab<{ date: string; rothPct: number; preTaxPct: number }>('fi
   { key: 'preTaxPct', kind: 'num' },
 ], (r) => r.date);
 
-// A tiny in-memory Sheets v4: tabs with a grid row count, values by row; enough for the calls the client makes
-type FakeTab = { sheetId: number; rows: number; frozen: number; values: unknown[][] };
-type Call = { method: string; url: string; body: unknown; auth: string };
-
-function fakeSheets(opts: { expiredTokens?: string[]; gridRows?: number } = {}) {
-  const tabs: Record<string, FakeTab> = {};
-  const calls: Call[] = [];
-  let nextId = 1;
-  const json = (status: number, body: unknown): Response => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  const rangeOf = (url: string): { tab: string; r1: number; r2: number } => {
-    const m = /\/values\/([^?:]+)/.exec(url);
-    const a1 = decodeURIComponent(m ? m[1] : '');
-    // whole tab ("'fidelity_rate'") and whole rows ("'fidelity_rate'!1:1"), as the client uses for old layouts
-    if (a1.indexOf('!') === -1) return { tab: a1.replace(/^'|'$/g, ''), r1: 1, r2: -1 };
-    const rows = /^(.+)!(\d+):(\d+)$/.exec(a1);
-    if (rows) return { tab: rows[1].replace(/^'|'$/g, ''), r1: Number(rows[2]), r2: Number(rows[3]) };
-    const p = /^(.+)!([A-Z]+)(\d+)(?::([A-Z]+)(\d*))?$/.exec(a1);
-    if (!p) throw new Error('bad range ' + a1);
-    return { tab: p[1].replace(/^'|'$/g, ''), r1: Number(p[3]), r2: p[5] ? Number(p[5]) : Infinity };
-  };
-  const fetch: FetchLike = async (url, init) => {
-    const method = (init && init.method) || 'GET';
-    const headers = (init && init.headers) as Record<string, string>;
-    const auth = headers.Authorization;
-    const body: unknown = init && typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
-    calls.push({ method, url, body, auth });
-    if ((opts.expiredTokens || []).some((t) => auth === 'Bearer ' + t)) return json(401, { error: { message: 'Request had invalid authentication credentials.' } });
-    if (method === 'GET' && /\/spreadsheets\/[^/]+\?fields=/.test(url)) {
-      return json(200, {
-        properties: { title: 'Book' },
-        sheets: Object.keys(tabs).map((t) => ({ properties: { title: t, sheetId: tabs[t].sheetId, gridProperties: { rowCount: tabs[t].rows, frozenRowCount: tabs[t].frozen || undefined } } })),
-      });
-    }
-    if (method === 'POST' && url.endsWith(':batchUpdate')) {
-      const req = (body as { requests: Record<string, { properties: { title?: string; sheetId?: number; gridProperties?: { frozenRowCount?: number } } }>[] }).requests[0];
-      if (req.addSheet) {
-        const title = req.addSheet.properties.title || '';
-        if (tabs[title]) return json(400, { error: { message: 'A sheet with the name "' + title + '" already exists.' } });
-        tabs[title] = { sheetId: nextId++, rows: opts.gridRows || 1000, frozen: (req.addSheet.properties.gridProperties || {}).frozenRowCount || 0, values: [] };
-        return json(200, { replies: [{ addSheet: { properties: { title, sheetId: tabs[title].sheetId, gridProperties: { rowCount: tabs[title].rows, frozenRowCount: tabs[title].frozen } } } }] });
-      }
-      if (req.updateSheetProperties) {
-        const id = req.updateSheetProperties.properties.sheetId;
-        Object.keys(tabs).forEach((t) => { if (tabs[t].sheetId === id) tabs[t].frozen = 1; });
-        return json(200, { replies: [{}] });
-      }
-    }
-    if (url.indexOf('/values/') !== -1) {
-      const r = rangeOf(url);
-      const tab = tabs[r.tab];
-      if (!tab) return json(400, { error: { message: 'Unable to parse range: ' + r.tab } });
-      if (method === 'PUT') {
-        const values = (body as { values: unknown[][] }).values;
-        // like the real API: only the cells of the range change, cells to the right of it stay (ranges start at A)
-        values.forEach((row, i) => { const next = (tab.values[r.r1 - 1 + i] || []).slice(); row.forEach((v, j) => { next[j] = v; }); tab.values[r.r1 - 1 + i] = next; });
-        tab.rows = Math.max(tab.rows, r.r1 - 1 + values.length);
-        return json(200, { updatedRows: values.length });
-      }
-      if (method === 'POST' && url.indexOf(':clear') !== -1) {
-        if (r.r2 === -1) { tab.values = []; return json(200, {}); }
-        if (r.r2 > tab.rows) return json(400, { error: { message: 'Range exceeds grid limits' } });
-        for (let i = r.r1 - 1; i < Math.min(r.r2, tab.values.length); i++) tab.values[i] = [];
-        return json(200, {});
-      }
-      if (method === 'GET') {
-        const rows = tab.values.slice(r.r1 - 1);
-        while (rows.length && !(rows[rows.length - 1] || []).length) rows.pop();
-        return json(200, rows.length ? { values: rows.map((x) => x || []) } : {});
-      }
-    }
-    return json(404, { error: { message: 'Requested entity was not found.' } });
-  };
-  return { tabs, calls, fetch };
-}
-
 const tx = (n: number, amount = n * 100): Transaction => ({
   id: 'tx-' + n, activityDate: '2026-01-0' + n, fund: 'Fund', type: 'contribution', rawType: 'Contribution', amount, origin: 'txPrint',
 });
@@ -130,9 +56,10 @@ describe('SheetsClient', () => {
     expect(fake.tabs.fidelity_tx.values[0]).toEqual(TABS.tx.columns);
     const put = fake.calls.filter((x) => x.method === 'PUT')[0];
     expect(put.url).toContain('valueInputOption=RAW');
-    // a second call keeps the tab and rewrites only the header
+    // a second call keeps the tab; the header already holds these columns, so it is not written again
     await c.ensureTab(TABS.tx);
     expect(fake.calls.filter((x) => x.url.endsWith(':batchUpdate'))).toHaveLength(1);
+    expect(fake.calls.filter((x) => x.method === 'PUT')).toHaveLength(1);
   });
 
   test('a tab with another header is never cleared: writing stops with a clear error', async () => {
@@ -168,7 +95,8 @@ describe('SheetsClient', () => {
     fake.calls.length = 0;
     await c.writeAll(TABS.tx, [tx(5), tx(6)]);
     const puts = fake.calls.filter((x) => x.method === 'PUT');
-    expect(puts.map((x) => decodeURIComponent(x.url.split('/values/')[1].split('?')[0]))).toEqual(['fidelity_tx!A1:K1', 'fidelity_tx!A2:K3']);
+    // the header is already there: only the rows go out
+    expect(puts.map((x) => decodeURIComponent(x.url.split('/values/')[1]!.split('?')[0]!))).toEqual(['fidelity_tx!A2:K3']);
     const clears = fake.calls.filter((x) => x.url.indexOf(':clear') !== -1);
     expect(clears.map((x) => decodeURIComponent(x.url.split('/values/')[1].split(':clear')[0]))).toEqual(['fidelity_tx!A4:K20']);
     expect(await c.readRows(TABS.tx)).toEqual([tx(5), tx(6)]);
@@ -286,4 +214,184 @@ test('a big tab goes in parts under the size limit, rows in order', async () => 
   expect(bounds[bounds.length - 1]![1]).toBe(n + 1);
   fake.calls.filter((x) => x.method === 'PUT').forEach((x) => expect(JSON.stringify(x.body).length).toBeLessThan(CHUNK_CHARS + 50_000));
   expect((await c.readRows(TABS.fund)).map((r) => r.name.split('-')[0])).toEqual(rows.map((_, i) => String(i)));
+});
+
+// what each call was: the tab list, a batchUpdate (add or freeze a tab), a header read or write, rows, a clear
+const kinds = (calls: FakeCall[]): string[] => calls.map((x) => {
+  const a1 = decodeURIComponent(x.url.split('/values/')[1] ?? '').split('?')[0]!.split(':clear')[0]!;
+  if (x.url.indexOf('?fields=') !== -1) return 'list';
+  if (x.url.endsWith(':batchUpdate')) return 'batch';
+  if (x.url.indexOf(':clear') !== -1) return 'clear';
+  return x.method + (/!(A1:[A-Z]+1|1:1)$/.test(a1) ? ' header' : ' rows');
+});
+
+describe('one run lists the tabs once (review 2026-11-25)', () => {
+  // the same writes by one client (one run) and by a new client per write (a fresh tab list each time, as before): the
+  // sheets must end the same
+  async function oneRunAndApart(setup: (c: SheetsClient) => Promise<unknown>, writes: Array<(c: SheetsClient) => Promise<unknown>>, opts: { gridRows?: number } = {}) {
+    const run = fakeSheets(opts);
+    const apart = fakeSheets(opts);
+    await setup(client(run).c);
+    await setup(client(apart).c);
+    run.calls.length = 0;
+    const one = client(run).c;
+    for (const w of writes) await w(one);
+    for (const w of writes) await w(client(apart).c);
+    expect(run.tabs).toEqual(apart.tabs);
+    return run;
+  }
+
+  test('(a) every tab there with its header: one tab list, no header writes, the same rows', async () => {
+    const run = await oneRunAndApart(
+      async (c) => { await c.writeAll(TABS.tx, [tx(1), tx(2), tx(3)]); await c.writeAll(TABS.fund, [{ name: 'A' }, { name: 'B' }]); await c.writeAll(RATE, [{ date: '2026-01-01', rothPct: 4, preTaxPct: 0 }]); },
+      [(c) => c.writeAll(TABS.tx, [tx(4), tx(5)]), (c) => c.writeAll(TABS.fund, [{ name: 'C' }]), (c) => c.upsertById(RATE, [{ date: '2026-02-01', rothPct: 6, preTaxPct: 0 }])],
+    );
+    const k = kinds(run.calls);
+    expect(k.filter((x) => x === 'list')).toHaveLength(1);
+    expect(k.filter((x) => x === 'PUT header')).toHaveLength(0);
+    expect(k).toEqual(['list', 'GET header', 'PUT rows', 'clear', 'GET header', 'PUT rows', 'clear', 'GET header', 'GET rows', 'PUT rows', 'clear']);
+  });
+
+  test('(b) a new empty spreadsheet: every tab created, frozen, its header written, as before', async () => {
+    const run = await oneRunAndApart(async () => {}, [(c) => c.writeAll(TABS.tx, [tx(1)]), (c) => c.writeAll(TABS.fund, [{ name: 'A' }]), (c) => c.upsertById(RATE, [{ date: '2026-01-01', rothPct: 4, preTaxPct: 0 }])]);
+    expect(kinds(run.calls)).toEqual([
+      'list', 'batch', 'GET header', 'PUT header', 'PUT rows', 'clear',
+      'batch', 'GET header', 'PUT header', 'PUT rows', 'clear',
+      'batch', 'GET header', 'PUT header', 'GET rows', 'PUT rows', 'clear',
+    ]);
+    expect(run.tabs.fidelity_tx!.values[0]).toEqual(TABS.tx.columns);
+    expect(run.tabs.fidelity_fund!.values[0]).toEqual(TABS.fund.columns);
+    expect(run.tabs.fidelity_rate!.values[0]).toEqual(RATE.columns);
+    Object.keys(run.tabs).forEach((t) => expect(run.tabs[t]!.frozen).toBe(1));
+  });
+
+  test('(c) a tab another writer added after our list: the 400 "already exists" path lists again and writes', async () => {
+    const fake = fakeSheets();
+    const c = client(fake).c;
+    await c.writeAll(TABS.tx, [tx(1)]); // the run has listed the tabs: no fidelity_fund yet
+    await client(fake).c.writeAll(TABS.fund, [{ name: 'theirs' }, { name: 'more' }]); // the other writer
+    fake.calls.length = 0;
+    await c.writeAll(TABS.fund, [{ name: 'ours' }]);
+    expect(kinds(fake.calls)).toEqual(['batch', 'list', 'GET header', 'PUT rows', 'clear']);
+    expect(await c.readRows(TABS.fund)).toEqual([{ name: 'ours' }]);
+    // the run knows the tab now: the next write of it does not list or add again
+    fake.calls.length = 0;
+    await c.writeAll(TABS.fund, [{ name: 'again' }]);
+    expect(kinds(fake.calls)).toEqual(['GET header', 'PUT rows', 'clear']);
+  });
+
+  test('a write that grows the grid: a later write of that tab in the same run clears up to the new size', async () => {
+    const run = await oneRunAndApart(async (c) => { await c.writeAll(TABS.tx, [tx(1)]); }, [(c) => c.writeAll(TABS.tx, [tx(1), tx(2), tx(3), tx(4), tx(5), tx(6)]), (c) => c.writeAll(TABS.tx, [tx(7), tx(8)])], { gridRows: 3 });
+    expect(await client(run).c.readRows(TABS.tx)).toEqual([tx(7), tx(8)]);
+    const clears = run.calls.filter((x) => x.url.indexOf(':clear') !== -1).map((x) => decodeURIComponent(x.url.split('/values/')[1]!.split(':clear')[0]!));
+    expect(clears).toEqual(['fidelity_tx!A4:K7']);
+  });
+
+  test('a header with spaces around a name is still written again; only an exact header is left alone', async () => {
+    const fake = fakeSheets();
+    fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [[' date', 'roth_pct', 'pre_tax_pct ', 'my notes']] };
+    const { c } = client(fake);
+    await c.ensureTab(RATE);
+    expect(fake.tabs.fidelity_rate.values[0]).toEqual(['date', 'roth_pct', 'pre_tax_pct', 'my notes']);
+    expect(kinds(fake.calls)).toEqual(['list', 'GET header', 'PUT header']);
+  });
+});
+
+describe('chunk prints: unchanged parts of a big tab are not sent again (fidelity_transactions)', () => {
+  // 40,000 characters per row: 23 rows per part, so 60 rows are parts of 23, 23 and 14 rows
+  const big = (i: number, tag = ''): { name: string } => ({ name: `${i}${tag}-${'x'.repeat(40_000)}` });
+  const many = (n: number, from = 0): Array<{ name: string }> => Array.from({ length: n }, (_, i) => big(from + i));
+  const rowRanges = (calls: FakeCall[]): string[] => calls.filter((x) => x.method === 'PUT' && !/!A1:/.test(decodeURIComponent(x.url))).map((x) => decodeURIComponent(x.url.split('/values/')[1]!.split('?')[0]!));
+
+  // the same writes with chunk prints (a new client per write, as the userscript makes one per run) and as full
+  // rewrites without them: the sheets must end the same; returns the row ranges each write with prints sent
+  async function withAndWithout(writes: Array<Array<{ name: string }>>, between: (f: ReturnType<typeof fakeSheets>, i: number) => void = () => {}) {
+    const a = fakeSheets();
+    const b = fakeSheets();
+    let prev: ChunkPrint[] = [];
+    const sent: string[][] = [];
+    for (let i = 0; i < writes.length; i++) {
+      between(a, i);
+      between(b, i);
+      a.calls.length = 0;
+      const r = await client(a).c.writeAll(TABS.fund, writes[i]!, prev);
+      prev = r.chunks!;
+      sent.push(rowRanges(a.calls));
+      await client(b).c.writeAll(TABS.fund, writes[i]!);
+    }
+    expect(a.tabs).toEqual(b.tabs);
+    expect((await client(a).c.readRows(TABS.fund)).map((r) => r.name)).toEqual(writes[writes.length - 1]!.map((r) => r.name));
+    return { sent, prev, a };
+  }
+
+  test('rows appended at the end: only the last part goes out, the sheet equals a full rewrite', async () => {
+    const { sent, prev } = await withAndWithout([many(60), many(63)]);
+    expect(sent[0]).toEqual(['fidelity_fund!A2:A24', 'fidelity_fund!A25:A47', 'fidelity_fund!A48:A61']);
+    expect(sent[1]).toEqual(['fidelity_fund!A48:A64']);
+    expect(prev.map((c) => [c.start, c.count])).toEqual([[2, 23], [25, 23], [48, 17]]);
+  });
+
+  test('enough rows appended for a new part: the last part and the new one go out', async () => {
+    const { sent } = await withAndWithout([many(60), many(80)]);
+    expect(sent[1]).toEqual(['fidelity_fund!A48:A70', 'fidelity_fund!A71:A81']);
+  });
+
+  test('a row inserted in the middle: from its part on everything goes out', async () => {
+    const rows = many(60);
+    const inserted = rows.slice(0, 30).concat([big(999)], rows.slice(30));
+    const { sent } = await withAndWithout([rows, inserted]);
+    expect(sent[1]).toEqual(['fidelity_fund!A25:A47', 'fidelity_fund!A48:A62']);
+  });
+
+  test('a row changed in the first part: every part goes out (positions after it are not trusted)', async () => {
+    const rows = many(60);
+    const changed = rows.map((r, i) => (i === 0 ? big(0, 'changed') : r));
+    const { sent } = await withAndWithout([rows, changed]);
+    expect(sent[1]).toHaveLength(3);
+  });
+
+  test('rows removed: the tab shrinks and the tail is cleared as before', async () => {
+    const { sent, a } = await withAndWithout([many(60), many(50)]);
+    expect(sent[1]).toEqual(['fidelity_fund!A48:A51']);
+    expect(a.calls.filter((x) => x.url.indexOf(':clear') !== -1).map((x) => decodeURIComponent(x.url.split('/values/')[1]!.split(':clear')[0]!))).toEqual(['fidelity_fund!A52:A1000']);
+    await withAndWithout([many(60), many(40, 20)]); // removed at the start: every row moves up
+  });
+
+  test('the same rows again: no row is sent, the tail clear stays', async () => {
+    const { sent } = await withAndWithout([many(60), many(60)]);
+    expect(sent[1]).toEqual([]);
+  });
+
+  test('no prints, or prints of nothing: everything is written; without prints none come back', async () => {
+    const fake = fakeSheets();
+    expect((await client(fake).c.writeAll(TABS.fund, many(60))).chunks).toBeUndefined();
+    fake.calls.length = 0;
+    const r = await client(fake).c.writeAll(TABS.fund, many(61), []);
+    expect(rowRanges(fake.calls)).toHaveLength(3);
+    expect(r.chunks).toHaveLength(3);
+    expect(chunkPrintsOf(r.chunks)).toEqual(r.chunks!);
+    expect(chunkPrintsOf([{ start: 2, count: 0, print: 'x' }])).toEqual([]);
+    expect(chunkPrintsOf('broken')).toEqual([]);
+  });
+
+  test('a tab deleted, emptied or cut shorter by hand: everything is written again', async () => {
+    // deleted: created again in this run
+    await withAndWithout([many(60), many(61)], (f, i) => { if (i === 1) delete f.tabs.fidelity_fund; });
+    // the whole tab cleared (header too)
+    await withAndWithout([many(60), many(61)], (f, i) => { if (i === 1) f.tabs.fidelity_fund!.values = []; });
+    // rows deleted: the grid no longer reaches the last stored part
+    const cut = await withAndWithout([many(60), many(61)], (f, i) => { if (i === 1) { f.tabs.fidelity_fund!.values.length = 30; f.tabs.fidelity_fund!.rows = 30; } });
+    expect(cut.sent[1]).toHaveLength(3);
+  });
+
+  test('the accepted limit: a row changed by hand in a part that did not change on our side stays as edited', async () => {
+    const fake = fakeSheets();
+    const first = await client(fake).c.writeAll(TABS.fund, many(60), []);
+    fake.tabs.fidelity_fund!.values[3] = ['edited by hand'];
+    await client(fake).c.writeAll(TABS.fund, many(61), first.chunks);
+    expect(fake.tabs.fidelity_fund!.values[3]).toEqual(['edited by hand']);
+    // a write without prints (or once that part changes) puts it back
+    await client(fake).c.writeAll(TABS.fund, many(61));
+    expect(fake.tabs.fidelity_fund!.values[3]).toEqual([big(2).name]);
+  });
 });
