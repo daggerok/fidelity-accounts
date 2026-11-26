@@ -1,6 +1,7 @@
 /// <reference lib="esnext" />
 import { notifyOn, setNotify } from '../app/data';
 import { t } from '../app/i18n';
+import { SettingRow } from './SettingRow';
 import { Toggle } from './Toggle';
 import { useStore } from './useStore';
 
@@ -9,12 +10,9 @@ import { useStore } from './useStore';
 export function NotifySetting({ userscript }: { userscript: string | null }) {
   const on = useStore(notifyOn);
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Toggle value={on ? 'on' : 'off'} label={t('Notifications')} onChange={(v) => setNotify(v === 'on')}
-        a={{ value: 'off', text: '🔕', title: t('Notifications off') }} b={{ value: 'on', text: '🔔', title: t('Notifications on') }} />
-      <span className="min-w-0 flex-1 text-xs text-slate-600 dark:text-slate-300">
-        {userscript ? t('Enable Tampermonkey script notifications') : t('Needs the script: install it under Get started.')}
-      </span>
-    </div>
+    <SettingRow control={<Toggle value={on ? 'on' : 'off'} label={t('Notifications')} onChange={(v) => setNotify(v === 'on')}
+      a={{ value: 'off', text: '🔕', title: t('Notifications off') }} b={{ value: 'on', text: '🔔', title: t('Notifications on') }} />}>
+      {userscript ? t('Enable Tampermonkey script notifications') : t('Needs the script: install it under Get started.')}
+    </SettingRow>
   );
 }
