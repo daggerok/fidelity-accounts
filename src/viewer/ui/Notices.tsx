@@ -1,8 +1,9 @@
 /// <reference lib="esnext" />
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NOTICE_OK_MS, clickCloses, type Notice } from '../../shared/notice';
 import { lines } from '../../shared/notice-words';
 import { closeNotice, notices } from '../app/data';
+import { moved } from '../app/flip';
 import { lang, t } from '../app/i18n';
 import { useStore } from './useStore';
 
@@ -89,19 +90,38 @@ export function Notices() {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [leave]);
+  // A popup that changes its place slides there (owner 2026-11-25: "add animation when previous toast moves down"): the
+  // earlier ones glide down when a new one comes on top, and up when one above them leaves. Each slot's top is kept
+  // from draw to draw; after a draw the moved ones start shifted back to their old place and play to the new one
+  // (app/flip.ts), none with reduced motion
+  const slots = useRef(new Map<string, HTMLElement>());
+  const tops = useRef(new Map<string, number>());
+  useLayoutEffect(() => {
+    const now = new Map<string, number>();
+    slots.current.forEach((el, key) => now.set(key, el.getBoundingClientRect().top));
+    const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!still) moved(tops.current, now).forEach(({ key, from }) => {
+      const el = slots.current.get(key);
+      if (el && typeof el.animate === 'function') el.animate([{ transform: `translateY(${from}px)` }, { transform: 'none' }], { duration: NOTICE_FADE_MS, easing: 'ease-out' });
+    });
+    tops.current = now;
+  }, [list]);
+  const slot = useCallback((key: string, el: HTMLElement | null) => { if (el) slots.current.set(key, el); else slots.current.delete(key); }, []);
   if (!list.length) return null;
   return (
     <div className="pointer-events-none absolute right-0 top-0 z-50 flex w-[min(26rem,100%)] flex-col gap-2" data-notices>
       {/* the newest on top: a popup that comes while another is still shown takes its place and moves it down (owner
           2026-11-25: "next should move down previous toast"); the store keeps them oldest first */}
-      {list.slice().reverse().map((n) => <NoticeItem key={keyOf(n)} n={n} leaving={gone.indexOf(keyOf(n)) >= 0} leave={leave} />)}
+      {list.slice().reverse().map((n) => <NoticeItem key={keyOf(n)} n={n} leaving={gone.indexOf(keyOf(n)) >= 0} leave={leave} slot={slot} />)}
     </div>
   );
 }
 
 // one popup with its own stable "leave" (the list's, bound to its key), so its timers do not restart on every draw
-function NoticeItem({ n, leaving, leave }: { n: Notice; leaving: boolean; leave: (key: string) => void }) {
+function NoticeItem({ n, leaving, leave, slot }: { n: Notice; leaving: boolean; leave: (key: string) => void; slot: (key: string, el: HTMLElement | null) => void }) {
   const key = keyOf(n);
   const onLeave = useCallback(() => leave(key), [leave, key]);
-  return <Popup n={n} leaving={leaving} onLeave={onLeave} />;
+  const ref = useCallback((el: HTMLDivElement | null) => slot(key, el), [slot, key]);
+  // the slot is what slides when the stack changes; the popup inside keeps its own fade in and out
+  return <div ref={ref} data-notice-slot><Popup n={n} leaving={leaving} onLeave={onLeave} /></div>;
 }
