@@ -407,8 +407,8 @@ function onPortfolio(): void {
     const now = Date.now();
     if (!freshCommand(raw, now)) return;
     gmDelete(COMMAND_KEY);
-    // at most one sync command a minute (command.ts: a page of the viewer's origin could post them in a loop)
-    if (!syncAllowed(gmGet<unknown>(SYNC_AT_KEY, null), now)) { badge.status('sync asked again within a minute: skipped'); return; }
+    // sync commands at least 10 seconds apart (command.ts: a page of the viewer's origin could post them in a loop)
+    if (!syncAllowed(gmGet<unknown>(SYNC_AT_KEY, null), now)) { badge.status('sync asked again within 10 seconds: skipped, reload the viewer once more'); return; }
     gmSet(SYNC_AT_KEY, now);
     badge.status('sync asked from the viewer: reading the positions…');
     syncNow();

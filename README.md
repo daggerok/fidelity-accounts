@@ -65,7 +65,7 @@ Everything this app relies on at Fidelity is listed in `src/shared/contract.ts`:
 
 ## Safety
 
-- Read only: the script never trades, transfers or submits anything on Fidelity; besides the pages it runs on it asks only Fidelity's daily values, transactions, screeners and price history, each through a fixed list of addresses; the only form it fills is the login, with your saved login, only on a page with exactly one password field and a username, at most once per 30 minutes, and it stops for good when the password is refused. A sync asked from the viewer is taken at most once a minute
+- Read only: the script never trades, transfers or submits anything on Fidelity; besides the pages it runs on it asks only Fidelity's daily values, transactions, screeners and price history, each through a fixed list of addresses; the only form it fills is the login, with your saved login, only on a page with exactly one password field and a username, at most once per 30 minutes, and it stops for good when the password is refused. Syncs asked from the viewer are taken at least 10 seconds apart
 - Your data goes from your browser to your Google Sheet and nowhere else: other pages on daggerok.github.io share the viewer's storage, so the script keeps the allowed spreadsheet in its own Tampermonkey storage and asks on the Fidelity panel before writing to any other one (Full reset in the viewer does not change that). The repo holds no account data: tests use made-up numbers
 
 ## Develop
