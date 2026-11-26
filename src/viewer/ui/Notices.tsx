@@ -38,8 +38,12 @@ function Popup({ n }: { n: Notice }) {
   const shownAt = useRef(Date.now());
   useEffect(() => {
     const onDown = (e: Event) => { if (clickCloses(!!box.current && e.target instanceof Node && box.current.contains(e.target), Date.now() - shownAt.current)) setLeaving(true); };
+    // Esc closes it too, at any moment after it appeared (owner 2026-11-25: "or click esc after it appears"). An Esc
+    // that a filter field used to clear itself does not come here (it stops there); a ⤢ window closes on the same Esc
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLeaving(true); };
     document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey); };
   }, []);
   const language = useStore(lang);
   const error = n.level === 'error';
