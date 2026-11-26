@@ -230,7 +230,9 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
     // the cash, security and pending rows of one block: an account's, or the merged lines of all of them (`at` keys them)
     const block = (at: string, own: Position[], secs: Position[]) => {
       own.filter((p) => p.kind === 'core').forEach((p) => out.push({ key: `${at}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
-        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{p.description}</span></CellScroll><div className="text-xs text-slate-500 dark:text-slate-400">{p.symbol}</div></td>
+        {/* a cash line reads like any position (owner 2026-11-25: "SPAXX" on top, "CASH HELD IN MONEY MARKET" under it): the
+            ticker in bold, then the word Cash with Fidelity's description; cash with no ticker keeps the word on top */}
+        <td><div className="font-semibold">{p.symbol || t('Cash')}</div><CellScroll className="text-xs uppercase text-slate-500 dark:text-slate-400">{p.symbol ? `${t('Cash')} ${p.description}`.trim() : p.description}</CellScroll></td>
         {cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? usd(p.currentValue) : c.key === 'secYield' || c.key === 'distRate' ? c.cell(p) : ''}</td>)}
       </> }));
       secs.forEach((p) => out.push({ key: `${at}-${p.symbol}`, cls: '', cells: () => <>
