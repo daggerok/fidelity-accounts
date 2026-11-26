@@ -34,6 +34,7 @@ export function gmDelete(key: string): void {
 }
 
 // a Chrome notification, so a paused run in a background tab is not missed
-export function notify(title: string, text: string): void {
-  try { if (typeof GM_notification === 'function') GM_notification({ title, text, timeout: 0 }); } catch { /* not available */ }
+// (timeout 0: it stays until closed)
+export function notify(title: string, text: string, timeout = 0): void {
+  try { if (typeof GM_notification === 'function') GM_notification({ title, text, timeout }); } catch { /* not available */ }
 }

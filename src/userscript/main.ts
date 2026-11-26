@@ -9,13 +9,16 @@ import { COMMAND_KEY, freshCommand } from './command';
 import { DATASET_KEY, RUN_KEY, SHEETS_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
-import { historyDue, pagePost, readHistory } from './history-sync';
+import { pagePost, readHistory } from './history-sync';
 import { mergeHistory } from '../shared/history';
 import { parseTxnStore } from '../shared/transactions';
-import { EMPTY_STORE, readTransactions } from './transactions-sync';
+import { EMPTY_STORE, OVERLAP_DAYS, RECENT_DAYS, readTransactions } from './transactions-sync';
 import { betaRequest, betasDue, readBetas } from './beta-sync';
 import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
-import { WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, marketOpen, sheetsDue } from './watch';
+import { FORCE_READ_MS, WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
+import { DUE_TICK_MS, historyDue, marketOpen, txnsPlan } from './schedule';
+import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
+import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, makeNotice, type NoticeLevel } from '../shared/notice';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, usableHandoff, writeSets, type Prints } from './sheets-gm';
 import { createSheetsQueue } from './sheets-queue';
@@ -71,24 +74,58 @@ function onPortfolio(): void {
   let lastRead = 0;
   let lastWrite = 0;
   let asked = false; // the next copy of the grid was asked for (⬇, a command): taken at once, the sheet written at once
+  let readDone = false; // a copy of the grid was taken on this page (the round trip goes back after it)
   const watching = () => gmGet<boolean>(WATCH_KEY, false) === true;
-  const goPositions = () => { asked = true; if (onPositions()) askGrid(); else location.href = POSITIONS_URL; };
+  const notifying = () => gmGet<boolean>(NOTIFY_KEY, false) === true;
+  // a finished job or an error: a Tampermonkey notification and a popup in the viewer, only while 🔔 is on
+  const announce = (level: NoticeLevel, text: string) => {
+    if (!notifying()) return;
+    gmSet(NOTICE_KEY, makeNotice(level, text, Date.now()));
+    notify(level === 'error' ? 'fidelity-accounts: error' : 'fidelity-accounts', text, level === 'error' ? 0 : NOTICE_OK_MS);
+  };
+  // the page to come back to after this visit of Positions (trip.ts)
+  const trip = onPositions() ? freshTrip(gmGet<unknown>(TRIP_KEY, null), Date.now()) : null;
+  if (!trip) gmDelete(TRIP_KEY);
+  const back = trip ? ` · back to ${pageName(trip.from)}` : '';
+
+  // after a press of Refresh Positions the copy is asked for anyway: the page reader posts only a changed copy
+  const refreshAndRead = () => {
+    asked = true;
+    const b = findRefreshButton(document);
+    if (b) b.click(); else askGrid();
+    setTimeout(() => { if (asked) askGrid(); }, FORCE_READ_MS);
+  };
+  // elsewhere: keep this page for the way back, open Positions (a fresh page reads by itself)
+  const goPositions = () => {
+    if (onPositions()) { asked = true; askGrid(); return; }
+    const from = tripFrom(location.href);
+    if (from) gmSet(TRIP_KEY, { from, at: Date.now() }); else gmDelete(TRIP_KEY);
+    location.href = POSITIONS_URL;
+  };
+  // a sync (the viewer, 👀 every 10 minutes): on Positions its own refresh and a read, elsewhere the round trip
+  const syncNow = () => { if (onPositions()) refreshAndRead(); else goPositions(); };
+
   const badge: Badge = mountBadge(VERSION, (a) => {
     if (a === 'read') { badge.status('reading the positions…'); goPositions(); }
     if (a === 'watch') gmSet(WATCH_KEY, !watching());
+    if (a === 'notify') gmSet(NOTIFY_KEY, !notifying());
     if (a === 'json') { const saved = gmGet<string | null>(DATASET_KEY, null); if (saved) download(`fidelity-accounts-${new Date().toISOString().slice(0, 10)}.json`, saved); }
   }, loginHooks());
+  badge.notifying(notifying());
+  gmWatch(NOTIFY_KEY, () => badge.notifying(notifying()));
   const how = injectPageReader();
-  badge.status(how === 'failed' ? '!could not start the page reader (Tampermonkey: allow GM_addElement)' : onPositions() ? 'waiting for the positions table…' : 'open Positions (or press ⬇): the script reads it by itself');
+  if (how === 'failed') announce('error', 'could not start the page reader (Tampermonkey: allow GM_addElement)');
+  badge.status(how === 'failed' ? '!could not start the page reader (Tampermonkey: allow GM_addElement)' : onPositions() ? `waiting for the positions table…${back}` : 'open Positions (or press ⬇): the script reads it by itself');
 
   // the fidelity_* tabs are written only from here (one way data flow, shared/sheets/sync.ts), by data set: summary and
-  // positions after a read of the grid, summary after the daily values, transactions after their daily read. Each write
+  // positions after a read of the grid, summary after the daily values, transactions after their read. Each write
   // marks fidelity_updates and leaves a signal for the viewer, which then reads those sets back from the sheet. Without
   // a Google token the sets wait until the viewer hands one over
+  let sheetsNote = '';
   const sheetsQueue = createSheetsQueue({
     ready: () => !!usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now()) && typeof GM_xmlhttpRequest === 'function',
-    waiting: () => badge.sheets('sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'),
-    failed: (err) => badge.sheets(`sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200)),
+    waiting: () => { sheetsNote = 'sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'; badge.sheets(sheetsNote); announce('error', sheetsNote); },
+    failed: (err) => { sheetsNote = `sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200); badge.sheets(sheetsNote); announce('error', sheetsNote); },
     write: async (sets) => {
       const g = usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now());
       if (!g || typeof GM_xmlhttpRequest !== 'function') throw new Error('no Google sign-in');
@@ -99,91 +136,119 @@ function onPortfolio(): void {
       gmSet(PRINTS_KEY, { id: g.spreadsheetId, prints });
       // the viewer is told only when something new is in the sheet
       if (done.length) gmSet(SHEETS_KEY, JSON.stringify({ at: Date.now(), sets: done }));
-      badge.sheets(done.length ? `sheets: ${done.join(', ')} written ${time()}` : `sheets: nothing new ${time()}`);
+      sheetsNote = done.length ? `sheets: ${done.join(', ')} written` : 'sheets: nothing new';
+      badge.sheets(`${sheetsNote} ${time()}`);
     },
   });
   gmWatch(GOOGLE_KEY, () => void sheetsQueue.retry());
 
-  // the daily values for the chart (BalanceHistory), once a day after a read: 3Y the first time, then 1M
-  let historyBusy = false;
+  // the daily values for the chart (BalanceHistory): 3Y the first time, then 1M
   const syncHistory = async () => {
-    historyBusy = true;
     try {
       const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
-      if (stored && stored.accounts.length) {
-        const seen: Finding[] = [];
-        const fresh = await readHistory(stored.accounts, stored.history, async (url, body) => { const json = await pagePost(url, body); seen.push(...checkBalanceHistory(json)); return json; });
-        report(['balanceHistory'], seen.slice(0, 1));
-        const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
-        const next = { ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() };
-        gmSet(DATASET_KEY, JSON.stringify(next));
-        badge.status(`history: ${Object.keys(fresh).length} accounts updated ${time()}`);
-        void sheetsQueue.add(['summary']);
-      }
+      if (!stored || !stored.accounts.length) return;
+      const seen: Finding[] = [];
+      const fresh = await readHistory(stored.accounts, stored.history, async (url, body) => { const json = await pagePost(url, body); seen.push(...checkBalanceHistory(json)); return json; });
+      report(['balanceHistory'], seen.slice(0, 1));
+      const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
+      gmSet(DATASET_KEY, JSON.stringify({ ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() }));
+      const line = `daily values: ${Object.keys(fresh).length} of ${stored.accounts.length} accounts`;
+      badge.status(`${line} · ${time()}`);
+      await sheetsQueue.add(['summary']);
+      announce(seen.length ? 'error' : 'ok', seen.length ? `${line}; Fidelity changed: ${seen[0]!.problem}` : `${line}; ${sheetsNote}`);
     } catch (err) {
-      badge.status(`!history: ${err instanceof Error ? err.message : String(err)}`);
+      const line = `daily values: ${err instanceof Error ? err.message : String(err)}`;
+      badge.status(`!${line}`);
+      announce('error', line);
     }
-    historyBusy = false;
-    if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date()) && !txnsBusy) void syncTransactions();
-    else if (betasDue(parseDataset(gmGet<string>(DATASET_KEY, '')), new Date()) && !betasBusy && !txnsBusy) void syncBetas();
   };
 
-  // the transactions history once a day, right after the daily values: facts for income, deposits and holdings
-  let txnsBusy = false;
-  const syncTransactions = async () => {
-    txnsBusy = true;
+  // the transactions history: `full` (10 days again) or `recent` (yesterday and today, 👀 in the session)
+  const syncTransactions = async (plan: 'full' | 'recent') => {
     try {
       const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
-      if (stored && stored.accounts.length) {
-        badge.status('transactions: reading…');
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const { store, failed } = await readTransactions(stored.accounts, parseTxnStore(gmGet<string>(TXNS_KEY, '')) ?? EMPTY_STORE, stored.history, today, pagePost);
-        gmSet(TXNS_KEY, JSON.stringify(store));
-        void sheetsQueue.add(['transactions']);
-        badge.status(`transactions: ${store.rows.length} rows${failed.length ? `, !${failed.length} accounts wait for tomorrow` : ''} · ${time()}`);
-      }
+      if (!stored || !stored.accounts.length) return;
+      badge.status(`transactions: reading${plan === 'recent' ? ' the last days' : ''}…`);
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const before = parseTxnStore(gmGet<string>(TXNS_KEY, '')) ?? EMPTY_STORE;
+      const { store, failed } = await readTransactions(stored.accounts, before, stored.history, today, pagePost, plan === 'recent' ? RECENT_DAYS : OVERLAP_DAYS);
+      gmSet(TXNS_KEY, JSON.stringify(store));
+      const added = store.rows.length - before.rows.length;
+      const line = `transactions: ${store.rows.length} rows${added > 0 ? `, ${added} new` : ''}${failed.length ? `, ${failed.length} accounts failed` : ''}`;
+      badge.status(`${failed.length ? '!' : ''}${line} · ${time()}`);
+      // the sheet gets a copy only when its content changed (the prints in writeSets)
+      await sheetsQueue.add(['transactions']);
+      // a recent read speaks only when something came or failed, so 👀 does not ring every 10 minutes for nothing
+      if (failed.length) announce('error', line);
+      else if (plan === 'full' || added > 0) announce('ok', `${line}; ${sheetsNote}`);
     } catch (err) {
-      badge.status(`!transactions: ${err instanceof Error ? err.message : String(err)}`);
+      const line = `transactions: ${err instanceof Error ? err.message : String(err)}`;
+      badge.status(`!${line}`);
+      announce('error', line);
     }
-    txnsBusy = false;
-    if (betasDue(parseDataset(gmGet<string>(DATASET_KEY, '')), new Date()) && !betasBusy) void syncBetas();
   };
 
-  // the beta of every held symbol once a day, after the transactions (beta-sync.ts: Fidelity's screeners and price
-  // history, reads only). A run that found nothing is tried again at most once an hour in this tab
-  let betasBusy = false;
+  // the beta of every held symbol once a day (beta-sync.ts: Fidelity's screeners and price history, reads only). A run
+  // that found nothing is tried again at most once an hour in this tab
   let betasTried = 0;
   const syncBetas = async () => {
     if (Date.now() - betasTried < 60 * 60 * 1000 || typeof GM_xmlhttpRequest !== 'function') return;
-    betasBusy = true;
     betasTried = Date.now();
     try {
       const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
-      if (stored && stored.positions.length) {
-        badge.status('beta: reading…');
-        const run = await readBetas(stored, stored.betas, betaRequest(gmFetch(GM_xmlhttpRequest)), new Date());
-        report(['betas.stock', 'betas.etf', 'betas.chart'], run.problems);
-        // saved when today brought something (or there is nothing to ask): a run that found nothing tries again later
-        if (run.today || !run.asked) {
-          const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
-          gmSet(DATASET_KEY, JSON.stringify({ ...latest, betas: run.betas, betasAt: new Date().toISOString() }));
-          void sheetsQueue.add(['betas']);
-        }
-        badge.status(`${run.problems.length ? '!' : ''}beta: ${run.found} of ${run.held}${run.problems.length ? ` (${run.problems.map((p) => p.id).join(', ')} failed)` : ''} · ${time()}`);
+      if (!stored || !stored.positions.length) return;
+      badge.status('beta: reading…');
+      const run = await readBetas(stored, stored.betas, betaRequest(gmFetch(GM_xmlhttpRequest)), new Date());
+      report(['betas.stock', 'betas.etf', 'betas.chart'], run.problems);
+      // saved when today brought something (or there is nothing to ask): a run that found nothing tries again later
+      if (run.today || !run.asked) {
+        const latest = parseDataset(gmGet<string>(DATASET_KEY, '')) ?? stored;
+        gmSet(DATASET_KEY, JSON.stringify({ ...latest, betas: run.betas, betasAt: new Date().toISOString() }));
+        await sheetsQueue.add(['betas']);
       }
+      const line = `beta: ${run.found} of ${run.held}${run.problems.length ? ` (${run.problems.map((p) => p.id).join(', ')} failed)` : ''}`;
+      badge.status(`${run.problems.length ? '!' : ''}${line} · ${time()}`);
+      announce(run.problems.length ? 'error' : 'ok', run.problems.length ? line : `${line}; ${sheetsNote}`);
     } catch (err) {
-      badge.status(`!beta: ${err instanceof Error ? err.message : String(err)}`);
+      const line = `beta: ${err instanceof Error ? err.message : String(err)}`;
+      badge.status(`!${line}`);
+      announce('error', line);
     }
-    betasBusy = false;
   };
+
+  // the API reads, one after the other when schedule.ts says they are due: on any portfolio page (they need no grid),
+  // a few seconds after it opens, after each read of the grid and every 5 minutes while the page stays open
+  let dueBusy = false;
+  const runDue = async () => {
+    if (dueBusy) return;
+    const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
+    if (!stored || !stored.accounts.length) return;
+    dueBusy = true;
+    try {
+      if (historyDue(stored.historyAt, new Date())) await syncHistory();
+      const plan = txnsPlan(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date(), watching());
+      if (plan) await syncTransactions(plan);
+      if (betasDue(parseDataset(gmGet<string>(DATASET_KEY, '')), new Date())) await syncBetas();
+    } finally {
+      dueBusy = false;
+    }
+  };
+  setTimeout(() => void runDue(), 3000);
+  setInterval(() => void runDue(), DUE_TICK_MS);
 
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || e.data.source !== PAGE_TAG) return;
-    if (e.data.type === 'error') { badge.status(`!page reader: ${String(e.data.message)}`); report(['grid.api'], [{ id: 'grid.api', level: 'error', problem: String(e.data.message).slice(0, 200) }]); return; }
+    if (e.data.type === 'error') {
+      badge.status(`!page reader: ${String(e.data.message)}`);
+      report(['grid.api'], [{ id: 'grid.api', level: 'error', problem: String(e.data.message).slice(0, 200) }]);
+      announce('error', `page reader: ${String(e.data.message)}`);
+      return;
+    }
     if (e.data.type !== 'grid' || typeof e.data.json !== 'string') return;
     const now = Date.now();
     const wasAsked = asked || e.data.forced === true;
+    const first = lastRead === 0;
     if (!acceptRead({ asked: wasAsked, watching: watching(), now, lastRead })) return;
     lastRead = now;
     asked = false;
@@ -196,51 +261,58 @@ function onPortfolio(): void {
       const merged = mergeDatasets(parseDataset(gmGet<string>(DATASET_KEY, '')), ds);
       gmSet(DATASET_KEY, JSON.stringify(merged));
       gmSet(RUN_KEY, JSON.stringify({ status: 'done', at: Date.now(), accounts: merged.accounts.length, positions: merged.positions.length, message: ds.asOf }));
-      badge.status(`read: ${ds.accounts.length} accounts, ${ds.positions.length} positions · ${time()}${watching() ? ' · watching' : ''}${ds.asOf ? `\n${ds.asOf}` : ''}`);
-      if (sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite })) { lastWrite = now; void sheetsQueue.add(['summary', 'positions']); }
-      if (historyDue(merged.historyAt, new Date()) && !historyBusy) void syncHistory();
+      const line = `read: ${ds.accounts.length} accounts, ${ds.positions.length} positions`;
+      badge.status(`${line} · ${time()}${watching() ? ' · watching' : ''}${back}${ds.asOf ? `\n${ds.asOf}` : ''}`);
+      const write = sheetsDue({ asked: wasAsked, watching: watching(), now, lastWrite });
+      if (write) lastWrite = now;
+      // a sync, ⬇ or the first read of a page is a job worth a notice; the reads of 👀 between them (every 30 s) are not
+      const told = wasAsked || first;
+      void (async () => {
+        if (write) await sheetsQueue.add(['summary', 'positions']);
+        if (broken.length) announce('error', `Fidelity changed: ${broken.map((f) => f.id).join(', ')} (details in ⚙️ of the viewer)`);
+        else if (told) announce('ok', `${line}${write ? `; ${sheetsNote}` : ''}${back}`);
+        readDone = true;
+      })();
+      void runDue();
     } catch (err) {
-      badge.status(`!read failed: ${err instanceof Error ? err.message : String(err)}`);
+      const line = `read failed: ${err instanceof Error ? err.message : String(err)}`;
+      badge.status(`!${line}`);
+      announce('error', line);
+      readDone = true;
     }
   });
 
-  // 👀 Watch: press the page's own Refresh Positions every 10 minutes while it is on (a read, nothing changes on Fidelity)
+  // the way back (trip.ts): after the read, once the sheet write and the due reads are done, or after 3 minutes anyway
+  if (trip) {
+    const timer = setInterval(() => {
+      if (!backNow({ trip, now: Date.now(), read: readDone, busy: dueBusy || sheetsQueue.busy() })) return;
+      clearInterval(timer);
+      gmDelete(TRIP_KEY);
+      if (!readDone) announce('error', `no positions read in 3 minutes${back}`);
+      location.href = trip.from;
+    }, 1000);
+  }
+
+  // 👀 Watch: every 10 minutes of the session a sync, the same as the viewer's (owner 2026-11-25: "each 10 minutes
+  // switch, do and go back"): on Positions the page's own Refresh Positions and a read, elsewhere the round trip
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   const applyWatch = () => {
     const on = watching();
     badge.watching(on);
-    // no jump to Positions and no refresh when a page opens or reloads (owner 2026-11-24): the page reads the grid by
-    // itself; only the viewer's 👀 opens Positions. On Positions the refresh runs every 10 minutes, first after 10 minutes,
-    // and only while the market is open (positions do not change otherwise)
-    if (on && !refreshTimer) {
-      refreshTimer = setInterval(() => {
-        if (!onPositions() || !marketOpen(new Date())) return;
-        const b = findRefreshButton(document);
-        if (b) b.click(); else askGrid();
-      }, WATCH_REFRESH_MS);
-    }
+    // no jump to Positions and no refresh when a page opens or reloads (owner 2026-11-24); the first sync comes 10
+    // minutes after the page opened, only while the market is open (positions do not change otherwise)
+    if (on && !refreshTimer) refreshTimer = setInterval(() => { if (marketOpen(new Date())) syncNow(); }, WATCH_REFRESH_MS);
     if (!on && refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   };
   applyWatch();
   gmWatch(WATCH_KEY, applyWatch);
 
-  // the daily values and the transactions are API reads, they need no grid: on any portfolio page (Summary too) they
-  // run once a day a few seconds after the page opens (owner 2026-11-24: the income stayed -- on the Summary page)
-  setTimeout(() => {
-    const stored = parseDataset(gmGet<string>(DATASET_KEY, ''));
-    if (!stored || !stored.accounts.length) return;
-    if (historyDue(stored.historyAt, new Date())) { if (!historyBusy) void syncHistory(); }
-    else if (historyDue(parseTxnStore(gmGet<string>(TXNS_KEY, ''))?.at || undefined, new Date())) { if (!txnsBusy) void syncTransactions(); }
-    else if (betasDue(stored, new Date()) && !betasBusy) void syncBetas();
-  }, 3000);
-
-  // ⬇ Sync in the viewer: this tab was opened (or is reused) for it
+  // ⬇ Sync in the viewer (and each viewer reload): this tab was opened (or is reused) for it
   const takeCommand = (raw: unknown) => {
     if (!freshCommand(raw, Date.now())) return;
     gmDelete(COMMAND_KEY);
     badge.status('sync asked from the viewer: reading the positions…');
-    // on Positions: the page's own refresh brings fresh numbers, the read follows; elsewhere: go to Positions
-    if (onPositions()) { asked = true; const b = findRefreshButton(document); if (b) b.click(); else askGrid(); } else goPositions();
+    syncNow();
   };
   takeCommand(gmGet<string | null>(COMMAND_KEY, null));
   gmWatch(COMMAND_KEY, takeCommand);
@@ -306,17 +378,20 @@ function onViewer(): void {
   // `chosen`: the owner switched 👀 on or off at least once (here, on the Fidelity badge or in the viewer); the viewer
   // then never switches it on by itself (owner 2026-11-24: "do not want if it was disabled previously")
   const postWatch = () => post('fidelity-accounts:watch', JSON.stringify({ on: gmGet<boolean>(WATCH_KEY, false) === true, chosen: gmGet<boolean | null>(WATCH_KEY, null) !== null }));
+  // 🔔 on or off (shared/notice.ts), and each new notice of the Fidelity tab for the popup
+  const postNotify = () => post('fidelity-accounts:notify', JSON.stringify({ on: gmGet<boolean>(NOTIFY_KEY, false) === true }));
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data) return;
     // the Google token after ☁️ and each silent renew: the Fidelity tab writes the fidelity_* tabs with it
     if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
+    if (e.data.type === 'fidelity-accounts:notify-set' && typeof e.data.on === 'boolean') gmSet(NOTIFY_KEY, e.data.on);
     if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
     // Fidelity login stays: 🔑 on Fidelity manages it)
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, SHEETS_KEY, PRINTS_KEY].forEach(gmDelete);
-    if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); }
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, SHEETS_KEY, PRINTS_KEY, TRIP_KEY, NOTIFY_KEY, NOTICE_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); postNotify(); }
   });
   // no data crosses this bridge (one way data flow): only the signal that the sheet has new sets, the viewer reads them
   // from the sheet; the run state, the login yes or no, 👀 and the contract report are status, not data
@@ -327,6 +402,9 @@ function onViewer(): void {
   gmWatch(LOGIN_KEY, (v) => post('fidelity-accounts:login', JSON.stringify({ saved: !!v })));
   postWatch();
   gmWatch(WATCH_KEY, postWatch);
+  postNotify();
+  gmWatch(NOTIFY_KEY, postNotify);
+  gmWatch(NOTICE_KEY, (v) => post('fidelity-accounts:notice', v));
   post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null));
   gmWatch(CONTRACT_KEY, (v) => post('fidelity-accounts:contract', v));
 }

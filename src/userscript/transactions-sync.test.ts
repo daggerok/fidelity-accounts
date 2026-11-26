@@ -13,6 +13,9 @@ test('start day: the first daily value, else a fixed day; later 10 days before t
   expect(startDay('X1', EMPTY_STORE, { X1: [{ date: '2026-03-02', value: 1 }] })).toBe('2026-03-02');
   expect(startDay('X2', EMPTY_STORE, undefined)).toBe('2024-01-01');
   expect(startDay('X1', { ...EMPTY_STORE, synced: { X1: '2026-11-24' } }, undefined)).toBe('2026-11-14');
+  // a recent read (👀 in the session): yesterday and today only; a never read account still starts at its beginning
+  expect(startDay('X1', { ...EMPTY_STORE, synced: { X1: '2026-11-24' } }, undefined, 1)).toBe('2026-11-23');
+  expect(startDay('X2', EMPTY_STORE, undefined, 1)).toBe('2024-01-01');
 });
 
 test('reads month by month, splits a full window, keeps a failed account for tomorrow', async () => {

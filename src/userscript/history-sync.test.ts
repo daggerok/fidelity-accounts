@@ -2,14 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { historyDue, pagePost, readHistory } from './history-sync';
-
-test('due once a day', () => {
-  const now = new Date(2026, 10, 23, 15, 0);
-  expect(historyDue(undefined, now)).toBe(true);
-  expect(historyDue(new Date(2026, 10, 23, 9, 0).toISOString(), now)).toBe(false);
-  expect(historyDue(new Date(2026, 10, 22, 23, 0).toISOString(), now)).toBe(true);
-});
+import { pagePost, readHistory } from './history-sync';
 
 test('3Y for an account without points, 1M for one with points, a failure skips that account only', async () => {
   const asked: Array<{ url: string; body: { range: string; acctList: Array<{ acctNum: string; acctType: string }> } }> = [];

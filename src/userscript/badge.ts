@@ -6,12 +6,13 @@ export const MIN_KEY = 'fidelity-accounts-badge-minimized';
 // the saved user name shown on the panel: its first 3 characters and stars; short names show less
 export const maskUser = (u: string): string => `${u.slice(0, Math.min(3, Math.max(1, u.length - 2)))}****`;
 
-export type Action = 'read' | 'json' | 'watch';
+export type Action = 'read' | 'json' | 'watch' | 'notify';
 
 export interface Badge {
   status(line: string): void;
   sheets(note: string): void;
   watching(on: boolean): void;
+  notifying(on: boolean): void;
   host: HTMLElement;
 }
 
@@ -62,6 +63,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
         <button data-a="watch" title="Watch: refresh Positions every 10 minutes and hand the changes to the viewer">👀</button>
         <button data-a="read" class="ic read" title="Read the positions now (opens the Positions page when you are elsewhere)">⬇</button>
         <button data-a="json" class="ic json" title="Download the last read as JSON">{}</button>
+        <button data-a="notify" title="Notifications: off. Click to get one when a job is done or fails">🔕</button>
       </div>
       <div class="st"></div>
       <div class="line" data-sheets-line></div>
@@ -133,6 +135,13 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       // the dot is green while 👀 watches, grey when it does not (owner 2026-11-24)
       root.querySelectorAll('.dot').forEach((d) => d.classList.toggle('on', on));
       q('.mini').title = on ? 'fidelity-accounts: watching · show the panel' : 'fidelity-accounts: not watching · show the panel';
+    },
+    notifying(on) {
+      // 🔔 on, 🔕 off: the same switch as Notifications in the viewer's ⚙️ (shared/notice.ts)
+      const b = q('[data-a="notify"]');
+      b.textContent = on ? '🔔' : '🔕';
+      b.title = on ? 'Notifications: on, one per finished job or error. Click to stop' : 'Notifications: off. Click to get one when a job is done or fails';
+      host.dataset.notifying = on ? 'yes' : 'no';
     },
   };
 }

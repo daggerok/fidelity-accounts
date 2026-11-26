@@ -12,6 +12,7 @@ import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
 import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
+import { Notices } from './Notices';
 import { Positions } from './Positions';
 import { SettingsPanel, SettingsResets } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
@@ -180,6 +181,7 @@ export function App() {
           </div>
         ) : null}
       </div>
+      <Notices />
       <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-400 lg:min-h-6 lg:px-6">
         <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-600 dark:hover:text-slate-200">daggerok &copy; {year}</a>
       </footer>

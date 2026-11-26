@@ -2,7 +2,8 @@
 // 👀 Watch (owner 2026-11-23: "if markets are open we would want to see how data is changing"): while it is on, the
 // Fidelity tab presses the page's own "Refresh Positions" button every 10 minutes (a read: the page asks for the positions
 // again, nothing changes on Fidelity) and hands every change to the viewer, at most every 30 s; Sheets get a copy at most
-// every 10 minutes (each write is a few MB). Off: one read when Positions opens, and whenever asked (⬇ on the panel)
+// every 10 minutes (each write is a few MB). Off: one read when Positions opens, and whenever asked (⬇ on the panel).
+// The session check (9:30 to 16:00 New York) lives in schedule.ts
 export const WATCH_KEY = 'fidelity-accounts.watch'; // boolean, shared by the viewer and the Fidelity tab
 export const WATCH_REFRESH_MS = 10 * 60_000; // every 10 minutes (owner 2026-11-24: "refresh once in 10 minutes max")
 export const WATCH_READ_GAP_MS = 30_000;
@@ -19,18 +20,9 @@ export function sheetsDue(p: { asked: boolean; watching: boolean; now: number; l
   return p.asked || !p.watching || p.now - p.lastWrite >= WATCH_SHEETS_GAP_MS;
 }
 
-/**
- * Is the regular US session open (9:30 to 16:00 New York, Monday to Friday)? Refresh Positions only matters then
- * (owner 2026-11-24: "refresh positions needed only to get new data from position changes on open market"); exchange
- * holidays are not known here, a refresh on one just reads the same numbers
- */
-export function marketOpen(now: Date): boolean {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  if (get('weekday') === 'Sat' || get('weekday') === 'Sun') return false;
-  const minutes = (Number(get('hour')) % 24) * 60 + Number(get('minute'));
-  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
-}
+// after a press of Refresh Positions the copy is asked for after this long anyway: the page reader posts only a copy
+// that changed, so a refresh that brought the same numbers would otherwise read nothing (owner 2026-11-25)
+export const FORCE_READ_MS = 15_000;
 
 /** the page's own refresh button of the positions grid (seen live 2026-11-23: accessible name "Refresh Positions") */
 export function findRefreshButton(doc: Document): HTMLElement | null {

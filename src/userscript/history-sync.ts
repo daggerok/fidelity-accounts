@@ -1,19 +1,12 @@
 /// <reference lib="esnext" />
 // Daily account values for the viewer's chart and periods: Fidelity's own BalanceHistory, read with the page's session
 // (a read: the same request Fidelity's Summary chart makes). The first time 3Y per account (= since it opened), then 1M
-// once a day to add the new days. Only this one URL is ever asked
+// after 20:00 New York of each workday to add the new days (when: schedule.ts). Only this one URL is ever asked
 import { BALANCE_HISTORY_URL, parseBalanceHistory, type History } from '../shared/history';
 import { TRANSACTIONS_HEADERS, TRANSACTIONS_URL } from '../shared/transactions';
 import type { Account } from '../shared/model';
 
 export type Post = (url: string, body: unknown) => Promise<unknown>;
-
-/** due when never read, or last read on another day (local) */
-export function historyDue(historyAt: string | undefined, now: Date): boolean {
-  if (!historyAt) return true;
-  const last = new Date(historyAt);
-  return last.toDateString() !== now.toDateString();
-}
 
 /** one request per account: 3Y for an account without points yet, else 1M; a failed account is skipped */
 export async function readHistory(accounts: Account[], have: History | undefined, post: Post): Promise<History> {

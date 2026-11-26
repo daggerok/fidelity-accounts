@@ -370,4 +370,9 @@ export const RU: Record<string, string> = {
   'created a spreadsheet': 'таблица создана',
   'loaded from the sheet: {sets}': 'загружено из таблицы: {sets}',
   'load failed: {error}': 'загрузка не удалась: {error}',
+  Notifications: 'Уведомления',
+  'Notifications off': 'Уведомления выключены',
+  'Notifications on': 'Уведомления включены',
+  'A notification from Tampermonkey and a popup here when the script finishes a job (a sync, the daily reads) or fails.': 'Уведомление от Tampermonkey и всплывашка здесь, когда скрипт закончил работу (синхронизация, ежедневные чтения) или получил ошибку.',
+  'Needs the script: install it under Get started.': 'Нужен скрипт: установи его в разделе «Начало работы».',
 };
