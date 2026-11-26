@@ -6,7 +6,7 @@ import type { Position } from '../../shared/model';
 import { parseCellValue } from '../../shared/filter-engine';
 import { columnTypes, sortRows, type ColumnType, type TypedColumn } from '../../shared/typed-columns';
 import { DASH, bigNum, bigUsd, pct, qty, signedPct, signedQty, signedUsd, signedUsdPct, siteDate, usd } from '../ui/format';
-import { dripMin, rangePos, rowDrip } from './derive';
+import { dripMin, dripMinAdjUsd, rangePos, rowDrip, rowDripAdjUsd } from './derive';
 import type { MergeKind } from './merge';
 
 type Cell = Omit<TypedColumn<Position>, 'key'>;
@@ -91,6 +91,8 @@ export const NEW_COLUMNS_BY_V: Record<number, string[]> = {
   3: FIELD_COLUMNS.filter((c) => c.since === 3).map((c) => c.key),
   // owner 2026-11-25: "add two more columns disabled by default ... called Min. DRIP and Min. DRIP $"
   4: ['dripMin', 'dripMinUsd'],
+  // owner 2026-11-25: "also add adjusted columns: Adj. DRIP $ and Adj. min. DRIP $"
+  5: ['dripAdjUsd', 'dripMinAdjUsd'],
 };
 export const NEW_COLUMN_KEYS: string[] = Object.keys(NEW_COLUMNS_BY_V).map(Number).sort((a, b) => a - b).reduce<string[]>((all, v) => all.concat(NEW_COLUMNS_BY_V[v]!), []);
 
@@ -131,6 +133,8 @@ const CELLS: Record<string, Cell> = {
   dripUsd: num((p) => rowDrip(p)?.usd, signedUsd),
   dripMin: num((p) => dripMin(p)?.shares, qty),
   dripMinUsd: num((p) => dripMin(p)?.usd, usd),
+  dripAdjUsd: num((p) => rowDripAdjUsd(p) ?? undefined, signedUsd),
+  dripMinAdjUsd: num((p) => dripMinAdjUsd(p) ?? undefined, usd),
   todayGlPct: num((p) => p.todayGlPct, signedPct),
   todayGl: num((p) => p.todayGl, signedUsd),
   totalGlPct: num((p) => p.totalGlPct, signedPct),

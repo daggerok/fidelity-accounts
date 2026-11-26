@@ -77,7 +77,7 @@ test('the fields JSON: raw sums and percents follow the merged values, static fi
 test('a ticker of one account keeps its row; only % of account is worked out over all the shown accounts', () => {
   const o = line('ONE');
   const { percentOfAccount, fields, ...rest } = ONE;
-  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, actPer: 5 }, accounts: ['T0000002'], drip: null });
+  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, actPer: 5 }, accounts: ['T0000002'], drip: null, dripAdjUsd: null });
   expect(o.todayGlPct).toBe(1.52); // Fidelity's own, not worked out again
 });
 
@@ -119,6 +119,25 @@ test('DRIP of a merged line: each account\'s own DRIP added up (owner: "aggregat
   expect(dripMin(d('T0000002', 20))).toEqual(dripMin(m!));
   expect(value('dripMin', m!)).toBe(12);
   expect(value('dripMinUsd', m!)).toBe(18000);
+  // the adjusted dollars: far above a dollar here, so the same as DRIP $ and Min. DRIP $
+  expect(value('dripAdjUsd', m!)).toBe(-1500);
+  expect(value('dripMinAdjUsd', m!)).toBe(18000);
+});
+
+test('Adj. DRIP $ of a merged line: the order of each account is brought up to one dollar first, then added up', () => {
+  // a cheap ticker: 0.5 share is enough for DRIP, the price is $1 -> an account holding 0.2 has to buy $0.30, shown as $1
+  const cheap = (account: string, quantity: number) => pos(account, 'CHP', { quantity, lastPrice: 1, dividendAmount: 0.02 });
+  const one = cheap('T0000001', 0.2);
+  const gap = dripGap(one)!;
+  expect(gap.usd).toBeGreaterThan(0);
+  expect(gap.usd).toBeLessThan(1);
+  const [single] = mergePositions([one], ACCOUNTS);
+  expect(single!.dripAdjUsd).toBe(1);
+  expect(value('dripUsd', single!)).toBe(gap.usd); // DRIP $ itself is not changed
+  // two accounts short by cents each: two orders of one dollar
+  const [both] = mergePositions([cheap('T0000001', 0.2), cheap('T0000002', 0.3)], ACCOUNTS);
+  expect(both!.dripAdjUsd).toBe(2);
+  expect(value('dripAdjUsd', both!)).toBe(2);
 });
 
 test('shares on loan: yes when on loan in any account (owner: "loaned should show yes if loaned in any account")', () => {

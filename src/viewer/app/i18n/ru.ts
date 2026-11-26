@@ -445,6 +445,10 @@ export const RU: Record<string, string> = {
   // Min. DRIP and Min. DRIP $ (ui/Drip.tsx)
   'Min. DRIP': 'Мин. DRIP',
   'Min. DRIP $': 'Мин. DRIP $',
+  'Adj. DRIP $': 'Скорр. DRIP $',
+  'Adj. min. DRIP $': 'Скорр. мин. DRIP $',
+  'DRIP $ as an order Fidelity takes: an amount to buy under $1 is shown as $1, the least Fidelity sells': 'DRIP $ как заявка, которую примет Fidelity: сумма покупки меньше $1 показана как $1, меньше Fidelity не продаёт',
+  'Min. DRIP $ as an order Fidelity takes: an amount under $1 is shown as $1, the least Fidelity sells': 'Мин. DRIP $ как заявка, которую примет Fidelity: сумма меньше $1 показана как $1, меньше Fidelity не продаёт',
   'The fewest shares to hold so the next dividend buys 0.001 share by DRIP: from the last price and the dividend, the same in every account': 'Наименьшее число акций, чтобы следующий дивиденд купил по DRIP 0.001 акции: из последней цены и дивиденда, одно и то же в любом счёте',
   'The fewest shares to hold for DRIP, in dollars at the last price': 'Наименьшее число акций для DRIP, в долларах по последней цене',
 };

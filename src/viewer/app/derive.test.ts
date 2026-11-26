@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -390,4 +390,15 @@ test('payout parts over the symbol map are the same as over the positions', () =
   expect(map.get('X')!.map((p) => p.quantity)).toEqual([0.1, 0.2, 0.7]); // the core row is not a security
   upcomingDividends(ps, '2026-11-24').forEach((u) => expect(payoutParts(map, accounts, u)).toEqual(payoutParts(ps, accounts, u)));
   expect(payoutParts(map, accounts, { ...upcomingDividends(ps, '2026-11-24')[0]!, symbol: 'GONE' })).toEqual([]);
+});
+
+test('an order under a dollar is shown as one dollar, the least Fidelity sells; nothing to buy stays as it is', () => {
+  expect(adjustedBuy(0.01)).toBe(1);
+  expect(adjustedBuy(0.99)).toBe(1);
+  expect(adjustedBuy(1)).toBe(1);
+  expect(adjustedBuy(1.01)).toBe(1.01);
+  expect(adjustedBuy(250)).toBe(250);
+  expect(adjustedBuy(0)).toBe(0); // nothing to buy
+  expect(adjustedBuy(-0.5)).toBe(-0.5); // the dividend already buys 0.001 share
+  expect(adjustedBuy(-12000)).toBe(-12000);
 });
