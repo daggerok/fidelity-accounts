@@ -4,13 +4,13 @@
 import { expect, test } from 'bun:test';
 import { COMMAND_MAX_AGE_MS, SYNC_GAP_MS, freshCommand, syncAllowed } from './command';
 
-test('a sync command is taken at most once a minute', () => {
+test('sync commands are at least 10 seconds apart', () => {
   const now = 10_000_000;
   expect(syncAllowed(undefined, now)).toBe(true); // none taken yet
   expect(syncAllowed(null, now)).toBe(true);
   expect(syncAllowed(now - 5_000, now)).toBe(false); // a loop of posts
   expect(syncAllowed(now - SYNC_GAP_MS + 1, now)).toBe(false);
-  expect(syncAllowed(now - SYNC_GAP_MS, now)).toBe(true); // a reload a minute later
+  expect(syncAllowed(now - SYNC_GAP_MS, now)).toBe(true); // a reload 10 seconds later
   expect(syncAllowed(now - 10 * 60_000, now)).toBe(true);
   expect(syncAllowed(now + 60_000, now)).toBe(true); // the clock was set back: not stuck
 });
