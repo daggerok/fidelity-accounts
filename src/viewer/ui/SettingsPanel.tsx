@@ -11,7 +11,7 @@ import { Section } from './Section';
 
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
 // (owner 2026-11-23), its header slides it open and shut; the two resets live in the panel's header (SettingsResets)
-export function SettingsPanel({ userscript, done, expand, theme }: { userscript: string | null; done: boolean; expand: number; theme: { mode: ThemeMode; set: (m: ThemeMode) => void } }) {
+export function SettingsPanel({ userscript, done, expand, theme }: { userscript: string | null; done: boolean; expand: number; theme: { mode: ThemeMode; systemDark: boolean; cycle: () => void } }) {
   // Get started on top: expanded while something needs setup, squashed once done; its header toggles it (owner 2026-11-23)
   const [setupOpen, setSetupOpen] = useState(!done);
   useEffect(() => { setSetupOpen(!done); }, [done]);
@@ -29,7 +29,7 @@ export function SettingsPanel({ userscript, done, expand, theme }: { userscript:
     {/* the navbar's theme, language and 👀 switches once more (owner 2026-11-25), ui/LookSettings.tsx */}
     <Section id="look" title={`🌗 ${t('Theme and language')}`} open={themeOpen} onToggle={() => setThemeOpen((v) => !v)}>
       <div className="flex flex-col gap-3">
-        <ThemeSetting mode={theme.mode} set={theme.set} />
+        <ThemeSetting theme={theme} />
         <LanguageSetting />
       </div>
     </Section>
