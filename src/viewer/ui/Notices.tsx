@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
-import { useEffect, useState } from 'react';
-import { NOTICE_OK_MS, type Notice } from '../../shared/notice';
+import { useEffect, useRef, useState } from 'react';
+import { NOTICE_OK_MS, clickCloses, type Notice } from '../../shared/notice';
 import { lines } from '../../shared/notice-words';
 import { closeNotice, notices } from '../app/data';
 import { lang, t } from '../app/i18n';
@@ -32,6 +32,15 @@ function Popup({ n }: { n: Notice }) {
     const id = setTimeout(() => closeNotice(n), NOTICE_FADE_MS);
     return () => clearTimeout(id);
   }, [leaving, n]);
+  // a click anywhere else on the page closes it once it has been shown for 2 s (shared/notice.ts clickCloses), a success
+  // and an error alike; it goes the same way as by ✕, with the fade
+  const box = useRef<HTMLDivElement>(null);
+  const shownAt = useRef(Date.now());
+  useEffect(() => {
+    const onDown = (e: Event) => { if (clickCloses(!!box.current && e.target instanceof Node && box.current.contains(e.target), Date.now() - shownAt.current)) setLeaving(true); };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, []);
   const language = useStore(lang);
   const error = n.level === 'error';
   const accent = error ? 'var(--loss)' : 'var(--brand-ring)';
@@ -39,7 +48,7 @@ function Popup({ n }: { n: Notice }) {
   // operation in bold"), the numbers or the error details under it
   const rows = n.words ? lines(n.words, (key) => t(key), language === 'ru' ? 'ru-RU' : 'en-US') : [n.text];
   return (
-    <div role={error ? 'alert' : 'status'} data-notice={n.level} data-leaving={leaving || undefined}
+    <div ref={box} role={error ? 'alert' : 'status'} data-notice={n.level} data-leaving={leaving || undefined}
       className={`notice pointer-events-auto flex min-h-[3.375rem] items-start gap-3 rounded-2xl border bg-white px-6 py-2 text-sm text-slate-800 shadow-lg dark:bg-slate-900 dark:text-slate-100 ${leaving ? 'out' : ''}`}
       style={{ borderColor: accent }}>
       <span aria-hidden className="mt-1.5 size-2 flex-none rounded-full" style={{ background: accent }} />

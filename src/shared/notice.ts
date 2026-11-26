@@ -13,6 +13,12 @@ export const NOTICE_KEY = 'fidelity-accounts.notice'; // the newest Notice as JS
 // a success closes by itself after 10 s (it was 6: owner 2026-11-25 "show toast 2 times longer", then "10 sec fine"), an
 // error stays until closed
 export const NOTICE_OK_MS = 10_000;
+// a click anywhere else on the page closes a popup that has been on screen this long (owner 2026-11-25: "disappear if
+// after notification showup after 2 seconds we have clicked anywhere else on the page"): the first 2 s protect it from
+// the click that was already on its way when it appeared
+export const NOTICE_CLICK_AWAY_MS = 2_000;
+/** a click on the page closes the popup: not a click inside it, and not in its first NOTICE_CLICK_AWAY_MS */
+export const clickCloses = (inside: boolean, shownForMs: number): boolean => !inside && shownForMs >= NOTICE_CLICK_AWAY_MS;
 export const NOTICE_MAX_AGE_MS = 60_000; // an older notice is not shown when a viewer opens later
 export const VIEWER_KEY = 'fidelity-accounts.viewerSeen'; // ms of the last heartbeat of a visible viewer tab
 export const VIEWER_BEAT_MS = 20_000;
