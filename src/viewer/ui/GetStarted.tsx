@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, spreadsheetUrl } from '../../shared/sheets/gis';
 import { contract, dataset, loginSaved, openFidelity, setWatch } from '../app/data';
 import { CLAUSES, describe } from '../../shared/contract';
 import { APP_VERSION, isOlder } from '../app/version';
-import { connectGoogle, createSpreadsheet, disconnectGoogle, handOff, loadFromSheets, sheets } from '../app/google';
+import { connectGoogle, createSpreadsheet, disconnectGoogle, loadFromSheets, sheets, switchSpreadsheet } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
 import { t } from '../app/i18n';
 import { MaskedField, RevealCopy } from './MaskedField';
@@ -66,7 +66,12 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   const settle = () => setS(setupState(userscript));
   const [showUrl, setShowUrl] = useState(false);
   const sourceName: Record<string, string> = { sheets: t('Google Sheets'), cache: t('this browser') };
-  const change = (p: Partial<typeof cfg>) => { const next = { ...cfg, ...p }; setCfg(next); saveConfig(next); handOff(); };
+  const change = (p: Partial<typeof cfg>) => { setCfg({ ...cfg, ...p }); saveConfig(p); };
+  // the spreadsheet is taken only when its field is left or Enter is pressed, and only after typing in it: each typed
+  // prefix used to be saved and handed to the userscript; a different sheet then drops the shown data and reads the new
+  // one (switchSpreadsheet), the same id again changes nothing
+  const sheetTyped = useRef(false);
+  const confirmSheet = () => { if (sheetTyped.current) { sheetTyped.current = false; switchSpreadsheet(cfg.spreadsheetId); } };
   const origin = typeof location === 'undefined' ? '' : location.origin;
   const sheetId = parseSpreadsheetId(cfg.spreadsheetId);
 
@@ -102,7 +107,9 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
       <Needs when={!s.connected} text={t('needs Connect Google first, or paste a link below')} />
       {sheetId && <a className="masked text-xs underline" href={spreadsheetUrl(sheetId)} target="_blank" rel="noreferrer">{maskSpreadsheetUrl(spreadsheetUrl(sheetId))}</a>}
     </div>
-    <MaskedField label={t('Spreadsheet link or ID')} value={cfg.spreadsheetId} mask={(v) => (v.includes('/d/') ? maskSpreadsheetUrl(v) : mask(v))} placeholder="https://docs.google.com/spreadsheets/d/1abc…/edit" onChange={(v) => change({ spreadsheetId: v.trim() })} />
+    <div onBlur={confirmSheet} onKeyDown={(e) => { if (e.key === 'Enter') confirmSheet(); }}>
+      <MaskedField label={t('Spreadsheet link or ID')} value={cfg.spreadsheetId} mask={(v) => (v.includes('/d/') ? maskSpreadsheetUrl(v) : mask(v))} placeholder="https://docs.google.com/spreadsheets/d/1abc…/edit" onChange={(v) => { sheetTyped.current = true; setCfg({ ...cfg, spreadsheetId: v.trim() }); }} />
+    </div>
   </> });
   steps.push({ key: 'script', done: s.script, title: t('Tampermonkey and the sync script'), body: <>
     <span>{t('Install Tampermonkey from tampermonkey.net. In Chrome open its extension details: turn on Allow User Scripts and give it site access to digital.fidelity.com and {host}. Then open the script and press Install, and reload this page.', { host: typeof location === 'undefined' ? '' : location.hostname })}</span>

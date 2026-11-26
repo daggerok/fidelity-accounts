@@ -2,7 +2,8 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { afterEach, describe, expect, test } from 'bun:test';
-import { CONFIG_KEY, GoogleAuth, loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, type Gis, type GsConfig } from './gis';
+import { SheetsError } from './client';
+import { CONFIG_KEY, GoogleAuth, authFailed, loadConfig, mask, maskSpreadsheetUrl, parseSpreadsheetId, saveConfig, type Gis, type GsConfig } from './gis';
 
 // placeholders only: no real client id, spreadsheet id or token anywhere in tests
 const SHEET_ID = 'sheet_ID-0123456789abcdef';
@@ -155,5 +156,30 @@ describe('GoogleAuth', () => {
     auth.disconnect();
     expect(auth.peek()).toBeNull();
     await expect(auth.get()).rejects.toThrow('disconnected');
+  });
+});
+
+describe('authFailed', () => {
+  const conf = (): GsConfig => ({ clientId: 'client.example', spreadsheetId: SHEET_ID, email: '' });
+  test('a Sheets 401 and every sign-in failure of GoogleAuth need ☁️ again', async () => {
+    expect(authFailed(new SheetsError('Google Sheets 401 on read fidelity_updates: x (sign in to Google again)', 401))).toBe(true);
+    const denied: Gis = { accounts: { oauth2: { initTokenClient: (o) => ({ requestAccessToken: () => { setTimeout(() => o.callback({ error: 'access_denied' }), 0); } }), revoke: () => { /* nothing */ } } } };
+    const err = await new GoogleAuth({ config: conf, gis: async () => denied }).get().catch((e: unknown) => e);
+    expect(authFailed(err)).toBe(true);
+    const popup: Gis = { accounts: { oauth2: { initTokenClient: (o) => ({ requestAccessToken: () => { setTimeout(() => o.error_callback?.({ type: 'popup_failed_to_open' }), 0); } }), revoke: () => { /* nothing */ } } } };
+    expect(authFailed(await new GoogleAuth({ config: conf, gis: async () => popup }).get().catch((e: unknown) => e))).toBe(true);
+    const off = new GoogleAuth({ config: conf, gis: async () => denied });
+    off.disconnect();
+    expect(authFailed(await off.get().catch((e: unknown) => e))).toBe(true);
+  });
+
+  test('offline, a 5xx, a 403, a missing spreadsheet or GIS not loading leave the sign-in alone', () => {
+    expect(authFailed(new SheetsError('Google Sheets 403 on read fidelity_updates: x', 403))).toBe(false);
+    expect(authFailed(new TypeError('Failed to fetch'))).toBe(false);
+    expect(authFailed(new SheetsError('Google Sheets 503 on read fidelity_updates: x', 503))).toBe(false);
+    expect(authFailed(new SheetsError('Google Sheets 404 on read fidelity_updates: x (spreadsheet not found: check its URL)', 404))).toBe(false);
+    expect(authFailed(new Error('Google Identity Services failed to load (blocked or offline?)'))).toBe(false);
+    expect(authFailed('nope')).toBe(false);
+    expect(authFailed(null)).toBe(false);
   });
 });
