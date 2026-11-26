@@ -6,6 +6,8 @@
 // then "yes, fix the double notifications"): the Fidelity tab always leaves the newest notice for the viewer, which shows
 // it as a popup, and sends a Tampermonkey notification only when no viewer is on screen. A visible viewer tab says so
 // with a heartbeat in Tampermonkey storage (VIEWER_KEY, written every VIEWER_BEAT_MS while visible, cleared when hidden)
+import { say, wordsOf, type Word } from './notice-words';
+
 export const NOTIFY_KEY = 'fidelity-accounts.notify'; // boolean, off when missing
 export const NOTICE_KEY = 'fidelity-accounts.notice'; // the newest Notice as JSON
 export const NOTICE_OK_MS = 6_000; // a success closes by itself, an error stays until closed
@@ -21,9 +23,14 @@ export const VIEWER_BEAT_MS = 20_000;
 export const viewerOnScreen = (seen: unknown, now: number): boolean => typeof seen === 'number' && seen <= now && now - seen < 2 * VIEWER_BEAT_MS;
 
 export type NoticeLevel = 'ok' | 'error';
-export interface Notice { at: number; level: NoticeLevel; text: string }
+// `text`: the notice in English (the browser notification, and a viewer older than the words); `words`: its sentences
+// as keys with values (notice-words.ts), so the viewer says it in its own language
+export interface Notice { at: number; level: NoticeLevel; text: string; words?: Word[] }
 
-export const makeNotice = (level: NoticeLevel, text: string, at: number): string => JSON.stringify({ at, level, text: text.slice(0, 300) });
+export function makeNotice(level: NoticeLevel, what: string | readonly Word[], at: number): string {
+  if (typeof what === 'string') return JSON.stringify({ at, level, text: what.slice(0, 300) });
+  return JSON.stringify({ at, level, text: say(what).slice(0, 300), words: what });
+}
 
 /** the popups on screen: the new notice last, the same one never twice, at most `max` */
 export function pushNotice(list: readonly Notice[], n: Notice, max = 3): Notice[] {
@@ -36,7 +43,9 @@ export function freshNotice(raw: unknown, now: number): Notice | null {
   try {
     const n = JSON.parse(raw) as Notice;
     if (typeof n.at !== 'number' || (n.level !== 'ok' && n.level !== 'error') || typeof n.text !== 'string' || !n.text) return null;
-    return now - n.at >= 0 && now - n.at < NOTICE_MAX_AGE_MS ? n : null;
+    if (!(now - n.at >= 0 && now - n.at < NOTICE_MAX_AGE_MS)) return null;
+    const words = wordsOf(n.words);
+    return words ? { at: n.at, level: n.level, text: n.text, words } : { at: n.at, level: n.level, text: n.text };
   } catch {
     return null;
   }

@@ -131,6 +131,7 @@ export function App() {
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
           {/* the navbar, the tabs panel and the cards share one inset (24 px, the card padding) and one corner (1rem), so the logo,
               the tabs and the card titles start on one line and the buttons, As of and ⤢ end on one (owner 2026-11-25) */}
+          <div className="relative">
           <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900">
             <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
@@ -172,6 +173,9 @@ export function App() {
               </button>
             </div>
           </header>
+          {/* the 🔔 popups hang from the right end of the navbar (ui/Notices.tsx) */}
+          <Notices />
+          </div>
           {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
               our navbar, but it will contains only tabs"): the tabs on the left, our read time on the right ("As of": Fidelity's
               own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards, and it is
@@ -215,7 +219,6 @@ export function App() {
           </div>
         ) : null}
       </div>
-      <Notices />
       <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-600 dark:text-slate-400 lg:min-h-6 lg:px-6">
         <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-900 dark:hover:text-slate-200">daggerok &copy; {year}</a>
       </footer>

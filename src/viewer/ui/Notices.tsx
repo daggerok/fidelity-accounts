@@ -1,26 +1,46 @@
 /// <reference lib="esnext" />
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NOTICE_OK_MS, type Notice } from '../../shared/notice';
+import { say } from '../../shared/notice-words';
 import { closeNotice, notices } from '../app/data';
-import { t } from '../app/i18n';
+import { lang, t } from '../app/i18n';
 import { useStore } from './useStore';
 
-// The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): bottom right
-// above the footer, a success in the palette's color closes by itself, an error in red stays until ✕ (one dark red in
-// both themes: the dark theme's light --loss under white text was 2.8:1)
+// The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): a success in the
+// palette's color closes by itself, an error in red stays until ✕. Where and how (owner 2026-11-25: "toast should appears on top right", "it should
+// fade in / fade out and has form like our navbar on the right"): under the right end of the navbar, in the navbar's
+// shape (its corner, border, padding and height), about as wide as the navbar's buttons; it fades in when it comes and
+// out before it goes (index.css .notice, none with reduced motion). App places the list (it hangs from the navbar).
+// Colours (owner 2026-11-25: "popups also should be in agreement with our colored theme"): the navbar's own surface in
+// the light or the dark theme, the border, the dot and the ✕ hover in the palette's accent for a success (--brand-ring,
+// --brand-strong) and in the loss red for an error. Words (owner: "they should support i18n"): a notice of the script
+// carries its sentences as keys (shared/notice-words.ts), said here in the app's language
+const FADE_MS = 200;
+
 function Popup({ n }: { n: Notice }) {
+  // leaving: the popup fades out first, then leaves the list
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
     if (n.level !== 'ok') return undefined;
-    const id = setTimeout(() => closeNotice(n), NOTICE_OK_MS);
+    const id = setTimeout(() => setLeaving(true), NOTICE_OK_MS);
     return () => clearTimeout(id);
   }, [n]);
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const id = setTimeout(() => closeNotice(n), FADE_MS);
+    return () => clearTimeout(id);
+  }, [leaving, n]);
+  const language = useStore(lang);
   const error = n.level === 'error';
+  const accent = error ? 'var(--loss)' : 'var(--brand-ring)';
+  const text = n.words ? say(n.words, (key) => t(key), language === 'ru' ? 'ru-RU' : 'en-US') : n.text;
   return (
-    <div role={error ? 'alert' : 'status'} data-notice={n.level}
-      className="pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 text-sm text-white shadow-lg"
-      style={{ background: error ? 'var(--notice-error)' : 'var(--brand-btn)' }}>
-      <span className="min-w-0 flex-1 break-words">{n.text}</span>
-      <button type="button" className="flex-none opacity-80 hover:opacity-100" aria-label={t('Close')} onClick={() => closeNotice(n)}>✕</button>
+    <div role={error ? 'alert' : 'status'} data-notice={n.level} data-leaving={leaving || undefined}
+      className={`notice pointer-events-auto flex min-h-[3.375rem] items-center gap-3 rounded-2xl border bg-white px-6 py-2 text-sm text-slate-800 shadow-lg dark:bg-slate-900 dark:text-slate-100 ${leaving ? 'out' : ''}`}
+      style={{ borderColor: accent }}>
+      <span aria-hidden className="size-2 flex-none rounded-full" style={{ background: accent }} />
+      <span className="min-w-0 flex-1 break-words">{text}</span>
+      <button type="button" className="hit flex-none text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label={t('Close')} onClick={() => setLeaving(true)}>✕</button>
     </div>
   );
 }
@@ -29,7 +49,7 @@ export function Notices() {
   const list = useStore(notices);
   if (!list.length) return null;
   return (
-    <div className="pointer-events-none fixed bottom-8 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 lg:right-6" data-notices>
+    <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 flex w-[min(26rem,100%)] flex-col gap-2" data-notices>
       {list.map((n) => <Popup key={`${n.at}:${n.text}`} n={n} />)}
     </div>
   );
