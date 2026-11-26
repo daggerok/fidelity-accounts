@@ -196,7 +196,7 @@ export function App() {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsResets />}>
             <div onKeyDown={onSettingsKey}>
-              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} />
+              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} theme={theme} />
             </div>
           </SlidePanel>
 
