@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -279,4 +279,66 @@ test('the name of what is shown: All accounts, a group, up to three accounts by 
   expect(scopeTitle('account:1', [a!], words)).toBe('One');
   expect(scopeTitle('set:1,2,3', [a!, b!, c!], words)).toBe('One + Two + Two ROTH IRA');
   expect(scopeTitle('set:1,2,3,4', [a!, b!, c!, d!], words)).toBe('4 accounts');
+});
+
+// the pay dates as incomeIn built them before payDatesIn: every step up to two years each way, then the ones inside
+const STEPS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Semi-annually': 6, Annually: 12 };
+const allPayDates = (payDate: string, step: number | undefined, from: string, to: string): string[] =>
+  (step ? Array.from({ length: 2 * Math.ceil(24 / step) + 1 }, (_, i) => addMonths(payDate, (i - Math.ceil(24 / step)) * step)) : [payDate]).filter((d) => d >= from && d <= to);
+
+describe('payDatesIn: only the pay dates inside the period, the same ones the full list of steps gives', () => {
+  test('a monthly payer over the year window', () => {
+    expect(payDatesIn('2026-11-15', 1, '2026-01-01', '2026-12-31')).toEqual(Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}-15`));
+  });
+  test('an annual payer over the quarter window', () => {
+    expect(payDatesIn('2025-11-15', 12, '2026-10-01', '2026-12-31')).toEqual(['2026-11-15']);
+    expect(payDatesIn('2025-08-15', 12, '2026-10-01', '2026-12-31')).toEqual([]);
+  });
+  test('a pay date on the edge of the period counts, the day after does not', () => {
+    expect(payDatesIn('2026-09-30', 3, '2026-10-01', '2026-12-31')).toEqual(['2026-12-30']);
+    expect(payDatesIn('2026-10-01', 3, '2026-10-01', '2026-12-31')).toEqual(['2026-10-01']);
+    expect(payDatesIn('2026-12-31', undefined, '2026-10-01', '2026-12-31')).toEqual(['2026-12-31']);
+    expect(payDatesIn('2027-01-01', undefined, '2026-10-01', '2026-12-31')).toEqual([]);
+    // the 31st clamped to a shorter month stays inside
+    expect(payDatesIn('2026-01-31', 1, '2026-02-01', '2026-02-28')).toEqual(['2026-02-28']);
+    // beyond two years no step reaches
+    expect(payDatesIn('2020-01-15', 1, '2026-01-01', '2026-12-31')).toEqual([]);
+  });
+  test('the same as the full list for every frequency, pay day and period over three years', () => {
+    const periods = ['2025-02-14', '2026-01-31', '2026-11-24', '2027-06-30'].flatMap((d) => { const b = periodBounds(d); return [b.month, b.quarter, b.year]; });
+    let checked = 0;
+    [undefined, 1, 3, 6, 12].forEach((step) => {
+      for (let day = 0; day < 3 * 365; day += 3) {
+        const payDate = new Date(Date.UTC(2024, 5, 1 + day)).toISOString().slice(0, 10);
+        periods.forEach(([from, to]) => { expect(payDatesIn(payDate, step, from, to)).toEqual(allPayDates(payDate, step, from, to)); checked += 1; });
+      }
+    });
+    expect(checked).toBeGreaterThan(5000);
+  });
+  test('incomeIn adds the same amounts in the same order as before', () => {
+    const freq = [undefined, ...Object.keys(STEPS)];
+    const ps: Position[] = Array.from({ length: 200 }, (_, i) => ({ account: 'A', kind: 'position', symbol: `S${i}`, description: '', dividendAmount: 0.01 * (i % 37) + 0.137, quantity: 1.3 + i / 7, payDate: new Date(Date.UTC(2025, 0, 1 + i * 4)).toISOString().slice(0, 10), paymentFrequency: freq[i % freq.length], fields: {} }));
+    const before = (from: string, to: string, today: string) => {
+      let paid = 0;
+      let coming = 0;
+      ps.forEach((p) => allPayDates(p.payDate!, STEPS[p.paymentFrequency ?? ''], from, to).forEach((d) => { if (d <= today) paid += p.dividendAmount! * p.quantity!; else coming += p.dividendAmount! * p.quantity!; }));
+      const r = (x: number) => Math.round(x * 100) / 100;
+      return { paid: r(paid), coming: r(coming), total: r(paid + coming) };
+    };
+    ['2026-02-14', '2026-11-24', '2027-01-01'].forEach((today) => {
+      const b = periodBounds(today);
+      [b.month, b.quarter, b.year].forEach(([from, to]) => expect(incomeIn(ps, from, to, today)).toEqual(before(from, to, today)));
+    });
+  });
+});
+
+test('payout parts over the symbol map are the same as over the positions', () => {
+  const acct = (number: string): Account => ({ number, name: number, group: 'G', asOf: '' });
+  const pos = (account: string, symbol: string, quantity: number, kind: Position['kind'] = 'position'): Position => ({ account, kind, symbol, description: '', lastPrice: 52.3, dividendAmount: 0.25, quantity, exDate: '2026-11-28', fields: {} });
+  const ps = [pos('A', 'X', 0.1), pos('B', 'X', 0.2), pos('A', 'Y', 3), pos('A', 'X', 0.7), pos('C', 'X', 5, 'core'), pos('C', 'Y', 1)];
+  const accounts = [acct('C'), acct('A'), acct('B')];
+  const map = securitiesBySymbol(ps);
+  expect(map.get('X')!.map((p) => p.quantity)).toEqual([0.1, 0.2, 0.7]); // the core row is not a security
+  upcomingDividends(ps, '2026-11-24').forEach((u) => expect(payoutParts(map, accounts, u)).toEqual(payoutParts(ps, accounts, u)));
+  expect(payoutParts(map, accounts, { ...upcomingDividends(ps, '2026-11-24')[0]!, symbol: 'GONE' })).toEqual([]);
 });

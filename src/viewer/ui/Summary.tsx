@@ -1,13 +1,13 @@
 /// <reference lib="esnext" />
 import type { Account, Dataset, Position } from '../../shared/model';
 import type { TypedColumn } from '../../shared/typed-columns';
-import { combine } from '../../shared/history';
-import { ACCOUNT_SORTS, allocation, estAnnualOf, movers, incomeFacts, localToday, near52, ofKind, periodBounds, positionsIn, rangeRows, payoutParts, payoutTotal, symbolDrip, dripToBuy, sortAccounts, totalsOf, upcomingDividends, windowEnd, DIV_WINDOWS, type AccountSort, type RangeRow, type Drip, type PayoutPart, type Slice, type Upcoming } from '../app/derive';
+import { ACCOUNT_SORTS, movers, ofKind, rangeRows, payoutParts, payoutTotal, securitiesBySymbol, symbolDrip, dripToBuy, sortAccounts, DIV_WINDOWS, type AccountSort, type RangeRow, type Drip, type PayoutPart, type Slice, type Upcoming } from '../app/derive';
+import { MOVERS_MAX, accountBetas, dividendsView, incomeView, summaryBase } from '../app/summary';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { Donut } from './Donut';
 import { Zoom } from './Zoom';
 import { animate } from './animate';
-import { useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { GainLoss } from './GainLoss';
 import { RangeBar } from './RangeBar';
 import { Toggle } from './Toggle';
@@ -16,12 +16,11 @@ import { Pills } from './Pills';
 import { useFitRows } from './useFitRows';
 import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { BetaValue } from './Beta';
-import { accountBeta } from '../../shared/beta';
 import { CORNER_BUTTON, ExpandIcon } from './icons';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { transactions } from '../app/data';
-import { t } from '../app/i18n';
+import { lang, t } from '../app/i18n';
 import { NoMatch, TypedHead, type HeadColumn } from './TypedHead';
 import { useTypedTable } from './useTypedTable';
 import { pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd, usd0 } from './format';
@@ -199,7 +198,10 @@ const DIV_COLS = (): (TypedColumn<DivRow> & HeadColumn)[] => [
 
 function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position[]; accounts: Account[] }) {
   const cols = DIV_COLS();
-  const all: DivRow[] = rows.map((u) => { const parts = payoutParts(ps, accounts, u); return { u, parts, drip: symbolDrip(parts), one: parts.length === 1 ? parts[0]!.account : null }; });
+  // the rows are split by account once per list, not on every filter keystroke, over one symbol map (500 rows times
+  // every account filtered all the securities again, ~30 ms a keystroke)
+  const bySymbol = useMemo(() => securitiesBySymbol(ps), [ps]);
+  const all = useMemo(() => rows.map((u): DivRow => { const parts = payoutParts(bySymbol, accounts, u); return { u, parts, drip: symbolDrip(parts), one: parts.length === 1 ? parts[0]!.account : null }; }), [rows, bySymbol, accounts]);
   const table = useTypedTable(cols, all);
   const shown = table.rows;
   const toBuy = dripToBuy(shown.map((r) => r.drip));
@@ -299,38 +301,31 @@ function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
   );
 }
 
-// `title`: the name of what is shown (All accounts, a group, the accounts chosen), the Balance card's title
-export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accounts: Account[]; title: string; titleHint?: string }) {
-  const tot = totalsOf(accounts);
-  const ps = positionsIn(ds, accounts);
+// `title`: the name of what is shown (All accounts, a group, the accounts chosen), the Balance card's title; `today`: the
+// owner's date (localToday) from App, so the numbers move to the next day on App's first draw after midnight, as before
+// Memoised with stable props from App (the accounts under useMemo, the rest strings), so a status message of the script
+// or a line of the Sheets log, which draw App again, do not draw the cards again; each part of the numbers is worked out
+// again only when its own inputs change (app/summary.ts)
+export const Summary = memo(function Summary({ ds, accounts, title, titleHint, today }: { ds: Dataset; accounts: Account[]; title: string; titleHint?: string; today: string }) {
+  // the words follow the language on their own: App drawing again no longer draws this
+  useStore(lang);
   const pr = useStore(prefs);
-  const moverPs = ofKind(ps, pr.moversOf);
+  const txns = useStore(transactions);
+  const { tot, ps, n52, sectors, types, balance } = useMemo(() => summaryBase(ds, accounts), [ds, accounts]);
+  const moverPs = useMemo(() => ofKind(ps, pr.moversOf), [ps, pr.moversOf]);
   // on a big screen the movers and the dividends show as many rows as fit above the footer (useFitRows)
-  const [moversBox, moversN] = useFitRows(5, 20, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`);
-  const m = movers(moverPs, moversN, pr.moversBy);
-  const mBig = movers(moverPs, 20, pr.moversBy);
+  const [moversBox, moversN] = useFitRows(5, MOVERS_MAX, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`);
+  const m = useMemo(() => movers(moverPs, moversN, pr.moversBy), [moverPs, moversN, pr.moversBy]);
+  const mBig = useMemo(() => movers(moverPs, MOVERS_MAX, pr.moversBy), [moverPs, pr.moversBy]);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
-  const shownAccounts = sortAccounts(accounts, pr.accountSort);
+  const shownAccounts = useMemo(() => sortAccounts(accounts, pr.accountSort), [accounts, pr.accountSort]);
+  const betas = useMemo(() => accountBetas(ps, accounts, ds.betas), [ps, accounts, ds.betas]);
   // sorted by Total $ or Total %: each account shows its total gain or loss, not today's (owner 2026-11-25)
   const totalView = pr.accountSort === 'totalUsd' || pr.accountSort === 'totalPct';
-  const today = localToday();
-  const divPs = ofKind(ps, pr.dividendsOf);
-  const divsUntil = windowEnd(today, pr.dividendsWindow);
-  const divs = upcomingDividends(divPs, today, divsUntil);
+  const { ps: divPs, until: divsUntil, divs } = useMemo(() => dividendsView(ps, pr.dividendsOf, pr.dividendsWindow, today), [ps, pr.dividendsOf, pr.dividendsWindow, today]);
   const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`);
-  const n52 = near52(ps);
-  const sectors = allocation(ps, (p) => p.sector || p.securityType);
-  const types = allocation(ps, (p) => p.securityType);
-  const balance = combine(ds.history, accounts.map((a) => a.number));
-  const bounds = periodBounds(today);
-  const incomePs = ofKind(ps, pr.incomeOf);
-  const txns = useStore(transactions);
-  const facts = (b: [string, string]) => incomeFacts(txns, accounts, ps, pr.incomeOf, b[0], b[1], today);
-  const incQ = facts(bounds.quarter);
-  const incM = facts(bounds.month);
-  const incY = facts(bounds.year);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
-  const estAnnual = estAnnualOf(pr.incomeOf, tot.estAnnualIncome, ps);
+  const { Y: incY, Q: incQ, M: incM, estAnnual } = useMemo(() => incomeView(txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome), [txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome]);
 
   return (
     // the space between cards equals the space from the screen edge to the navbar: 16 px, 24 px from lg (owner 2026-11-24)
@@ -384,7 +379,7 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
               <div className="min-w-0 flex-1"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
               <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs" title={totalView ? t('Total gain/loss') : t("Today's gain/loss")}>{totalView ? <GainLoss usd={a.totalGl} pct={a.totalGlPct} /> : <GainLoss usd={a.todayGl} pct={a.todayGlPct} />}</div></div>
               {/* the account's beta from its positions' sizes, the right-most column (owner 2026-11-25) */}
-              <div className="w-10 shrink-0 text-right"><div><BetaValue mix={accountBeta(ps, a.number, ds.betas)} /></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('Beta')}</div></div>
+              <div className="w-10 shrink-0 text-right"><div><BetaValue mix={betas.get(a.number)!} /></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('Beta')}</div></div>
             </div>
           ))}
         </div>
@@ -462,4 +457,4 @@ export function Summary({ ds, accounts, title, titleHint }: { ds: Dataset; accou
       </Card>
     </div>
   );
-}
+});

@@ -196,8 +196,9 @@ export async function loadFromSheets(sets: readonly DataSet[] = DATA_SETS): Prom
     const tabs = await readSets(c, sets);
     if (gen !== generation) return;
     const ds = datasetFromTabs(dataset.get().ds, tabs);
-    if (ds) accept(JSON.stringify(ds), 'sheets');
-    if (tabs.txns && tabs.synced) { const store = txnStoreFromTabs(tabs.txns, tabs.synced); if (store) acceptTxns(JSON.stringify(store)); }
+    // datasetFromTabs already checked the copy (parseDataset): handed over as it is, made JSON once for the cache only
+    if (ds) accept(ds, 'sheets');
+    if (tabs.txns && tabs.synced) { const store = txnStoreFromTabs(tabs.txns, tabs.synced); if (store) acceptTxns(store); }
     sets.forEach((d) => { if (marks[d]) seen[d] = marks[d]; });
     saveSeen();
     sheets.set((s) => ({ ...s, busy: false }));

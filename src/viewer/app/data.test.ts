@@ -20,3 +20,26 @@ test('a copy without the daily history (the sheet, same time) keeps the history 
   // an older copy is still refused
   expect(accept(ds('2026-11-01T00:00:00Z'), 'cache')).toBe(false);
 });
+
+test('a dataset already checked (the sheet) is taken as it is, with the same rules as JSON', async () => {
+  const { accept, dataset } = await import('./data');
+  const { parseDataset } = await import('../../shared/model');
+  const before = dataset.get().ds!;
+  const next = parseDataset(ds('2026-11-26T04:00:00Z'))!;
+  expect(accept(next, 'sheets')).toBe(true);
+  // the history already shown stays, an older object is refused like older JSON
+  expect(dataset.get().ds!.history).toEqual(before.history);
+  expect(dataset.get().ds!.builtAt).toBe('2026-11-26T04:00:00Z');
+  expect(accept(parseDataset(ds('2026-11-02T00:00:00Z'))!, 'sheets')).toBe(false);
+});
+
+test('a transactions store built from the sheet is taken as it is; a newer one shown is kept', async () => {
+  const { acceptTxns, transactions } = await import('./data');
+  const store = { version: 1 as const, at: '2026-11-25T10:00:00Z', synced: { A: '2026-11-25' }, rows: [] };
+  acceptTxns(store);
+  expect(transactions.get()).toBe(store);
+  acceptTxns(JSON.stringify({ ...store, at: '2026-11-24T10:00:00Z' }));
+  expect(transactions.get()).toBe(store);
+  acceptTxns({ version: 2 } as never);
+  expect(transactions.get()).toBe(store);
+});
