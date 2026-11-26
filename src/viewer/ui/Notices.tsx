@@ -6,11 +6,12 @@ import { closeNotice, notices } from '../app/data';
 import { lang, t } from '../app/i18n';
 import { useStore } from './useStore';
 
-// The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): a success in the
-// palette's color closes by itself, an error in red stays until ✕. Where and how (owner 2026-11-25: "toast should appears on top right", "it should
-// fade in / fade out and has form like our navbar on the right"): under the right end of the navbar, in the navbar's
-// shape (its corner, border, padding and height), about as wide as the navbar's buttons; it fades in when it comes and
-// out before it goes (index.css .notice, none with reduced motion). App places the list (it hangs from the navbar).
+// The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): a success closes
+// by itself, an error stays until ✕. Where and how (owner 2026-11-25: "toast should appears on top right", "it should
+// fade in / fade out and has form like our navbar on the right", then "put the popup over the right end of the
+// navbar"): it lies over the right end of the navbar, in the navbar's shape (its corner, border, padding and height),
+// about as wide as the navbar's buttons, and covers them until it goes or ✕ is pressed; it fades in when it comes and
+// out before it goes (index.css .notice, none with reduced motion). App places the list inside the navbar's box.
 // Colours (owner 2026-11-25: "popups also should be in agreement with our colored theme"): the navbar's own surface in
 // the light or the dark theme, the border, the dot and the ✕ hover in the palette's accent for a success (--brand-ring,
 // --brand-strong) and in the loss red for an error. Words (owner: "they should support i18n"): a notice of the script
@@ -52,7 +53,7 @@ export function Notices() {
   const list = useStore(notices);
   if (!list.length) return null;
   return (
-    <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 flex w-[min(26rem,100%)] flex-col gap-2" data-notices>
+    <div className="pointer-events-none absolute right-0 top-0 z-50 flex w-[min(26rem,100%)] flex-col gap-2" data-notices>
       {list.map((n) => <Popup key={`${n.at}:${n.text}`} n={n} />)}
     </div>
   );

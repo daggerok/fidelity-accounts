@@ -173,7 +173,7 @@ export function App() {
               </button>
             </div>
           </header>
-          {/* the 🔔 popups hang from the right end of the navbar (ui/Notices.tsx) */}
+          {/* the 🔔 popups lie over the right end of the navbar (ui/Notices.tsx) */}
           <Notices />
           </div>
           {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
