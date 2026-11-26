@@ -29,7 +29,7 @@ test('a table sorts, filters and changes a column type through its head', async 
   interface Row { name: string; freq: string; value: number }
   const data: Row[] = [{ name: 'beta', freq: 'Quarterly', value: 10 }, { name: 'alpha', freq: 'Monthly', value: 300 }, { name: 'gamma', freq: 'Annually', value: 25 }];
   const cols = [
-    { key: 'name', label: 'Name', align: 'left' as const, text: (r: Row) => r.name },
+    { key: 'name', label: 'Name', text: (r: Row) => r.name },
     { key: 'freq', label: 'Frequency', text: (r: Row) => r.freq },
     { key: 'value', label: 'Value', text: (r: Row) => `$${r.value.toFixed(2)}`, value: (r: Row) => r.value },
   ];

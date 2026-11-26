@@ -9,7 +9,7 @@ import { t } from '../app/i18n';
 // column type (ABC 123 % $ D FRQ; a click sets the next type, Shift+click returns to the detected one), and under it a
 // row of filter inputs. The rules are src/shared/typed-columns.ts over the workspace filter engine; this only draws
 // `wrap`: a narrow column whose extras may go to a second line (the Positions Symbol column, 120 px)
-export interface HeadColumn { key: string; label: string; hint?: string; align?: 'left' | 'right'; wrap?: boolean }
+export interface HeadColumn { key: string; label: string; hint?: string; wrap?: boolean }
 
 /** what a table hands its head: the state and what a click or typing does to it (useTypedTable, or Positions from prefs) */
 export interface TableControl {
@@ -116,14 +116,15 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
           const dir = control.sort && control.sort.key === c.key ? control.sort.dir : 0;
           return (
             <th key={c.key} className={th} title={c.hint} aria-sort={dir === 1 ? 'ascending' : dir === -1 ? 'descending' : undefined} data-col={c.key}>
-              {/* the name on the left with its lines aligned left like Fidelity ("Est. annual" / "income"), the type badge always in
-                  one place, on the right right above the filter input (owner 2026-11-25: "like we see for DRIP, DRIP $, Cost basis
-                  total"): a short name sits right next to it, a long one wraps and keeps the badge at the bottom right */}
-              <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''} ${c.align === 'left' ? '' : 'justify-end'}`}>
+              {/* every name starts at the left edge of its column, like Symbol, its lines aligned left like Fidelity ("Est.
+                  annual" / "income"); every type badge ends at the right edge, right above the filter input (owner 2026-11-25:
+                  "all text should be like Symbol - aligned to the left, all auto filter icons should be aligned to the right"):
+                  a long name wraps and keeps the badge at the bottom right */}
+              <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''}`}>
                 <button type="button" className="min-w-0 cursor-pointer whitespace-normal text-left font-[inherit] hover:text-[var(--brand-strong)]"
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
                 {extras[c.key]}
-                <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />
+                <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
             </th>
           );

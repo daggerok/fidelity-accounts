@@ -147,14 +147,14 @@ const Cols = memo(function Cols({ cols }: { cols: { key: string; label: string }
 // The header table, a child of its own so a scroll of the rows does not draw it again: its props stay the same until the
 // columns (new with the language too), the sort, the filters or the counts change
 const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
-  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), align: 'left', wrap: true }];
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   return (
     <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
       <Cols cols={cols} />
       {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
-          the right and follows the filters; the columns icon follows the Symbol name (Clear Filters has a row of its own
-          above the header, it belongs to every column) */}
+          the right and follows the filters; the columns icon follows the Symbol name (Clear Filters floats above the
+          table, it belongs to every column) */}
       <TypedHead control={control}
         cols={head}
         inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown, total }) : t('{n} positions', { n: total }) } }}
@@ -304,21 +304,22 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   const tableWidth = useMemo(() => SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0), [cols]);
 
   return (
-    <div className="flex min-h-0 flex-col gap-3" data-positions>
+    <div className="relative flex min-h-0 flex-col gap-3" data-positions>
+      {/* Clear Filters belongs to every column, not to Symbol, and it must not move the page when it comes or goes (owner
+          2026-11-25: "button clear filters should not make our panels jump, it must be on top, like in between two panels
+          ... when we click it should not change structure of our page"): it floats in the middle of the gutter between
+          the tabs panel and the table (16 px, 24 px on a big screen: main's top padding), taking no room; the filters of
+          hidden columns count too */}
+      {on > 0 && (
+        <button type="button" className="hit absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[calc(50%+0.5rem)] rounded-md border border-[var(--brand-ring)] bg-white px-2 text-xs font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)] dark:bg-slate-900 lg:-translate-y-[calc(50%+0.75rem)]"
+          title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear Filters')}</button>
+      )}
       <Zoom open={showCols} title={t('Columns')} origin={colsButton} narrow onClose={() => setShowCols(false)}>
         <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} defaultHidden={DEFAULT_PREFS.hidden} onChange={setPrefs} />
       </Zoom>
       {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
-        {/* Clear Filters: a row of its own above the header, the button in its middle, only while a filter is on (owner
-            2026-11-25: "when we have any filters we must not connect it to symbol, Clear -> Clear Filters and button must be
-            on center"); the filters of hidden columns count too */}
-        {on > 0 && (
-          <div className="flex flex-none justify-center border-b border-slate-200 bg-[#f8fafc] px-6 py-1.5 dark:border-slate-700 dark:bg-[#1e293b]" data-clear-row>
-            <button type="button" className="hit rounded-md border border-[var(--brand-ring)] px-2 text-xs font-medium leading-6 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear Filters')}</button>
-          </div>
-        )}
         {/* head-scroll: clipped with a mouse, a sideways swipe scrolls it on a touch screen (index.css) */}
         <div ref={headBox} className="head-scroll flex-none bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
           <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />

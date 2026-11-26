@@ -13,7 +13,7 @@ import { pct, qty, signedPct, signedUsd, tone, usd } from './format';
 // sort or a filter works inside each; with no sort chosen the nearest to the high and to the low come first
 type RangeLine = RangeRow & { high: boolean };
 const RANGE_COLS = (): (TypedColumn<RangeLine> & HeadColumn)[] => [
-  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.symbol} ${r.sector ?? ''} ${r.description}` },
+  { key: 'symbol', label: t('Symbol'), text: (r) => `${r.symbol} ${r.sector ?? ''} ${r.description}` },
   { key: 'pos', label: t('52-week range'), text: (r) => pct(r.pos * 100), value: (r) => r.pos * 100 },
   { key: 'lastPrice', label: t('Last price'), text: (r) => usd(r.lastPrice), value: (r) => r.lastPrice },
   { key: 'fromHigh', label: t('From the high'), text: (r) => signedPct(r.fromHigh), value: (r) => r.fromHigh },
