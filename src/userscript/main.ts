@@ -21,8 +21,9 @@ import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
 import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, VIEWER_BEAT_MS, VIEWER_KEY, makeNotice, viewerOnScreen, type NoticeLevel } from '../shared/notice';
 import { readAsOf, readSidebar } from './read';
 import { GOOGLE_KEY, gmFetch, handoffSheet, usableHandoff, writeKept, type KeptPrints } from './sheets-gm';
+import { NO_POSITIONS, NO_READER, SHEETS_WAITING, balancesRead, betasFailed, betasRead, fidelityChanged, jobFailed, positionsRead, say, sheetWaitsAllow, sheetsFailed, transactionsFailed, transactionsRead, type Word } from '../shared/notice-words';
 import { PIN_KEY, allowPin, declinePin, idTail, pinStep, readPin, type PinStep } from './pin';
-import { DATA_SETS } from '../shared/sheets/sync';
+import { DATA_SETS, type DataSet } from '../shared/sheets/sync';
 import { memoByRaw } from './memo';
 import { createSheetsQueue } from './sheets-queue';
 import { inFlow, isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
@@ -97,11 +98,14 @@ function onPortfolio(): void {
   // a finished job or an error, only while 🔔 is on: ONE notification (owner 2026-11-25: "why I have 2?", then "yes,
   // fix the double notifications"): the notice is always left for the viewer (it shows only fresh ones, as a popup), the
   // Tampermonkey notification goes out only when no viewer tab is on screen (its heartbeat, shared/notice.ts)
-  const announce = (level: NoticeLevel, text: string) => {
+  // The words are plain sentences with their values (shared/notice-words.ts; owner 2026-11-25: the glued panel lines
+  // were "very low quality", and the popups "should support i18n"): the viewer says them in its language, the browser
+  // notification in English
+  const announce = (level: NoticeLevel, words: Word[]) => {
     if (!notifying()) return;
-    gmSet(NOTICE_KEY, makeNotice(level, text, Date.now()));
+    gmSet(NOTICE_KEY, makeNotice(level, words, Date.now()));
     if (viewerOnScreen(gmGet<unknown>(VIEWER_KEY, null), Date.now())) return;
-    notify(level === 'error' ? 'fidelity-accounts: error' : 'fidelity-accounts', text, level === 'error' ? 0 : NOTICE_OK_MS);
+    notify(level === 'error' ? 'fidelity-accounts: error' : 'fidelity-accounts', say(words), level === 'error' ? 0 : NOTICE_OK_MS);
   };
   // the page to come back to after this visit of Positions (trip.ts)
   const trip = onPositions() ? freshTrip(gmGet<unknown>(TRIP_KEY, null), Date.now()) : null;
@@ -146,7 +150,7 @@ function onPortfolio(): void {
   badge.notifying(notifying());
   gmWatch(NOTIFY_KEY, () => badge.notifying(notifying()));
   const how = injectPageReader();
-  if (how === 'failed') announce('error', 'could not start the page reader (Tampermonkey: allow GM_addElement)');
+  if (how === 'failed') announce('error', NO_READER);
   badge.status(how === 'failed' ? '!could not start the page reader (Tampermonkey: allow GM_addElement)' : onPositions() ? `waiting for the positions table…${back}` : 'open Positions (or press ⬇): the script reads it by itself');
 
   // the fidelity_* tabs are written only from here (one way data flow, shared/sheets/sync.ts), by data set: summary and
@@ -154,6 +158,8 @@ function onPortfolio(): void {
   // marks fidelity_updates and leaves a signal for the viewer, which then reads those sets back from the sheet. Without
   // a Google token the sets wait until the viewer hands one over
   let sheetsNote = '';
+  // the last run of the queue put something new into the sheet: a notice then says so (notice-text.ts)
+  let sheetsSaved = false;
   // the spreadsheet of the handoff against the pinned one (pin.ts): writes go only to the pinned id. The first handoff
   // after the update to the pin pins the sheet this script has been writing to (its prints) with no click; any other id
   // waits for Allow on this panel, and while it waits nothing is written at all: the token belongs to that handoff, and
@@ -183,7 +189,7 @@ function onPortfolio(): void {
     // on the panel but do not ring again
     if (step === 'ask' && gmGet<string>(ASKED_KEY, '') !== id) {
       gmSet(ASKED_KEY, id);
-      announce('error', `sheets: the new spreadsheet ${idTail(id)} waits for Allow on the Fidelity panel; nothing is written until then`);
+      announce('error', sheetWaitsAllow(idTail(id)));
     }
     return step;
   };
@@ -195,9 +201,9 @@ function onPortfolio(): void {
     waiting: () => {
       const step = checkPin();
       if (step === 'ask' || step === 'declined') return;
-      sheetsNote = 'sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'; badge.sheets(sheetsNote); announce('error', sheetsNote);
+      sheetsNote = 'sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'; badge.sheets(sheetsNote); announce('error', SHEETS_WAITING);
     },
-    failed: (err) => { sheetsNote = `sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200); badge.sheets(sheetsNote); announce('error', sheetsNote); },
+    failed: (err) => { sheetsNote = `sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200); badge.sheets(sheetsNote); announce('error', sheetsFailed(err)); },
     write: async (sets) => {
       const g = usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now());
       if (!g || typeof GM_xmlhttpRequest !== 'function') throw new Error('no Google sign-in');
@@ -210,10 +216,13 @@ function onPortfolio(): void {
       const done = await writeKept(sets, data, g, gmFetch(GM_xmlhttpRequest), { get: () => gmGet<KeptPrints | null>(PRINTS_KEY, null), set: (k) => { gmSet(PRINTS_KEY, k); } });
       // the viewer is told only when something new is in the sheet
       if (done.length) gmSet(SHEETS_KEY, JSON.stringify({ at: Date.now(), sets: done }));
+      sheetsSaved = done.length > 0;
       sheetsNote = done.length ? `sheets: ${done.join(', ')} written` : 'sheets: nothing new';
       badge.sheets(`${sheetsNote} ${time()}`);
     },
   });
+  // queue these sets and tell whether this run saved something new to the sheet (a notice says "Saved to Google Sheets")
+  const saveSets = async (sets: DataSet[]): Promise<boolean> => { sheetsSaved = false; await sheetsQueue.add(sets); return sheetsSaved; };
   checkPin();
   gmWatch(GOOGLE_KEY, () => { checkPin(); void sheetsQueue.retry(); });
   // Allow or decline in another Fidelity tab
@@ -231,12 +240,12 @@ function onPortfolio(): void {
       gmSet(DATASET_KEY, JSON.stringify({ ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() }));
       const line = `daily values: ${Object.keys(fresh).length} of ${stored.accounts.length} accounts`;
       badge.status(`${line} · ${time()}`);
-      await sheetsQueue.add(['summary']);
-      announce(seen.length ? 'error' : 'ok', seen.length ? `${line}; Fidelity changed: ${seen[0]!.problem}` : `${line}; ${sheetsNote}`);
+      const saved = await saveSets(['summary']);
+      announce(seen.length ? 'error' : 'ok', seen.length ? fidelityChanged(seen[0]!.problem) : balancesRead(Object.keys(fresh).length, stored.accounts.length, saved));
     } catch (err) {
       const line = `daily values: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
-      announce('error', line);
+      announce('error', jobFailed('balances', err));
     }
   };
 
@@ -263,14 +272,14 @@ function onPortfolio(): void {
       const line = `transactions: ${store.rows.length} rows${added > 0 ? `, ${added} new` : ''}${failed.length ? `, ${failed.length} accounts failed` : ''}`;
       badge.status(`${failed.length ? '!' : ''}${line} · ${time()}`);
       // the sheet gets a copy only when its content changed (the prints in writeSets)
-      await sheetsQueue.add(['transactions']);
+      const saved = await saveSets(['transactions']);
       // a recent read speaks only when something came or failed, so 👀 does not ring every 10 minutes for nothing
-      if (failed.length) announce('error', line);
-      else if (plan === 'full' || added > 0) announce('ok', `${line}; ${sheetsNote}`);
+      if (failed.length) announce('error', transactionsFailed(failed.length));
+      else if (plan === 'full' || added > 0) announce('ok', transactionsRead(store.rows.length, added, saved));
     } catch (err) {
       const line = `transactions: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
-      announce('error', line);
+      announce('error', jobFailed('transactions', err));
     }
   };
 
@@ -287,18 +296,19 @@ function onPortfolio(): void {
       const run = await readBetas(stored, stored.betas, betaRequest(gmFetch(GM_xmlhttpRequest)), new Date());
       report(['betas.stock', 'betas.etf', 'betas.chart'], run.problems);
       // saved when today brought something (or there is nothing to ask): a run that found nothing tries again later
+      let saved = false;
       if (run.today || !run.asked) {
         const latest = storedDataset() ?? stored;
         gmSet(DATASET_KEY, JSON.stringify({ ...latest, betas: run.betas, betasAt: new Date().toISOString() }));
-        await sheetsQueue.add(['betas']);
+        saved = await saveSets(['betas']);
       }
       const line = `beta: ${run.found} of ${run.held}${run.problems.length ? ` (${run.problems.map((p) => p.id).join(', ')} failed)` : ''}`;
       badge.status(`${run.problems.length ? '!' : ''}${line} · ${time()}`);
-      announce(run.problems.length ? 'error' : 'ok', run.problems.length ? line : `${line}; ${sheetsNote}`);
+      announce(run.problems.length ? 'error' : 'ok', run.problems.length ? betasFailed(run.found, run.held, run.problems.map((p) => p.id)) : betasRead(run.found, run.held, saved));
     } catch (err) {
       const line = `beta: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
-      announce('error', line);
+      announce('error', jobFailed('betas', err));
     }
   };
 
@@ -327,7 +337,7 @@ function onPortfolio(): void {
     if (e.data.type === 'error') {
       badge.status(`!page reader: ${String(e.data.message)}`);
       report(['grid.api'], [{ id: 'grid.api', level: 'error', problem: String(e.data.message).slice(0, 200) }]);
-      announce('error', `page reader: ${String(e.data.message)}`);
+      announce('error', jobFailed('page', String(e.data.message)));
       return;
     }
     if (e.data.type !== 'grid' || typeof e.data.json !== 'string') return;
@@ -353,16 +363,16 @@ function onPortfolio(): void {
       // a sync, ⬇ or the first read of a page is a job worth a notice; the reads of 👀 between them (every 30 s) are not
       const told = wasAsked || first;
       void (async () => {
-        if (write) await sheetsQueue.add(['summary', 'positions']);
-        if (broken.length) announce('error', `Fidelity changed: ${broken.map((f) => f.id).join(', ')} (details in ⚙️ of the viewer)`);
-        else if (told) announce('ok', `${line}${write ? `; ${sheetsNote}` : ''}${back}`);
+        const saved = write ? await saveSets(['summary', 'positions']) : false;
+        if (broken.length) announce('error', fidelityChanged(broken.map((f) => f.id).join(', ')));
+        else if (told) announce('ok', positionsRead(ds.accounts.length, ds.positions.length, saved));
         readDone = true;
       })();
       void runDue();
     } catch (err) {
       const line = `read failed: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
-      announce('error', line);
+      announce('error', jobFailed('positions', err));
       readDone = true;
     }
   });
@@ -373,7 +383,7 @@ function onPortfolio(): void {
       if (!backNow({ trip, now: Date.now(), read: readDone, busy: dueBusy || sheetsQueue.busy() })) return;
       clearInterval(timer);
       gmDelete(TRIP_KEY);
-      if (!readDone) announce('error', `no positions read in 3 minutes${back}`);
+      if (!readDone) announce('error', NO_POSITIONS);
       location.href = trip.from;
     }, 1000);
   }

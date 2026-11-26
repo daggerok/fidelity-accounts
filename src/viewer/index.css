@@ -19,8 +19,7 @@ html, body { margin: 0; }
    brand = logo, titles, pills; ring = focus borders and dots; btn = filled buttons; soft and ink = an active field;
    line = the border of a done box; strong = a hovered link and the focus border of a field (3:1 or more on the field in
    both themes, the ring colour was 2.5:1 on white); the green btn is #047857 so white text on it reads 5.5:1 (#059669 was
-   3.8:1) and a hovered button goes darker, not lighter, in every palette (the lighter hovers were 3.7 to 4.5:1); an error popup is --notice-error in both themes, white on it 6.5:1 (the dark --loss was 2.8:1) */
-:root { --notice-error: #b91c1c; }
+   3.8:1) and a hovered button goes darker, not lighter, in every palette (the lighter hovers were 3.7 to 4.5:1) */
 :root { --brand-ring: #10b981; --brand-btn: #047857; --brand-btn-hover: #065f46; --brand-soft: #ecfdf5; --brand-ink: #064e3b; --brand-line: #a7f3d0; --brand-strong: #047857; }
 :root.dark { --brand-soft: #022c22; --brand-ink: #d1fae5; --brand-line: #065f46; --brand-strong: #6ee7b7; }
 html[data-palette='indigo'] { --brand: #4f46e5; --brand-ring: #6366f1; --brand-btn: #4f46e5; --brand-btn-hover: #4338ca; --brand-soft: #eef2ff; --brand-ink: #312e81; --brand-line: #c7d2fe; --brand-strong: #4338ca; }
@@ -154,3 +153,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 ::view-transition-group(*) { animation-duration: 260ms; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
 ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 200ms; }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none; } }
+
+/* a popup of 🔔 fades in when it comes and out before it goes (ui/Notices.tsx, owner 2026-11-25) */
+@keyframes notice-in { from { opacity: 0; } to { opacity: 1; } }
+.notice { animation: notice-in .2s ease-out; transition: opacity .2s ease-in; }
+.notice.out { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .notice { animation: none; transition: none; } }
