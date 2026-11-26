@@ -153,13 +153,13 @@ const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, s
     <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
       <Cols cols={cols} />
       {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
-          the right and follows the filters; Clear filters and the columns icon follow the Symbol name */}
+          the right and follows the filters; the columns icon follows the Symbol name (Clear Filters has a row of its own
+          above the header, it belongs to every column) */}
       <TypedHead control={control}
         cols={head}
         inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown, total }) : t('{n} positions', { n: total }) } }}
         extras={{ [SYMBOL]: (
           <span className="ml-auto flex flex-none items-center gap-1">
-            {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
             {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
             <button ref={colsButton} type="button" className={`hit grid size-6 place-items-center rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
           </span>
@@ -311,6 +311,14 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
+        {/* Clear Filters: a row of its own above the header, the button in its middle, only while a filter is on (owner
+            2026-11-25: "when we have any filters we must not connect it to symbol, Clear -> Clear Filters and button must be
+            on center"); the filters of hidden columns count too */}
+        {on > 0 && (
+          <div className="flex flex-none justify-center border-b border-slate-200 bg-[#f8fafc] px-6 py-1.5 dark:border-slate-700 dark:bg-[#1e293b]" data-clear-row>
+            <button type="button" className="hit rounded-md border border-[var(--brand-ring)] px-2 text-xs font-medium leading-6 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear Filters')}</button>
+          </div>
+        )}
         {/* head-scroll: clipped with a mouse, a sideways swipe scrolls it on a touch screen (index.css) */}
         <div ref={headBox} className="head-scroll flex-none bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
           <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />

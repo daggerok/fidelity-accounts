@@ -332,7 +332,7 @@ export const RU: Record<string, string> = {
   // table heads: sort, type badge, filters (src/viewer/ui/TypedHead.tsx); the type names and the filter help are the
   // words of src/shared/filter-engine.ts and typed-columns.ts, keyed by the same text (typed-head.test.ts checks them)
   '{n} of {total} positions': 'позиций: {n} из {total}',
-  Clear: 'Сбросить',
+  'Clear Filters': 'Сбросить фильтры',
   'Clear all {n} filters': 'Сбросить все фильтры: {n}',
   'Clear this filter': 'Сбросить этот фильтр',
   'Clear the {name} filter': 'Сбросить фильтр «{name}»',
