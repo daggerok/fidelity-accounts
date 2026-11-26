@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Account, Dataset } from '../../shared/model';
 import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount } from '../app/derive';
+import { chipActivates } from '../app/focus';
 import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
 import { Check } from './Check';
@@ -15,6 +16,12 @@ import { EdgeScrollRow } from './EdgeScrollRow';
 // clears every account, a group its accounts, an account itself, so any set can be shown (Elena + Elena ROTH IRA).
 // Names only, no balances, changes or account numbers (owner 2026-11-24: the Balance card shows the numbers; the
 // number stays in the chip's tooltip)
+
+// Enter or Space on a chip presses it like a button (Space without scrolling the page); keys of the checkbox inside it
+// bubble up and are not the chip's (Enter on the All accounts box folded the strip)
+const chipKey = (press: () => void) => (e: React.KeyboardEvent) => {
+  if (chipActivates(e.key, e.target === e.currentTarget)) { e.preventDefault(); press(); }
+};
 
 export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; className?: string; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
   // drag an account chip onto another account of its group to put it there (owner 2026-11-24: my own order)
@@ -40,7 +47,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
       onDragOver={(e) => { if (dragged && dragged.group === a.group && dragged.number !== a.number) { e.preventDefault(); setOver(a.number); } }}
       onDragLeave={() => setOver((o) => (o === a.number ? null : o))}
       onDrop={(e) => { e.preventDefault(); if (dragged && dragged.group === a.group && dragged.number !== a.number) onMove(dragged.number, a.number); setDragged(null); setOver(null); }}
-      onClick={() => onScope(`account:${a.number}`)} onKeyDown={(e) => { if (e.key === 'Enter') onScope(`account:${a.number}`); }} data-scope={`account:${a.number}`}>
+      onClick={() => onScope(`account:${a.number}`)} onKeyDown={chipKey(() => onScope(`account:${a.number}`))} data-scope={`account:${a.number}`}>
       <Check checked={shown.has(a.number)} label={t('Show {name}', { name: a.name })} onChange={() => onScope(toggleAccount(ds, scope, a.number))} />
       <span>{a.name}</span>
     </div>
@@ -50,7 +57,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
     // wide as its chips and sits in the middle between the logo and the buttons when they all fit (owner 2026-11-24)
     <div className={`flex min-w-0 items-center justify-center ${className ?? ''}`} data-accounts-bar>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
-        onClick={() => onFold(ALL_FOLD)} onKeyDown={(e) => { if (e.key === 'Enter') onFold(ALL_FOLD); }} data-scope="all">
+        onClick={() => onFold(ALL_FOLD)} onKeyDown={chipKey(() => onFold(ALL_FOLD))} data-scope="all">
         {chev(!allFolded)}
         {/* like the groups (owner 2026-11-24): ticked = every account, partly = some; a click ticks all or clears all */}
         <Check checked={shown.size === ds.accounts.length} mixed={shown.size > 0} label={t('Show {name}', { name: t('All accounts') })}
@@ -75,7 +82,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
               title={t('{name}: click to fold or unfold, drag to move the group', { name: g.name })} draggable
               onDragStart={(e) => { e.stopPropagation(); setDraggedGroup(g.name); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', g.name); }}
               onDragEnd={() => { setDraggedGroup(null); setOverGroup(null); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') onFold(g.name); }} data-scope={`group:${g.name}`}>
+              onKeyDown={chipKey(() => onFold(g.name))} data-scope={`group:${g.name}`}>
               {chev(open)}
               <Check checked={inGroup === g.accounts.length} mixed={inGroup > 0} label={t('Show {name}', { name: g.name })} onChange={toggleGroup} />
               <span>{g.name}</span>

@@ -7,7 +7,7 @@ import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup }
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
 import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
 import { lang, t } from '../app/i18n';
-import { prefs, setPrefs } from '../app/prefs';
+import { DEFAULT_PREFS, prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
@@ -16,7 +16,7 @@ import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
 import { rowWindow, sameWindow } from '../app/row-window';
-import { DASH, bigUsd, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
+import { DASH, bigUsd, maskAccount, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
 // grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
@@ -33,7 +33,7 @@ function Range({ p }: { p: Position }) {
   return (
     <span className="inline-flex flex-col items-stretch gap-0.5 align-middle" style={{ width: '7rem' }} title={`${usd(p.low52)} - ${usd(p.high52)}`}>
       <RangeBar pos={r} shape="diamond" />
-      <span className="flex justify-between text-[10px] text-slate-500"><span>{usd(p.low52)}</span><span>{usd(p.high52)}</span></span>
+      <span className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400"><span>{usd(p.low52)}</span><span>{usd(p.high52)}</span></span>
     </span>
   );
 }
@@ -161,7 +161,7 @@ const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, s
           <span className="ml-auto flex flex-none items-center gap-1">
             {on > 0 && <button type="button" className="rounded-md border border-[var(--brand-ring)] px-1.5 text-[0.7rem] font-medium leading-5 text-[var(--brand-strong)] hover:bg-[var(--brand-soft)]" title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear')} {on}</button>}
             {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
-            <button ref={colsButton} type="button" className={`grid size-6 place-items-center rounded text-slate-500 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
+            <button ref={colsButton} type="button" className={`hit grid size-6 place-items-center rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
           </span>
         ) }} />
     </table>
@@ -215,9 +215,9 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       const secs = shown.filter((p) => p.account === a.number);
       // an account with no row left by the filters is not shown
       if (filtered && !secs.length) return;
-      out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-500">{a.number}</span></td> });
+      out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></td> });
       cash.forEach((p) => out.push({ key: `${a.number}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
-        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500">{p.description}</span></CellScroll><div className="text-xs text-slate-500">{p.symbol}</div></td>
+        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{p.description}</span></CellScroll><div className="text-xs text-slate-500 dark:text-slate-400">{p.symbol}</div></td>
         {cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? usd(p.currentValue) : c.key === 'secYield' || c.key === 'distRate' ? c.cell(p) : ''}</td>)}
       </> }));
       secs.forEach((p) => out.push({ key: `${a.number}-${p.symbol}`, cls: '', cells: () => <>
@@ -253,14 +253,33 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
     ro.observe(el);
     // the header is its own table above the scrolling rows (owner 2026-11-24: the scrollbar starts at the first row, not
     // beside the header): it follows the rows sideways; a sideways swipe or a focused filter on the header moves the rows
+    // Only the box the user drives passes its scroll on (the last one touched, pressed or focused; the rows by default), so
+    // the copy made on the other box never comes back: a rounded or clamped scrollLeft echoed back used to fight a swipe
+    // and could stop the rows' momentum on a phone. The wheel over the header still moves the rows, which drive it
     const head = headBox.current;
-    const follow = () => { if (head && head.scrollLeft !== el.scrollLeft) head.scrollLeft = el.scrollLeft; };
-    const lead = () => { if (head && el.scrollLeft !== head.scrollLeft) el.scrollLeft = head.scrollLeft; };
-    const wheel = (e: WheelEvent) => { if (!head || !e.deltaX) return; el.scrollLeft += e.deltaX; e.preventDefault(); };
+    let driver: HTMLElement = el;
+    // `sent`: what the header last gave the rows. A scroll of the rows that is not that copy coming back is the user's own
+    // (a drag of the rows' scrollbar gives no press event to go by in every browser), so the rows take over again
+    let sent = -1;
+    const follow = () => {
+      if (!head) return;
+      if (driver === head && Math.abs(el.scrollLeft - sent) > 1) driver = el;
+      if (driver === el && head.scrollLeft !== el.scrollLeft) head.scrollLeft = el.scrollLeft;
+    };
+    const lead = () => { if (head && driver === head && el.scrollLeft !== head.scrollLeft) { sent = head.scrollLeft; el.scrollLeft = sent; } };
+    const wheel = (e: WheelEvent) => { if (!head || !e.deltaX) return; driver = el; el.scrollLeft += e.deltaX; e.preventDefault(); };
+    const takeRows = () => { driver = el; };
+    const takeHead = () => { if (head) driver = head; };
+    const DRIVE = ['pointerdown', 'touchstart', 'focusin', 'wheel'] as const;
+    DRIVE.forEach((type) => el.addEventListener(type, takeRows, { passive: true }));
+    DRIVE.forEach((type) => { if (type !== 'wheel') head?.addEventListener(type, takeHead, { passive: true }); });
     el.addEventListener('scroll', follow, { passive: true });
     head?.addEventListener('scroll', lead, { passive: true });
     head?.addEventListener('wheel', wheel, { passive: false });
-    return () => { cancelAnimationFrame(frame); el.removeEventListener('scroll', on); el.removeEventListener('scroll', follow); head?.removeEventListener('scroll', lead); head?.removeEventListener('wheel', wheel); ro.disconnect(); };
+    return () => {
+      cancelAnimationFrame(frame); el.removeEventListener('scroll', on); el.removeEventListener('scroll', follow); head?.removeEventListener('scroll', lead); head?.removeEventListener('wheel', wheel); ro.disconnect();
+      DRIVE.forEach((type) => { el.removeEventListener(type, takeRows); head?.removeEventListener(type, takeHead); });
+    };
   }, []);
   // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
   // height is the room between its top and the footer, measured again on a resize
@@ -287,12 +306,13 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   return (
     <div className="flex min-h-0 flex-col gap-3" data-positions>
       <Zoom open={showCols} title={t('Columns')} origin={colsButton} narrow onClose={() => setShowCols(false)}>
-        <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} onChange={setPrefs} />
+        <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} defaultHidden={DEFAULT_PREFS.hidden} onChange={setPrefs} />
       </Zoom>
       {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
-        <div ref={headBox} className="flex-none overflow-hidden bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
+        {/* head-scroll: clipped with a mouse, a sideways swipe scrolls it on a touch screen (index.css) */}
+        <div ref={headBox} className="head-scroll flex-none bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
           <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>

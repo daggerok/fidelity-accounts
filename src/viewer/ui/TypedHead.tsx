@@ -33,15 +33,17 @@ export function TypeBadge({ type, detected, onClick, className = 'flex-none' }: 
   const set = type !== detected;
   const how = set ? t('set by you, detected: {type}', { type: word(TYPE_NAMES[detected]) }) : t('auto-detected');
   return (
-    <button type="button" className={`${className} rounded border px-1 text-[10px] font-bold leading-4 tracking-wide transition-opacity hover:opacity-100 ${set ? 'border-slate-400 opacity-100' : 'border-transparent opacity-75'} ${TYPE_CLASSES[type]}`}
+    <button type="button" className={`${className} hit rounded border px-1 text-[10px] font-bold leading-4 tracking-wide transition-opacity hover:opacity-100 ${set ? 'border-slate-400 opacity-100' : 'border-transparent opacity-75'} ${TYPE_CLASSES[type]}`}
       title={t('Column type: {type} ({how}). Click for the next type, Shift+click for the detected one', { type: word(TYPE_NAMES[type]), how })}
       onClick={(e) => { e.stopPropagation(); onClick(e.shiftKey); }} data-type-badge={type}>{TYPE_LABELS[type]}</button>
   );
 }
 
-const INPUT = 'w-full min-w-0 rounded-md border py-1 pl-2 text-xs font-normal placeholder:text-slate-400 focus:outline-none dark:placeholder:text-slate-500';
-const IDLE = 'border-slate-300 bg-white text-slate-900 focus:border-[var(--brand-ring)] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
-const ACTIVE = 'border-[var(--brand-ring)] bg-[var(--brand-soft)] text-[var(--brand-ink)]';
+// tap-text: 16 px on a touch screen, so iOS does not zoom the page into the filter (index.css)
+const INPUT = 'tap-text w-full min-w-0 rounded-md border py-1 pl-2 text-xs font-normal placeholder:text-slate-400 focus:outline-none dark:placeholder:text-slate-500';
+// the focus border in --brand-strong: 3:1 or more on the field in both themes (the ring colour was 2.5:1 on white)
+const IDLE = 'border-slate-300 bg-white text-slate-900 focus:border-[var(--brand-strong)] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
+const ACTIVE = 'border-[var(--brand-ring)] bg-[var(--brand-soft)] text-[var(--brand-ink)] focus:border-[var(--brand-strong)]';
 const INVALID = 'border-rose-400 bg-rose-50 text-rose-800 dark:border-rose-500 dark:bg-rose-950 dark:text-rose-200';
 
 /**
@@ -84,8 +86,8 @@ export function FilterInput({ name, label, value, type, onChange, placeholder, n
           else if (e.key === 'Escape' && text !== '') { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); clear(); }
         }} data-filter={name} />
       <span className="absolute inset-y-0 right-1.5 flex items-center gap-1">
-        {note && <span className="pointer-events-none text-[0.7rem] font-normal text-slate-500" title={noteTitle} data-filter-note>{note}</span>}
-        {active && <button type="button" className="grid size-4 place-items-center rounded-full text-[0.65rem] leading-none text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white" title={t('Clear this filter')} aria-label={t('Clear the {name} filter', { name: label })} onClick={clear} data-filter-clear={name}>✕</button>}
+        {note && <span className="pointer-events-none text-[0.7rem] font-normal text-slate-500 dark:text-slate-400" title={noteTitle} data-filter-note>{note}</span>}
+        {active && <button type="button" className="hit grid size-4 place-items-center rounded-full text-[0.65rem] leading-none text-slate-500 dark:text-slate-400 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white" title={t('Clear this filter')} aria-label={t('Clear the {name} filter', { name: label })} onClick={clear} data-filter-clear={name}>✕</button>}
       </span>
     </div>
   );

@@ -4,7 +4,8 @@
 import { expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { lang, t } from '.';
+import { lang, ruPlural, t } from '.';
+import { THEME_MODES, themeTitle } from '../../../shared/theme';
 import { RU } from './ru';
 
 const files = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
@@ -45,8 +46,24 @@ test('placeholders are filled in both languages; a missing Russian line falls ba
   delete RU['Beat {cmp} in {n}'];
 });
 
+test('Russian plural forms: 1 выплата, 2 выплаты, 5 выплат', () => {
+  expect([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111, 0].map(ruPlural)).toEqual([0, 1, 1, 2, 2, 2, 2, 0, 1, 2, 0, 2, 2]);
+  lang.set('ru');
+  expect(t('{n} payouts', { n: 1 })).toBe('1 выплата');
+  expect(t('{n} payouts', { n: 2 })).toBe('2 выплаты');
+  expect(t('{n} payouts', { n: 5 })).toBe('5 выплат');
+  lang.set('en');
+  expect(t('{n} payouts', { n: 3 })).toBe('3 payouts');
+});
+
+test('the theme button titles of shared/theme have Russian lines', () => {
+  const titles = THEME_MODES.flatMap((m) => [themeTitle(m, true), themeTitle(m, false)]);
+  expect(titles.filter((s) => !(s in RU))).toEqual([]);
+});
+
 test('Russian lines keep the placeholders of their English text', () => {
-  const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join(',');
+  // a placeholder may repeat in the plural forms of a line, so each counts once
+  const ph = (s: string) => Array.from(new Set(s.match(/\{\w+\}/g) ?? [])).sort().join(',');
   const wrong = Object.keys(RU).filter((k) => ph(k) !== ph(RU[k]!));
   expect(wrong).toEqual([]);
 });

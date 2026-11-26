@@ -41,6 +41,8 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
       .st > div.imp { white-space: normal; overflow-wrap: anywhere; color: #fca5a5; }
       button { all: unset; cursor: pointer; padding: 3px 7px; border-radius: 6px; background: #1e293b; }
       button:hover { background: #334155; }
+      /* all: unset drops the browser's focus ring: a keyboard user sees which button has the focus (sky 8.3:1 on the panel) */
+      button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
       [hidden] { display: none !important; }
       .min { margin-left: auto; padding: 0 7px; background: transparent; font-size: 14px; line-height: 1; }
       .mini { position: fixed; right: 12px; bottom: 12px; z-index: 2147483647; display: flex; align-items: center; gap: 6px;
@@ -48,6 +50,7 @@ export function mountBadge(version: string, onAction: (a: Action) => void, login
               font: 12px/1 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; }
       .lg { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #1e293b; padding-top: 6px; }
       .lg input[type=text], .lg input[type=password] { all: unset; background: #1e293b; border-radius: 6px; padding: 4px 8px; color: #e2e8f0; }
+      .lg input[type=text]:focus-visible, .lg input[type=password]:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
       .hint { color: #94a3b8; }
       /* icons only, the tooltip says what they do (owner 2026-11-24): a green ⬇ reads now, an amber {} downloads JSON */
       .ic { font-weight: 700; min-width: 14px; text-align: center; }

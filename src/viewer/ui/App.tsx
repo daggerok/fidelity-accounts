@@ -8,6 +8,7 @@ import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
 import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
+import { rovingIndex } from '../app/focus';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
@@ -21,10 +22,12 @@ import { SettingsPanel, SettingsResets } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
 import { Summary } from './Summary';
 import { animate } from './animate';
+import { clockTime, readTime } from './format';
 import { useStore } from './useStore';
 import { useTheme } from './useTheme';
 
 const tabName = (tab: MainTab): string => ({ summary: t('Summary'), positions: t('Positions') })[tab];
+const TAB_PANEL = 'main-tabpanel';
 
 // open or closed panels are remembered per browser (twitter: `${PREFIX}-panel-setup`)
 const PANEL_KEY = 'fidelity-accounts-panel-settings';
@@ -101,6 +104,21 @@ export function App() {
   // the name of what is shown titles the Balance card (owner 2026-11-24), the right of the tabs keeps only the time
   const title = !ds ? '' : scopeTitle(scope, accounts, { all: t('All accounts'), count: (n) => t('{n} accounts', { n }) });
   const year = new Date().getFullYear();
+  // the words of the icon buttons are their title and their accessible name (an emoji alone says nothing to a reader)
+  const watchTitle = !userscript ? t('Install the script first (🚀 Get started)') : watch
+    ? t('Watching Fidelity: Positions refresh every 10 minutes while the market is open and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? clockTime(run.at, language) : '—' })
+    : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)');
+  const googleTitle = loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)');
+  // shared/theme stays free of the app's words: its English title is the key of the Russian line
+  const themeText = t(themeTitle(theme.mode, theme.systemDark));
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const to = rovingIndex(MAIN_TABS.length, MAIN_TABS.indexOf(pr.tab), e.key);
+    if (to === null) return;
+    e.preventDefault();
+    const tab = MAIN_TABS[to]!;
+    setPrefs({ tab });
+    document.getElementById(`tab-${tab}`)?.focus();
+  };
   const today = localToday();
 
   return (
@@ -133,25 +151,22 @@ export function App() {
               )}
               {/* 👀 watch the data (owner 2026-11-23), instead of a one-off ⬇; watching shows only as the green dot, the button
                   itself looks the same on and off (owner 2026-11-24) */}
-              <button type="button" className="tb" data-watch={watch ? 'on' : 'off'} disabled={!userscript}
-                title={!userscript ? t('Install the script first (🚀 Get started)') : watch
-                  ? t('Watching Fidelity: Positions refresh every 10 minutes while the market is open and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' })
-                  : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)')}
+              <button type="button" className="tb" data-watch={watch ? 'on' : 'off'} disabled={!userscript} title={watchTitle} aria-label={watchTitle}
                 onClick={() => setWatch(!watch)}>
                 <span className="relative inline-flex">👀{watch && <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-[var(--brand-ring)]" />}</span>
               </button>
               {/* ☁️ only until Google is connected, like 🚀; disconnecting lives in ⚙️ Settings (owner 2026-11-23) */}
               {settled && !g.connected && <button type="button" className="tb" data-google disabled={g.busy || !loadConfig().clientId}
-                title={loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)')}
+                title={googleTitle} aria-label={googleTitle}
                 onClick={() => void connectGoogle()}>{g.busy ? '⏳' : '☁️'}</button>}
               {/* 🚀 only while something needs setup; afterwards Get started lives in ⚙️ Settings (owner 2026-11-23) */}
-              {settled && !done && <button type="button" className="tb" title={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
+              {settled && !done && <button type="button" className="tb" title={t('Get started: the setup steps')} aria-label={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
-              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-expanded={showSettings} data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
+              <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-label={t('Settings')} aria-expanded={showSettings} aria-controls="settings-wrap" data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <button type="button" className="tb" aria-label={t('Language: English (click for Russian)')} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
                 <span aria-hidden="true" className="text-base leading-none">{LANG_FLAGS[language]}</span>
               </button>
-              <button type="button" onClick={theme.cycle} title={themeTitle(theme.mode, theme.systemDark)} data-theme-button={theme.mode} className="tb sun">
+              <button type="button" onClick={theme.cycle} title={themeText} aria-label={themeText} data-theme-button={theme.mode} className="tb sun">
                 <span className="relative inline-flex">{icon.icon}{icon.auto && <span className="absolute -right-2 -top-1.5 text-[8px] font-bold leading-none">A</span>}</span>
               </button>
             </div>
@@ -162,12 +177,14 @@ export function App() {
               as tall as the navbar (owner 2026-11-25): the tabs are as tall as the navbar buttons (.tb, 2.25rem) */}
           {ds && (
             <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
-              <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist">
+              {/* WAI-ARIA tabs: only the chosen tab is in the Tab order, Left and Right (Home, End) choose the next one */}
+              <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist" aria-label={t('Pages')} onKeyDown={onTabKey}>
                 {MAIN_TABS.map((tab) => (
-                  <button key={tab} type="button" role="tab" aria-selected={pr.tab === tab} className={`main-tab flex h-9 items-center ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })}>{tabName(tab)}</button>
+                  <button key={tab} id={`tab-${tab}`} type="button" role="tab" aria-selected={pr.tab === tab} aria-controls={TAB_PANEL} tabIndex={pr.tab === tab ? 0 : -1}
+                    className={`main-tab flex h-9 items-center ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
                 ))}
               </div>
-              <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: new Date(ds.builtAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span>
+              <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: readTime(ds.builtAt, language) })}</span>
             </nav>
           )}
       </div>
@@ -185,7 +202,7 @@ export function App() {
         {ds ? (
           <div className="flex flex-col">
             {/* the cards start one gutter below the tabs panel (or below the open settings) */}
-            <main className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
+            <main id={TAB_PANEL} role="tabpanel" aria-labelledby={`tab-${pr.tab}`} className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
               <ErrorBoundary resetKey={`${ds.builtAt}|${pr.tab}`}>
                 {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : <Positions ds={ds} accounts={accounts} />}
               </ErrorBoundary>
@@ -194,8 +211,8 @@ export function App() {
         ) : null}
       </div>
       <Notices />
-      <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-400 lg:min-h-6 lg:px-6">
-        <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-600 dark:hover:text-slate-200">daggerok &copy; {year}</a>
+      <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-600 dark:text-slate-400 lg:min-h-6 lg:px-6">
+        <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-900 dark:hover:text-slate-200">daggerok &copy; {year}</a>
       </footer>
     </div>
   );

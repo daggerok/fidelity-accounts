@@ -6,9 +6,10 @@ export function Section({ title, note, open, onToggle, children, id }: { title: 
       <button type="button" className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold" aria-expanded={open} onClick={onToggle}>
         <span className="inline-block transition-transform duration-200" style={{ transform: open ? 'rotate(90deg)' : 'none' }}>▸</span>
         {title}
-        {note !== undefined && <span className="ml-auto text-xs font-normal text-slate-500">{note}</span>}
+        {note !== undefined && <span className="ml-auto text-xs font-normal text-slate-500 dark:text-slate-400">{note}</span>}
       </button>
-      <div className={`slide-wrap ${open ? 'open' : ''}`}>
+      {/* a folded section is inert: Tab skips its fields until its header opens it again */}
+      <div className={`slide-wrap ${open ? 'open' : ''}`} inert={!open}>
         <div className="slide-inner"><div className="px-4 pb-4">{children}</div></div>
       </div>
     </section>

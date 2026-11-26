@@ -17,12 +17,15 @@ html, body { margin: 0; }
 /* color palettes (src/shared/theme PALETTES): the accent of everything that is ours, set on html[data-palette] before the
    first paint. green is the default above and below; indigo is gex's Indigo Desk, blue the investments blue.
    brand = logo, titles, pills; ring = focus borders and dots; btn = filled buttons; soft and ink = an active field;
-   line = the border of a done box; strong = a hovered link */
-:root { --brand-ring: #10b981; --brand-btn: #059669; --brand-btn-hover: #10b981; --brand-soft: #ecfdf5; --brand-ink: #064e3b; --brand-line: #a7f3d0; --brand-strong: #047857; }
+   line = the border of a done box; strong = a hovered link and the focus border of a field (3:1 or more on the field in
+   both themes, the ring colour was 2.5:1 on white); the green btn is #047857 so white text on it reads 5.5:1 (#059669 was
+   3.8:1) and a hovered button goes darker, not lighter, in every palette (the lighter hovers were 3.7 to 4.5:1); an error popup is --notice-error in both themes, white on it 6.5:1 (the dark --loss was 2.8:1) */
+:root { --notice-error: #b91c1c; }
+:root { --brand-ring: #10b981; --brand-btn: #047857; --brand-btn-hover: #065f46; --brand-soft: #ecfdf5; --brand-ink: #064e3b; --brand-line: #a7f3d0; --brand-strong: #047857; }
 :root.dark { --brand-soft: #022c22; --brand-ink: #d1fae5; --brand-line: #065f46; --brand-strong: #6ee7b7; }
-html[data-palette='indigo'] { --brand: #4f46e5; --brand-ring: #6366f1; --brand-btn: #4f46e5; --brand-btn-hover: #6366f1; --brand-soft: #eef2ff; --brand-ink: #312e81; --brand-line: #c7d2fe; --brand-strong: #4338ca; }
+html[data-palette='indigo'] { --brand: #4f46e5; --brand-ring: #6366f1; --brand-btn: #4f46e5; --brand-btn-hover: #4338ca; --brand-soft: #eef2ff; --brand-ink: #312e81; --brand-line: #c7d2fe; --brand-strong: #4338ca; }
 html.dark[data-palette='indigo'] { --brand: #818cf8; --brand-soft: #1e1b4b; --brand-ink: #e0e7ff; --brand-line: #3730a3; --brand-strong: #a5b4fc; }
-html[data-palette='blue'] { --brand: #2563eb; --brand-ring: #3b82f6; --brand-btn: #2563eb; --brand-btn-hover: #3b82f6; --brand-soft: #eff6ff; --brand-ink: #1e3a8a; --brand-line: #bfdbfe; --brand-strong: #1d4ed8; }
+html[data-palette='blue'] { --brand: #2563eb; --brand-ring: #3b82f6; --brand-btn: #2563eb; --brand-btn-hover: #1d4ed8; --brand-soft: #eff6ff; --brand-ink: #1e3a8a; --brand-line: #bfdbfe; --brand-strong: #1d4ed8; }
 html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --brand-ink: #dbeafe; --brand-line: #1e40af; --brand-strong: #93c5fd; }
 .gain { color: var(--gain); }
 .scrollbar-hidden { scrollbar-width: none; }
@@ -50,7 +53,7 @@ html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --bran
 
 /* settings controls copied from twitter src/index.css (owner 2026-11-22: "why styles is not same as in twitter"; pattern masked-settings) */
 .inp{display:block;width:100%;min-height:2.375rem;padding:.5rem .75rem;border-radius:.5rem;border:1px solid #cbd5e1;background:#f8fafc;color:#047857;font-size:.875rem;line-height:1.25rem;transition:border-color .15s}
-.inp:focus{outline:none;border-color:var(--brand-ring)}
+.inp:focus{outline:none;border-color:var(--brand-strong)}
 .inp::placeholder{color:#94a3b8}
 .dark .inp{background:#1e293b;border-color:#334155;color:#34d399}
 .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.375rem;padding:.5rem .875rem;border-radius:.5rem;border:1px solid #e2e8f0;background:#fff;color:#334155;font-size:.875rem;line-height:1.25rem;font-weight:500;white-space:nowrap;transition:background-color .15s,border-color .15s,color .15s}
@@ -127,6 +130,25 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .hslide.open{grid-template-columns:1fr;opacity:1}
 .hslide>div{display:flex;align-items:center;gap:.375rem;min-width:0;overflow:hidden;padding:2px 2px 2px .375rem;margin:-2px -2px -2px 0}
 @media (prefers-reduced-motion:reduce){.hslide{transition:none}}
+
+/* touch screens only (a mouse layout never moves): small controls get an invisible hit area around them, so a finger
+   that misses by a few pixels still hits them and not the chip or row behind; the visible control keeps its size, so the
+   one-line rows stay one line. `.hit-room` gives a scrolling row the room for those areas (padding taken back by a
+   negative margin): a scroll box clips what sticks out of its padding box. iOS zooms the page into a field whose text is
+   under 16 px, so fields get 16 px there */
+@media (pointer: coarse) {
+  .hit { position: relative; }
+  .hit::after { content: ''; position: absolute; inset: calc(-1 * var(--hit-y, 8px)) calc(-1 * var(--hit-x, 2px)); }
+  .hit-room { padding-block: 8px; margin-block: -8px; }
+  .inp, .tap-text { font-size: 16px; }
+}
+/* the Positions header box follows the rows; on a touch screen a sideways swipe on it scrolls it too (no scrollbar shown;
+   touch scrollbars overlay, so both boxes keep the same width), with a mouse it stays clipped and the wheel moves the rows */
+.head-scroll { overflow: hidden; }
+@media (pointer: coarse) {
+  .head-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .head-scroll::-webkit-scrollbar { display: none; }
+}
 
 /* card morphs on layout changes (src/viewer/ui/animate.ts): boxes glide to their new size and place */
 ::view-transition-group(*) { animation-duration: 260ms; animation-timing-function: cubic-bezier(.2,.8,.2,1); }

@@ -38,7 +38,7 @@ export function MaskedField(p: { label: string; value: string; mask: (v: string)
       {editable
         ? <input className={`${input} mono`} value={p.value} onChange={(e) => p.onChange(e.target.value)} onFocus={() => setEditing(true)} onBlur={() => setEditing(false)} placeholder={p.placeholder} autoComplete="off" spellCheck={false} />
         : <input className={`${input} masked cursor-default`} value={p.value ? p.mask(p.value) : ''} title={t('Press 👁 to show and edit')} placeholder={p.placeholder} readOnly data-masked />}
-      {p.hint && <div className="mt-1 text-[10px] text-slate-400">{p.hint}</div>}
+      {p.hint && <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{p.hint}</div>}
     </div>
   );
 }

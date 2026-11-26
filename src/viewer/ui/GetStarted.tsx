@@ -5,7 +5,8 @@ import { CLAUSES, describe } from '../../shared/contract';
 import { APP_VERSION, isOlder } from '../app/version';
 import { connectGoogle, createSpreadsheet, disconnectGoogle, loadFromSheets, sheets, switchSpreadsheet } from '../app/google';
 import { TAB_NAMES } from '../../shared/sheets/tabs';
-import { t } from '../app/i18n';
+import { lang, t } from '../app/i18n';
+import { readTime } from './format';
 import { MaskedField, RevealCopy } from './MaskedField';
 import { useStore } from './useStore';
 
@@ -36,7 +37,7 @@ export const saidLater = (): boolean => { try { return sessionStorage.getItem(LA
 export const setupDone = (s: SetupState): boolean => s.clientId && s.spreadsheet && s.script && s.data;
 
 // a disabled button says which step it waits for (owner 2026-11-23: pale buttons with no reason looked broken)
-const Needs = ({ when, text }: { when: boolean; text: string }) => (when ? <span className="text-xs text-amber-600 dark:text-amber-400" data-needs>{text}</span> : null);
+const Needs = ({ when, text }: { when: boolean; text: string }) => (when ? <span className="text-xs text-amber-700 dark:text-amber-400" data-needs>{text}</span> : null);
 
 const CODE = (text: string) => <code className="rounded bg-slate-100 px-1 text-[0.8em] dark:bg-slate-800">{text}</code>;
 
@@ -45,7 +46,7 @@ function Step({ n, title, optional, done, children }: { n: number; title: string
     <li className="flex gap-3" data-step={n} data-done={done ? 'yes' : 'no'}>
       <span className={`flex size-7 flex-none items-center justify-center rounded-full text-sm font-semibold ${done ? 'bg-[var(--brand-btn)] text-white' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`}>{done ? '✓' : n}</span>
       <div className="min-w-0 flex-1">
-        <div className="font-semibold">{title}{optional && <span className="ml-2 text-xs font-normal text-slate-500">{t('optional')}</span>}</div>
+        <div className="font-semibold">{title}{optional && <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">{t('optional')}</span>}</div>
         <div className="mt-1 flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-300">{children}</div>
       </div>
     </li>
@@ -58,6 +59,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   const d = useStore(dataset);
   const login = useStore(loginSaved);
   const rep = useStore(contract);
+  const language = useStore(lang);
   const [cfg, setCfg] = useState(loadConfig);
   // which steps show is taken from a snapshot, refreshed when something happens (connect, data, script, login) and when
   // a field is left or confirmed: a step must not vanish under the cursor at the first typed character
@@ -79,7 +81,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   // the script step, so that step always shows (ticked once the script is installed)
   const dataBlock = (
     <div className="mt-1 flex flex-col gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700" data-data>
-      <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{d.ds ? ` · ${t('read {at}', { at: d.ds.builtAt.slice(0, 16).replace('T', ' ') })}` : ''}{d.ds?.asOf ? ` · ${d.ds.asOf}` : ''}</p>
+      <p>{t('Source: {source}', { source: d.source ? sourceName[d.source] ?? d.source : t('none yet') })}{/* our read time in local time, the format of As of in the tabs panel (it showed UTC next to a local As of) */}{d.ds ? ` · ${t('read {at}', { at: readTime(d.ds.builtAt, language) })}` : ''}{d.ds?.asOf ? ` · ${d.ds.asOf}` : ''}</p>
       <div className="flex flex-wrap items-center gap-2">
         <span>{t('Script')}: {userscript ? <b>{userscript}</b> : t('not seen on this page')}</span>
         {userscript && isOlder(userscript, APP_VERSION) && <a className="btn sm primary" href="./fidelity-accounts-sync.user.js" data-update-script>{t('Update to {version}', { version: APP_VERSION })}</a>}
@@ -93,15 +95,16 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
   const steps: Array<{ key: string; title: string; optional?: boolean; done?: boolean; body: React.ReactNode }> = [];
   if (all || !s.clientId) steps.push({ key: 'client', done: s.clientId, title: t('Google OAuth Client ID'), body: <>
     <span>{t('In console.cloud.google.com: enable the Google Sheets API, set the OAuth consent screen to External with your email under Test users, then create an OAuth client ID of type Web application with this authorized JavaScript origin:')} {CODE(origin)}</span>
-    <span className="text-xs text-slate-500">{t('Already have one from youtube, twitter or mykplan-adp? The same client works: add this origin if it is not there.')}</span>
+    <span className="text-xs text-slate-500 dark:text-slate-400">{t('Already have an OAuth client of type Web application for another app of yours? The same client works: add this origin to it if it is not there.')}</span>
     <MaskedField label="Google OAuth Client ID" value={cfg.clientId} mask={mask} placeholder="1234567890-abc.apps.googleusercontent.com" onChange={(v) => change({ clientId: v.trim() })} hint={t('Public, no secret. Stored in this browser only.')} />
   </> });
   if (all || !s.connected) steps.push({ key: 'connect', done: s.connected, title: t('Connect Google'), body: <>
     <span>{t('Google asks you to pick your account once; later the page connects by itself.')}</span>
+    <span className="text-xs text-slate-500 dark:text-slate-400">{t('Your own client in Testing mode makes Google show "Google hasn\'t verified this app": press Advanced, then Go to (the name of your app), and allow the Sheets access.')}</span>
     <div className="flex flex-wrap items-center gap-2"><button type="button" className="btn sm primary" disabled={!cfg.clientId || s.connected} onClick={() => void connectGoogle()}>{t('Connect Google')}</button><Needs when={!cfg.clientId} text={t('needs the Client ID first')} /></div>
   </> });
   if (all || !s.spreadsheet) steps.push({ key: 'sheet', done: s.spreadsheet, title: t('Google Sheet for your Fidelity data'), body: <>
-    <span>{t('Create a new spreadsheet in your Google Drive, or paste the link of one you made (the youtube and twitter one is fine: this app writes only its fidelity_* tabs).')}</span>
+    <span>{t('Create a new spreadsheet in your Google Drive, or paste the link of one you made (a sheet other apps use is fine: this app writes only its fidelity_* tabs).')}</span>
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" className="btn sm primary" disabled={!s.connected} onClick={() => void createSpreadsheet().then((id) => { if (id) setCfg(loadConfig()); })}>{t('Create a spreadsheet')}</button>
       <Needs when={!s.connected} text={t('needs Connect Google first, or paste a link below')} />
@@ -138,7 +141,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="font-medium">{g.connected ? t('Connected to Google Sheets') : t('Not connected to Google Sheets')}</div>
-          <div className="text-xs text-slate-500">{TAB_NAMES.join(', ')}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">{TAB_NAMES.join(', ')}</div>
           {sheetUrl && (
             <div className="mt-1 flex min-w-0 items-center gap-2">
               <a className="masked min-w-0 break-all text-xs underline" href={sheetUrl} target="_blank" rel="noreferrer">{showUrl ? sheetUrl : maskSpreadsheetUrl(sheetUrl)}</a>
@@ -154,7 +157,7 @@ export function GetStarted({ userscript, all = false }: { userscript: string | n
         </div>
       </div>
       {g.error && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{t('Last error: {error}', { error: g.error })}</p>}
-      {g.log.length > 0 && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-slate-500">{g.log.slice(-6).join('\n')}</pre>}
+      {g.log.length > 0 && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-slate-500 dark:text-slate-400">{g.log.slice(-6).join('\n')}</pre>}
     </div>
   );
 

@@ -11,5 +11,6 @@ export const SlidersIcon = () => svg(<><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 
 // the corner icon (owner 2026-11-24: "same spacing" as the title): measured live, the title's first letter starts 26 px
 // from the left and 28 px from the top of the card. The drawing keeps 2.25 px inside its 18 px box and the button 4 px
 // of padding, so the right margin of -5px lands the drawing 26 px from the right; centred on the title's line it starts
-// 28 px from the top. No background on hover, only the colour, so it reads as an icon, not a button
-export const CORNER_BUTTON = '-my-1 -ml-1 -mr-[5px] grid flex-none place-items-center p-1 text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white';
+// 28 px from the top. No background on hover, only the colour, so it reads as an icon, not a button. On a touch screen
+// its invisible hit area is 44 px tall (index.css .hit), the 26 px button was easy to miss
+export const CORNER_BUTTON = 'hit [--hit-y:9px] -my-1 -ml-1 -mr-[5px] grid flex-none place-items-center p-1 text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white';

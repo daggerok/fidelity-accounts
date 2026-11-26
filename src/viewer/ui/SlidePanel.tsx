@@ -6,7 +6,9 @@ export function SlidePanel({ open, title, onClose, id, children, tools }: { open
   return (
     // the gap above is padding inside the sliding part, so it opens and closes with the panel in one motion (owner
     // 2026-11-23: the gap vanished first and the panel slid up after it, a visible jump)
-    <div id={id} className={`slide-wrap shrink-0 ${open ? 'open' : ''}`} aria-hidden={!open}>
+    // closed it is inert, like the folded accounts strip: its fields leave the Tab order and the screen reader (aria-hidden
+    // alone hid them from the reader and kept them focusable)
+    <div id={id} className={`slide-wrap shrink-0 ${open ? 'open' : ''}`} inert={!open}>
       <div className="slide-inner">
         <div className="pt-4 lg:pt-6">
         <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -15,7 +17,7 @@ export function SlidePanel({ open, title, onClose, id, children, tools }: { open
               <h2 className="text-sm font-semibold">{title}</h2>
               {tools}
             </div>
-            <button type="button" className="tb" title={t('Close')} onClick={onClose}>✕</button>
+            <button type="button" className="tb" title={t('Close')} aria-label={t('Close')} onClick={onClose}>✕</button>
           </div>
           <div className="p-4">{children}</div>
         </section>

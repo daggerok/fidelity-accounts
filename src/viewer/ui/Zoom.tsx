@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { trapIndex } from '../app/focus';
 import { t } from '../app/i18n';
 import { CORNER_BUTTON, CloseIcon } from './icons';
 
@@ -9,6 +10,11 @@ import { CORNER_BUTTON, CloseIcon } from './icons';
 // reduced motion asked by the system it simply appears. `tools` sit next to the title, like on the card
 const EASE = 'cubic-bezier(.2,.8,.2,1)';
 const MS = 280;
+
+// what Tab can reach inside the window: no disabled controls, no tabindex -1 (the ‹ › of a strip), nothing inert or hidden
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]';
+const focusables = (root: HTMLElement): HTMLElement[] =>
+  Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.tabIndex >= 0 && !el.closest('[inert]') && el.getClientRects().length > 0);
 
 // `narrow`: a window of controls (the positions columns), not a chart that wants the whole width
 export function Zoom({ open, title, onClose, children, tools, origin, narrow }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode; tools?: React.ReactNode; origin?: React.RefObject<HTMLElement | null>; narrow?: boolean }) {
@@ -44,9 +50,32 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
     // a reopen while it shrinks stops the old animation; the new one starts from the card again
     return () => { if (!done) { grow.cancel(); dim.cancel(); } };
   }, [open, mounted]);
+  // a modal window holds the focus: it moves to ✕ when the window opens, Tab and Shift+Tab go round inside it
+  // (trapIndex), and on close it goes back to what opened the window (the ⤢ or the columns button). The window is drawn
+  // a moment after `open` (mounted), so the focus moves on that draw
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && !panel.current?.contains(active)) opener.current = active;
+      closeButton.current?.focus({ preventScroll: true });
+      return;
+    }
+    const back = opener.current;
+    opener.current = null;
+    if (back?.isConnected) back.focus({ preventScroll: true });
+  }, [open, mounted]);
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Tab' && panel.current) {
+        const list = focusables(panel.current);
+        const to = trapIndex(list.length, list.indexOf(document.activeElement as HTMLElement), e.shiftKey);
+        if (to !== null) { e.preventDefault(); list[to]!.focus(); }
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -62,7 +91,7 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
           <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }}>{title}</h2>
           <span className="-my-1 ml-auto flex items-center gap-2">
             {tools}
-            <button type="button" className={CORNER_BUTTON} title={t('Close')} onClick={onClose}><CloseIcon /></button>
+            <button ref={closeButton} type="button" className={CORNER_BUTTON} title={t('Close')} aria-label={t('Close')} onClick={onClose}><CloseIcon /></button>
           </span>
         </div>
         {children}
