@@ -16,7 +16,8 @@ import { useStore } from './useStore';
 // the light or the dark theme, the border, the dot and the ✕ hover in the palette's accent for a success (--brand-ring,
 // --brand-strong) and in the loss red for an error. Words (owner: "they should support i18n"): a notice of the script
 // carries its sentences as keys (shared/notice-words.ts), said here in the app's language
-const FADE_MS = 200;
+// as long as the way out in index.css (.notice.out): the popup leaves the list when it has faded
+export const NOTICE_FADE_MS = 300;
 
 function Popup({ n }: { n: Notice }) {
   // leaving: the popup fades out first, then leaves the list
@@ -28,7 +29,7 @@ function Popup({ n }: { n: Notice }) {
   }, [n]);
   useEffect(() => {
     if (!leaving) return undefined;
-    const id = setTimeout(() => closeNotice(n), FADE_MS);
+    const id = setTimeout(() => closeNotice(n), NOTICE_FADE_MS);
     return () => clearTimeout(id);
   }, [leaving, n]);
   const language = useStore(lang);
