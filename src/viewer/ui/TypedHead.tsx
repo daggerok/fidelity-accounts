@@ -97,7 +97,7 @@ const arrow = (sort: Sort | null, key: string): string => (sort && sort.key === 
 
 /**
  * The two header rows of a table. `th` and `filterTh` are the cell classes of the table it sits in, `extras` what a
- * column adds after its badge (Positions: clear all and the columns icon), `inputs` what a column's filter input gets
+ * column puts before its name, at the left edge (Positions: the columns icon before "Symbol"), `inputs` what a column's filter input gets
  */
 export function TypedHead({ cols, control, className, th = '', filterTh = '', extras = {}, inputs = {} }: {
   cols: HeadColumn[];
@@ -121,9 +121,9 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
                   "all text should be like Symbol - aligned to the left, all auto filter icons should be aligned to the right"):
                   a long name wraps and keeps the badge at the bottom right */}
               <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''}`}>
+                {extras[c.key]}
                 <button type="button" className="min-w-0 cursor-pointer whitespace-normal text-left font-[inherit] hover:text-[var(--brand-strong)]"
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
-                {extras[c.key]}
                 <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
             </th>

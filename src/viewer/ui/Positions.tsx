@@ -167,14 +167,15 @@ const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, s
     <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
       <Cols cols={cols} />
       {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
-          the right and follows the filters; the columns icon follows the Symbol name (Clear Filters floats above the
+          the right and follows the filters; the columns icon stands before the Symbol name (Clear Filters floats above the
           table, it belongs to every column) */}
       <TypedHead control={control}
         cols={head}
         inputs={{ [SYMBOL]: { placeholder: t('Symbol'), note: on ? `${shown}/${total}` : String(total), noteTitle: on ? t('{n} of {total} positions', { n: shown, total }) : t('{n} positions', { n: total }) } }}
         extras={{ [SYMBOL]: (
-          <span className="ml-auto flex flex-none items-center gap-1">
-            {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring") */}
+          <span className="-ml-1 flex flex-none items-center">
+            {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring"), at the left, right
+                before the word Symbol (owner 2026-11-25: floating between the name and the badge "looks ugly") */}
             <button ref={colsButton} type="button" className={`hit grid size-6 place-items-center rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
           </span>
         ) }} />
