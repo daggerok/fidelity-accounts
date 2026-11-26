@@ -389,7 +389,6 @@ export const RU: Record<string, string> = {
   'The browser blocked the Fidelity window: press 👀 to start watching': 'Браузер заблокировал окно Fidelity: нажми 👀, чтобы начать наблюдение',
   'This screen could not be drawn: {error}': 'Не удалось показать этот экран: {error}',
   'Reset view usually helps; Full reset also forgets the cached data and the Google setup.': 'Обычно помогает «Сбросить вид»; «Полный сброс» ещё и забывает сохранённые данные и настройку Google.',
-  Notifications: 'Уведомления',
   // the lines of the script's notices (shared/notice-words.ts NOTICE_KEYS), said in the popups
   'Positions updated': 'Позиции обновлены',
   'Accounts: {n}': 'Счетов: {n}',
@@ -427,7 +426,7 @@ export const RU: Record<string, string> = {
   'Allow GM_addElement for this script in Tampermonkey': 'Разрешите скрипту GM_addElement в Tampermonkey',
   'Positions were not read within 3 minutes': 'Позиции не прочитаны за 3 минуты',
   // ⚙️ the navbar switches once more (ui/LookSettings.tsx)
-  'Theme and language': 'Тема и язык',
+  'User preferences': 'Настройки пользователя',
   'The language of the app': 'Язык приложения',
   'Notifications on. Click to switch them off': 'Уведомления включены. Нажми, чтобы выключить',
   'Notifications off. Click to switch them on': 'Уведомления выключены. Нажми, чтобы включить',
