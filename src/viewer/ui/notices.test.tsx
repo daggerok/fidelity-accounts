@@ -45,6 +45,36 @@ test('a popup appears animated, fades out on ✕ and leaves only after the fade'
   await act(async () => { root.unmount(); });
 });
 
+test('a click elsewhere on the page closes a popup, but not in its first 2 seconds and not a click on it', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Notices } = await import('./Notices');
+  const { notices } = await import('../app/data');
+  const { NOTICE_CLICK_AWAY_MS } = await import('../../shared/notice');
+  document.body.innerHTML = '<div id="root"></div><button id="elsewhere">x</button>';
+  const root = createRoot(document.getElementById('root')!);
+  const realNow = Date.now;
+  let now = 1_000_000;
+  Date.now = () => now;
+  try {
+    await act(async () => { root.render(<Notices />); });
+    await act(async () => { notices.set([{ at: 2, level: 'error', text: 'Failed positions update' }]); });
+    const down = (el: Element) => el.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    now += NOTICE_CLICK_AWAY_MS - 1;
+    await act(async () => { down(document.getElementById('elsewhere')!); });
+    expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(false); // too early
+    now += 1;
+    await act(async () => { down(document.querySelector('[data-notice-lines]')!); });
+    expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(false); // a click on the popup
+    await act(async () => { down(document.getElementById('elsewhere')!); });
+    expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(true); // fading out
+  } finally {
+    Date.now = realNow;
+    await act(async () => { notices.set([]); });
+    await act(async () => { root.unmount(); });
+  }
+});
+
 test('the stylesheet animates the way in and the way out, and not at all with reduced motion', () => {
   const css = readFileSync(join(__dirname, '..', 'index.css'), 'utf8');
   expect(css).toMatch(/@keyframes notice-in\s*\{\s*from\s*\{\s*opacity:\s*0/);
