@@ -92,6 +92,69 @@ test('Esc closes a popup at once, with no wait', async () => {
   await act(async () => { root.unmount(); });
 });
 
+test('with a ⤢ window open the first Esc closes the popups only, the next one the window', async () => {
+  const { act, useState } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Notices } = await import('./Notices');
+  const { Zoom } = await import('./Zoom');
+  const { notices } = await import('../app/data');
+  (Element.prototype as unknown as { animate?: unknown }).animate = undefined;
+  let closed = 0;
+  function Page() {
+    const [open, setOpen] = useState(true);
+    return <div><Notices /><Zoom open={open} title="T" onClose={() => { closed += 1; setOpen(false); }}><button>x</button></Zoom></div>;
+  }
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => { root.render(<Page />); });
+  await act(async () => { notices.set([{ at: 4, level: 'error', text: 'one' }, { at: 5, level: 'ok', text: 'two' }]); });
+  // the popup that came last is on top and moved the earlier one down
+  expect(Array.from(document.querySelectorAll('[data-notice-lines]')).map((el) => el.textContent)).toEqual(['two', 'one']);
+  const esc = () => document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  await act(async () => { esc(); });
+  expect(Array.from(document.querySelectorAll('[data-notice]')).map((el) => el.classList.contains('out'))).toEqual([true, true]); // both popups
+  expect(closed).toBe(0); // the window stays
+  await act(async () => { esc(); });
+  expect(closed).toBe(1); // no popup left to take the key
+  await act(async () => { notices.set([]); });
+  await act(async () => { root.unmount(); });
+});
+
+test('the pointer over a success popup holds it; it gets its whole time again after the pointer leaves', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Notices } = await import('./Notices');
+  const { notices } = await import('../app/data');
+  const { NOTICE_OK_MS } = await import('../../shared/notice');
+  // the timers of this test only: the time a success stays is asked for, the fade is not reached
+  const realSet = globalThis.setTimeout;
+  const realClear = globalThis.clearTimeout;
+  const pending = new Map<number, () => void>();
+  let ids = 1_000_000;
+  (globalThis as { setTimeout: unknown }).setTimeout = ((fn: () => void, ms?: number) => { if (ms !== NOTICE_OK_MS) return realSet(fn, ms); ids += 1; pending.set(ids, fn); return ids; }) as unknown;
+  (globalThis as { clearTimeout: unknown }).clearTimeout = ((id: unknown) => { if (typeof id === 'number' && pending.has(id)) pending.delete(id); else realClear(id as ReturnType<typeof realSet>); }) as unknown;
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  try {
+    await act(async () => { root.render(<Notices />); });
+    await act(async () => { notices.set([{ at: 6, level: 'ok', text: 'Positions updated' }]); });
+    expect(pending.size).toBe(1); // counting down
+    const popup = document.querySelector('[data-notice]')!;
+    await act(async () => { popup.dispatchEvent(new Event('pointerover', { bubbles: true })); });
+    expect(pending.size).toBe(0); // held: nothing will close it
+    expect(popup.getAttribute('data-held')).toBe('true');
+    await act(async () => { popup.dispatchEvent(new Event('pointerout', { bubbles: true })); });
+    expect(pending.size).toBe(1); // the whole time again
+    await act(async () => { Array.from(pending.values()).forEach((fn) => fn()); });
+    expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(true);
+  } finally {
+    (globalThis as { setTimeout: unknown }).setTimeout = realSet;
+    (globalThis as { clearTimeout: unknown }).clearTimeout = realClear;
+    await act(async () => { notices.set([]); });
+    await act(async () => { root.unmount(); });
+  }
+});
+
 test('the stylesheet animates the way in and the way out, and not at all with reduced motion', () => {
   const css = readFileSync(join(__dirname, '..', 'index.css'), 'utf8');
   expect(css).toMatch(/@keyframes notice-in\s*\{\s*from\s*\{\s*opacity:\s*0/);
