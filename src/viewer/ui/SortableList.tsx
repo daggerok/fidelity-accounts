@@ -3,11 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { moveKey } from '../app/columns';
 import { dropIndex, edgeSpeed } from '../app/drag';
 import { t } from '../app/i18n';
+import { useKeepFocus } from './useKeepFocus';
 
 // A list whose rows move by their ≡ handle: with the mouse, a finger (pointer events, so it works on a phone too) or the
 // arrow keys on the focused handle. While a row is dragged it follows the pointer and the rows it passes step aside;
-// on release `onMove` gets the new order of keys. Rows are 2rem tall with the padding of the other lists of the
-// columns window (ColumnPicker ROW), so both halves line up
+// on release `onMove` gets the new order of keys. Rows are LIST_ROW, as the other lists of the columns window
+// (ColumnPicker), so both halves line up
+/** one row of the columns window, 2rem tall with one padding, in both halves (owner 2026-11-24: "geometrically in sync") */
+export const LIST_ROW = 'flex h-8 shrink-0 items-center gap-2 px-2';
+
 interface Drag { key: string; from: number; to: number; startY: number; dy: number; h: number; mids: number[] }
 
 // the box the list scrolls in (the columns window's list box), the nearest one that really scrolls
@@ -32,11 +36,8 @@ export function SortableList({ keys, label, row, onMove }: { keys: string[]; lab
   const lastY = useRef(0);
   const frame = useRef(0);
   const scrolled = () => box.current?.scrollTop ?? 0;
-  const [focus, setFocus] = useState<string | null>(null);
   // a row moved by the keys keeps its focus, so the next arrow press moves it again
-  useEffect(() => {
-    if (focus) list.current?.querySelector<HTMLElement>(`[data-handle="${CSS.escape(focus)}"]`)?.focus();
-  }, [keys, focus]);
+  const setFocus = useKeepFocus(list, 'data-handle', keys);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   const update = (clientY: number) => {
@@ -104,7 +105,7 @@ export function SortableList({ keys, label, row, onMove }: { keys: string[]; lab
       {keys.map((key, i) => {
         const dragged = drag?.key === key;
         return (
-          <li key={key} className={`flex h-8 shrink-0 items-center gap-2 rounded-md bg-white px-2 dark:bg-slate-900 ${dragged ? 'relative z-10 shadow-lg ring-1 ring-slate-300 dark:ring-slate-600' : ''}`}
+          <li key={key} className={`${LIST_ROW} rounded-md bg-white dark:bg-slate-900 ${dragged ? 'relative z-10 shadow-lg ring-1 ring-slate-300 dark:ring-slate-600' : ''}`}
             style={{ transform: drag ? `translateY(${shift(i)}px)` : undefined, transition: drag && !dragged ? 'transform 150ms ease' : undefined }} data-key={key}>
             <div className="min-w-0 flex-1">{row(key)}</div>
             <button type="button" data-handle={key} className="grid size-6 shrink-0 cursor-grab touch-none place-items-center rounded text-lg leading-none text-slate-500 dark:text-slate-400 hover:text-slate-900 active:cursor-grabbing dark:hover:text-white"

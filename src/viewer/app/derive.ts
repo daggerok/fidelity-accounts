@@ -53,6 +53,19 @@ export function moveAccount(accounts: Account[], moved: string, target: string):
   return list;
 }
 
+/**
+ * One step of `id` among `order` (the accounts of a group, or the groups) as a drop for moveAccount and moveGroup, which
+ * put `moved` right before `target`: a step left drops it before its left neighbour, a step right drops the right
+ * neighbour before it. null at either end or for an id not in the list
+ */
+export function stepMove(order: string[], id: string, step: -1 | 1): [moved: string, target: string] | null {
+  const i = order.indexOf(id);
+  if (i < 0) return null;
+  const other = order[i + step];
+  if (other === undefined) return null;
+  return step < 0 ? [id, other] : [other, id];
+}
+
 /** the folded mark of All accounts in `Prefs.collapsed`; group names mark folded groups */
 export const ALL_FOLD = '*';
 

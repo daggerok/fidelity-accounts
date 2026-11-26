@@ -2,18 +2,17 @@
 import { useState } from 'react';
 import { filterColumns, orderAfterDrag, shownKeys, toggleKeys } from '../app/columns';
 import { t } from '../app/i18n';
-import { SortableList } from './SortableList';
+import { LIST_ROW, SortableList } from './SortableList';
 
 // The positions columns, chosen in the ⤢ window (owner 2026-11-24, like Fidelity's "Create My View"): all columns by
 // group on the left with a filter, the chosen ones on the right in the table's order, moved by their ≡ handle. Every
 // change shows in the table at once, no Save; Default brings back the shipped view (`defaultHidden`: the columns that
 // start hidden, prefs DEFAULT_PREFS), every column in its place.
 // One grid for both halves (owner 2026-11-24: "geometrically in sync"): the same header row, boxes of the same height
-// starting on the same line, every row ROW tall with the same padding, every checkbox on one vertical line; the
-// explanations of our columns are tooltips, so no row grows
+// starting on the same line, every row LIST_ROW (SortableList, the list on the right uses it too) tall with the same
+// padding, every checkbox on one vertical line; the explanations of our columns are tooltips, so no row grows
 export interface PickColumn { key: string; label: string; group: string; hint?: string }
 
-const ROW = 'flex h-8 shrink-0 items-center gap-2 px-2';
 const HEAD = 'flex h-8 items-center justify-between gap-2';
 const BOX = 'flex h-[min(60vh,32rem)] flex-col gap-1 overflow-auto rounded-xl border border-slate-200 p-2 text-sm dark:border-slate-700';
 
@@ -41,7 +40,7 @@ export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: {
           <h3 className="font-semibold">{t('All columns')} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">{all.length + 1}</span></h3>
         </div>
         <div className={BOX}>
-          <div className={ROW}>
+          <div className={LIST_ROW}>
             <input className="tap-text h-7 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-[var(--brand-strong)] focus:outline-none dark:border-slate-600 dark:bg-slate-900"
               placeholder={t('Filter by column name')} aria-label={t('Filter by column name')} value={q} onChange={(e) => setQ(e.target.value)} data-column-filter />
           </div>
@@ -49,13 +48,13 @@ export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: {
             const keys = g.cols.map((c) => c.key);
             return (
               <div key={g.name} className="flex flex-col gap-1" data-column-group>
-                <label className={`${ROW} rounded-md bg-slate-100 font-medium dark:bg-slate-800`}>
+                <label className={`${LIST_ROW} rounded-md bg-slate-100 font-medium dark:bg-slate-800`}>
                   <GroupCheck keys={keys} hidden={hidden} onHidden={setHidden} label={t('Select all')} />
                   <span className="flex-1 truncate">{g.name}</span>
                   <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{keys.filter((k) => hidden.indexOf(k) < 0).length}/{keys.length}</span>
                 </label>
                 {g.cols.map((c) => (
-                  <label key={c.key} className={ROW} title={c.hint}>
+                  <label key={c.key} className={LIST_ROW} title={c.hint}>
                     <input type="checkbox" checked={hidden.indexOf(c.key) < 0} onChange={(e) => setHidden(toggleKeys(hidden, [c.key], e.target.checked))} />
                     <span className="truncate">{c.label}</span>
                   </label>
@@ -63,7 +62,7 @@ export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: {
               </div>
             );
           })}
-          {!groups.length && <p className={`${ROW} text-slate-500 dark:text-slate-400`}>{t('No column matches')}</p>}
+          {!groups.length && <p className={`${LIST_ROW} text-slate-500 dark:text-slate-400`}>{t('No column matches')}</p>}
         </div>
       </section>
       <section className="flex min-w-0 flex-col gap-2">
@@ -73,7 +72,7 @@ export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: {
         </div>
         <div className={BOX}>
           {/* Symbol always comes first, as on Fidelity */}
-          <div className={`${ROW} text-slate-500 dark:text-slate-400`}><input type="checkbox" checked disabled aria-label={t('Symbol')} /><span className="flex-1">{t('Symbol')}</span></div>
+          <div className={`${LIST_ROW} text-slate-500 dark:text-slate-400`}><input type="checkbox" checked disabled aria-label={t('Symbol')} /><span className="flex-1">{t('Symbol')}</span></div>
           <SortableList keys={shown} label={(k) => byKey.get(k)?.label ?? k}
             onMove={(keys) => onChange({ columns: orderAfterDrag(all, order, hidden, keys) })}
             row={(k) => (

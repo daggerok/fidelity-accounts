@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Account, Dataset } from '../../shared/model';
-import { ALL_FOLD, accountsIn, groupsOf, scopeOf, toggleAccount } from '../app/derive';
-import { chipActivates } from '../app/focus';
+import { ALL_FOLD, accountsIn, groupsOf, scopeOf, stepMove, toggleAccount } from '../app/derive';
+import { chipActivates, chipStep } from '../app/focus';
 import { t } from '../app/i18n';
 import type { Scope } from '../app/prefs';
 import { Check } from './Check';
 import { EdgeScrollRow } from './EdgeScrollRow';
+import { useKeepFocus } from './useKeepFocus';
 
 // The accounts strip (owner 2026-11-23): one line per chip. No view-transition names here (owner 2026-11-24 glitch): a
 // named chip leaves the strip's clip during a card transition and flashes past its right edge. It lives in the navbar between the logo and the buttons and
@@ -18,10 +19,18 @@ import { EdgeScrollRow } from './EdgeScrollRow';
 // number stays in the chip's tooltip)
 
 // Enter or Space on a chip presses it like a button (Space without scrolling the page); keys of the checkbox inside it
-// bubble up and are not the chip's (Enter on the All accounts box folded the strip)
-const chipKey = (press: () => void) => (e: React.KeyboardEvent) => {
-  if (chipActivates(e.key, e.target === e.currentTarget)) { e.preventDefault(); press(); }
+// bubble up and are not the chip's (Enter on the All accounts box folded the strip). Alt+Left and Alt+Right move a group
+// or an account chip one place (`move`), the keyboard path of the drag; on such a chip the key is always taken, even at the
+// end of its row, so it is not also the browser's Alt+Left (back)
+const chipKey = (press: () => void, move?: (step: -1 | 1) => void) => (e: React.KeyboardEvent) => {
+  const self = e.target === e.currentTarget;
+  if (chipActivates(e.key, self)) { e.preventDefault(); press(); return; }
+  if (!move) return;
+  const step = chipStep(e.key, e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey, self);
+  if (step) { e.preventDefault(); move(step); }
 };
+// the same keys for a screen reader (aria-keyshortcuts), no new words on the chips
+const MOVE_KEYS = 'Alt+ArrowLeft Alt+ArrowRight';
 
 export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, onMove, onMoveGroup }: { ds: Dataset; scope: Scope; collapsed: string[]; className?: string; onScope: (s: Scope) => void; onFold: (name: string) => void; onMove: (moved: string, target: string) => void; onMoveGroup: (moved: string, target: string) => void }) {
   // drag an account chip onto another account of its group to put it there (owner 2026-11-24: my own order)
@@ -31,6 +40,17 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
   const [overGroup, setOverGroup] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const shown = new Set(accountsIn(ds, scope).map((a) => a.number));
+  // a chip moved by the keys keeps the focus (its node may move), so the next Alt+arrow moves it again
+  const bar = useRef<HTMLDivElement>(null);
+  const keep = useKeepFocus(bar, 'data-scope', ds);
+  // one step of `id` among `order` through the drop-before rule of the drag (`drop`: onMove or onMoveGroup)
+  const stepper = (order: string[], id: string, scopeKey: string, drop: (moved: string, target: string) => void) => (step: -1 | 1) => {
+    const pair = stepMove(order, id, step);
+    if (!pair) return;
+    keep(scopeKey);
+    drop(pair[0], pair[1]);
+  };
+  const groups = groupsOf(ds);
   const chip = (kind: 'all' | 'group' | 'account', active: boolean) =>
     `flex h-8 flex-none cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-2.5 text-sm transition-colors ${
       kind === 'account'
@@ -39,7 +59,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
     } ${active ? 'ring-2 ring-[var(--brand)]' : ''}`;
   const allFolded = collapsed.includes(ALL_FOLD);
   const chev = (open: boolean) => <span className={`inline-block text-[0.6rem] text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▶</span>;
-  const accountChip = (a: Account) => (
+  const accountChip = (a: Account, siblings: Account[]) => (
     <div key={a.number} role="button" tabIndex={0} className={`${chip('account', scope === `account:${a.number}`)} ${over === a.number ? 'outline-2 outline-dashed outline-[var(--brand)]' : ''} ${dragged?.number === a.number ? 'opacity-50' : ''}`}
       title={t('{name} {number}: drag to move', { name: a.name, number: a.number })}
       draggable onDragStart={(e) => { setDragged({ number: a.number, group: a.group }); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', a.number); }}
@@ -47,7 +67,8 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
       onDragOver={(e) => { if (dragged && dragged.group === a.group && dragged.number !== a.number) { e.preventDefault(); setOver(a.number); } }}
       onDragLeave={() => setOver((o) => (o === a.number ? null : o))}
       onDrop={(e) => { e.preventDefault(); if (dragged && dragged.group === a.group && dragged.number !== a.number) onMove(dragged.number, a.number); setDragged(null); setOver(null); }}
-      onClick={() => onScope(`account:${a.number}`)} onKeyDown={chipKey(() => onScope(`account:${a.number}`))} data-scope={`account:${a.number}`}>
+      onClick={() => onScope(`account:${a.number}`)} onBlur={() => keep(null)} aria-keyshortcuts={MOVE_KEYS}
+      onKeyDown={chipKey(() => onScope(`account:${a.number}`), stepper(siblings.map((x) => x.number), a.number, `account:${a.number}`, onMove))} data-scope={`account:${a.number}`}>
       <Check checked={shown.has(a.number)} label={t('Show {name}', { name: a.name })} onChange={() => onScope(toggleAccount(ds, scope, a.number))} />
       <span>{a.name}</span>
     </div>
@@ -55,7 +76,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
   return (
     // All accounts stays on the very left, the groups and accounts after it scroll (owner 2026-11-24); the strip is as
     // wide as its chips and sits in the middle between the logo and the buttons when they all fit (owner 2026-11-24)
-    <div className={`flex min-w-0 items-center justify-center ${className ?? ''}`} data-accounts-bar>
+    <div ref={bar} className={`flex min-w-0 items-center justify-center ${className ?? ''}`} data-accounts-bar>
       <div role="button" tabIndex={0} aria-expanded={!allFolded} className={chip('all', scope === 'all')} title={t('Click to fold or unfold all groups')}
         onClick={() => onFold(ALL_FOLD)} onKeyDown={chipKey(() => onFold(ALL_FOLD))} data-scope="all">
         {chev(!allFolded)}
@@ -66,7 +87,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
       </div>
       <div className={`hslide min-w-0 ${allFolded ? '' : 'open'}`} inert={allFolded}><div>
       <EdgeScrollRow label={t('Accounts')} items="[data-scope]" storeKey="fidelity-accounts.strip-scroll" prevLabel={t('Previous accounts')} nextLabel={t('Next accounts')} className="flex-auto">
-      {groupsOf(ds).map((g) => {
+      {groups.map((g) => {
         const open = !collapsed.includes(g.name);
         const inGroup = g.accounts.filter((a) => shown.has(a.number)).length;
         const toggleGroup = () => {
@@ -82,12 +103,13 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
               title={t('{name}: click to fold or unfold, drag to move the group', { name: g.name })} draggable
               onDragStart={(e) => { e.stopPropagation(); setDraggedGroup(g.name); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', g.name); }}
               onDragEnd={() => { setDraggedGroup(null); setOverGroup(null); }}
-              onKeyDown={chipKey(() => onFold(g.name))} data-scope={`group:${g.name}`}>
+              onBlur={() => keep(null)} aria-keyshortcuts={MOVE_KEYS}
+              onKeyDown={chipKey(() => onFold(g.name), stepper(groups.map((x) => x.name), g.name, `group:${g.name}`, onMoveGroup))} data-scope={`group:${g.name}`}>
               {chev(open)}
               <Check checked={inGroup === g.accounts.length} mixed={inGroup > 0} label={t('Show {name}', { name: g.name })} onChange={toggleGroup} />
               <span>{g.name}</span>
             </div>
-            <div className={`hslide ${open ? 'open' : ''}`} inert={!open}><div>{g.accounts.map(accountChip)}</div></div>
+            <div className={`hslide ${open ? 'open' : ''}`} inert={!open}><div>{g.accounts.map((a) => accountChip(a, g.accounts))}</div></div>
           </div>
         );
       })}

@@ -1,63 +1,26 @@
 /// <reference lib="esnext" />
-import type { Account, Dataset, Position } from '../../shared/model';
-import type { TypedColumn } from '../../shared/typed-columns';
-import { ACCOUNT_SORTS, movers, ofKind, rangeRows, payoutParts, payoutTotal, securitiesBySymbol, symbolDrip, dripToBuy, sortAccounts, DIV_WINDOWS, type AccountSort, type RangeRow, type Drip, type PayoutPart, type Slice, type Upcoming } from '../app/derive';
+import type { Account, Dataset } from '../../shared/model';
+import { ACCOUNT_SORTS, movers, ofKind, payoutTotal, sortAccounts, DIV_WINDOWS, type AccountSort } from '../app/derive';
 import { MOVERS_MAX, accountBetas, dividendsView, incomeView, summaryBase } from '../app/summary';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
-import { Donut } from './Donut';
-import { Zoom } from './Zoom';
 import { animate } from './animate';
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { GainLoss } from './GainLoss';
-import { RangeBar } from './RangeBar';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
 import { Pills } from './Pills';
 import { useFitRows } from './useFitRows';
-import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { BetaValue } from './Beta';
-import { CORNER_BUTTON, ExpandIcon } from './icons';
+import { Card } from './Card';
+import { Movers, MoversBig } from './Movers';
+import { Allocation, AllocationBig, ViewSwitch } from './Allocation';
+import { DividendsTable } from './DividendsTable';
+import { RangeTable } from './RangeTable';
 import { prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { transactions } from '../app/data';
 import { lang, t } from '../app/i18n';
-import { NoMatch, TypedHead, type HeadColumn } from './TypedHead';
-import { useTypedTable } from './useTypedTable';
-import { maskAccount, pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd, usd0 } from './format';
-
-// Summary: cards of information like the Fidelity summary page, for the chosen scope. Each card is as tall as its
-// content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
-// `expand`: the card's full view, opened big over the page by ⤢ (owner 2026-11-23: maximize for every plate where it
-// makes sense, more rows and details there)
-// `lead` sits right after the title, `tools` at the top right corner
-function Card({ id, title, titleHint, children, tools, lead, expand }: { id: string; title: string; titleHint?: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLElement>(null);
-  return (
-    <section ref={box} className="card mb-4 lg:mb-6 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {/* card titles in the green of "Fidelity" in the logo (owner 2026-11-24) */}
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }} title={titleHint}>{title}</h2>
-        {lead}
-        {/* the expand icon sits as far from the top right corner as the title from the top left (owner 2026-11-24) */}
-        <span className="-my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
-      </div>
-      {children}
-      {/* always mounted: a list that empties under an open window (a pill switched) must not drop the window; it shows the card's own view then */}
-      <Zoom open={open} title={title} tools={lead || tools ? <>{lead}{tools}</> : undefined} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
-    </section>
-  );
-}
-
-// bars or a donut, each card its own choice (remembered by card id), switched with the morph animation
-const viewOf = (views: Record<string, 'bars' | 'pie'>, id: string): 'bars' | 'pie' => views[id] ?? 'pie';
-function ViewSwitch({ id }: { id: string }) {
-  const pr = useStore(prefs);
-  return (
-    <Toggle value={viewOf(pr.views, id)} label={t('Chart view')} a={{ value: 'pie', text: '◔', title: t('Show as donut') }} b={{ value: 'bars', text: '☰', title: t('Show as bars') }}
-      onChange={(v) => animate(() => setPrefs({ views: { ...prefs.get().views, [id]: v } }))} />
-  );
-}
+import { maskAccount, pct, qty, signedUsd, siteDate, usd, usd0 } from './format';
 
 // a line of tickers in one colour, the commas plain
 function Tickers({ symbols, tone, title }: { symbols: string[]; tone: 'gain' | 'loss'; title: string }) {
@@ -70,237 +33,7 @@ function Tickers({ symbols, tone, title }: { symbols: string[]; tone: 'gain' | '
 
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-500 dark:text-slate-400">{text}</p>;
 
-function Allocation({ id, slices }: { id: string; slices: Slice[] }) {
-  const pr = useStore(prefs);
-  return viewOf(pr.views, id) === 'pie' ? <Donut slices={slices} otherName={t('Other')} /> : <Bars slices={slices} />;
-}
-
-function Bars({ slices, all }: { slices: Slice[]; all?: boolean }) {
-  return (
-    <div className={all ? 'gap-8 md:columns-2 [&>div]:mb-2 [&>div]:break-inside-avoid' : 'flex flex-col gap-2'}>
-      {(all ? slices : slices.slice(0, 8)).map((s) => (
-        <div key={s.name} className="text-sm">
-          <div className="flex justify-between gap-3"><span className="truncate">{s.name}</span><span className="num text-slate-500 dark:text-slate-400">{usd(s.value)} · {pct(s.pct)}</span></div>
-          <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full" style={{ width: `${Math.max(1, s.pct)}%`, background: 'var(--brand)' }} /></div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// each row has its own transition name, so on % and $ the rows glide to their new places; `at` keeps the card's and
-// the big window's names apart (a name used twice cancels the whole transition). A table with no borders (owner
-// 2026-11-24): tickers, names and values ("$ (%)" as one column) each aligned; the lists share one table so the top and
-// the bottom line up too
-const MoverRow = ({ p, at }: { p: Position; at: 'card' | 'big' }) => (
-  <tr data-fit-row style={{ viewTransitionName: `mv-${at}-${p.symbol.replace(/\W/g, '_')}` } as React.CSSProperties}>
-    <td className="whitespace-nowrap py-1 pr-2 align-baseline font-semibold">{p.symbol}</td>
-    <td className="w-full max-w-0 truncate py-1 align-baseline text-xs text-slate-500 dark:text-slate-400" title={p.description}>{p.description}</td>
-    <td className="whitespace-nowrap py-1 pl-3 text-right align-baseline"><GainLoss usd={p.todayGl} pct={p.todayGlPct} /></td>
-  </tr>
-);
-
-function Movers({ lists, at }: { lists: Position[][]; at: 'card' | 'big' }) {
-  return (
-    <table className="w-full text-sm" data-movers>
-      {lists.map((list, i) => (
-        <tbody key={i}>
-          {i > 0 && list.length > 0 && <tr aria-hidden><td colSpan={3} className="h-3" /></tr>}
-          {list.map((p) => <MoverRow key={p.symbol} p={p} at={at} />)}
-        </tbody>
-      ))}
-    </table>
-  );
-}
-
-// The head of the ⤢ tables: the names in the small grey of the cards, the filter inputs under them (TypedHead)
-const ZOOM_HEAD = 'bg-[var(--card-bg)] text-xs text-slate-500 dark:text-slate-400';
-const ZOOM_TH = 'px-2 pt-2 pb-1 align-bottom font-medium';
-const ZOOM_FILTER_TH = 'min-w-[6.5rem] px-2 pb-2 font-normal';
-
-// one list of the big movers window with the shared head: the change sorts and filters by what the % and $ switch shows
-function MoversBig({ list, by }: { list: Position[]; by: 'pct' | 'usd' }) {
-  const cols: (TypedColumn<Position> & HeadColumn)[] = [
-    { key: 'symbol', label: t('Symbol'), align: 'left', text: (p) => p.symbol },
-    { key: 'name', label: t('Name'), align: 'left', text: (p) => p.description },
-    by === 'usd'
-      ? { key: 'today', label: t("Today's"), text: (p) => signedUsd(p.todayGl), value: (p) => p.todayGl }
-      : { key: 'today', label: t("Today's"), text: (p) => signedPct(p.todayGlPct), value: (p) => p.todayGlPct },
-  ];
-  const table = useTypedTable(cols, list);
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm" data-movers>
-        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
-        <tbody>
-          {table.rows.map((p) => <MoverRow key={p.symbol} p={p} at="big" />)}
-          {!table.rows.length && <tr><NoMatch span={3} /></tr>}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// the big views of the cards
-// the zoomed card follows its own toggle (owner 2026-11-24 bug: bars had no effect in the big window): bars = every
-// slice as a bar, donut = the donut and the full table
-const SLICE_COLS = (): (TypedColumn<Slice> & HeadColumn)[] => [
-  { key: 'name', label: t('Name'), align: 'left', text: (s) => s.name },
-  { key: 'value', label: t('Value'), text: (s) => usd(s.value), value: (s) => s.value },
-  { key: 'pct', label: t('% of total'), text: (s) => pct(s.pct), value: (s) => s.pct },
-];
-
-function AllocationTable({ slices }: { slices: Slice[] }) {
-  const cols = SLICE_COLS();
-  const table = useTypedTable(cols, slices);
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm [&_td]:px-2" data-allocation-table>
-        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
-        <tbody>
-          {table.rows.map((s) => <tr key={s.name} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1.5">{s.name}</td><td className="num py-1.5 text-right">{usd(s.value)}</td><td className="num py-1.5 text-right text-slate-500 dark:text-slate-400">{pct(s.pct)}</td></tr>)}
-          {!table.rows.length && <tr><NoMatch span={3} /></tr>}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function AllocationBig({ id, slices }: { id: string; slices: Slice[] }) {
-  const pr = useStore(prefs);
-  if (viewOf(pr.views, id) !== 'pie') return <Bars slices={slices} all />;
-  return (
-    <div className="grid items-start gap-6 md:grid-cols-2">
-      <Donut slices={slices} otherName={t('Other')} />
-      <AllocationTable slices={slices} />
-    </div>
-  );
-}
-
-// the big ex-dividend table (owner 2026-11-24: every value on one line, wide, easy to read): the total on top, one row
-// per symbol, and when it sits in several accounts one line per account under it, named, in the Accounts card order;
-// To you is the last column, on the right (owner 2026-11-24)
-// The total follows the filters: it sums the rows left
-interface DivRow { u: Upcoming; parts: PayoutPart[]; drip: Drip | null; one: Account | null }
-const DIV_COLS = (): (TypedColumn<DivRow> & HeadColumn)[] => [
-  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.u.symbol} ${r.u.description}` },
-  // every account that holds it, so an account's name finds its symbols
-  { key: 'account', label: t('Account'), align: 'left', text: (r) => r.parts.map((p) => p.account.name).join(' ') },
-  { key: 'exDate', label: t('Ex-date'), align: 'left', text: (r) => siteDate(r.u.exDate) },
-  { key: 'payDate', label: t('Pay date'), align: 'left', text: (r) => siteDate(r.u.payDate) },
-  { key: 'perShare', label: t('Per share'), text: (r) => usd(r.u.dividendAmount), value: (r) => r.u.dividendAmount },
-  { key: 'shares', label: t('Shares'), text: (r) => qty(r.u.shares), value: (r) => r.u.shares },
-  { key: 'drip', label: 'DRIP', hint: DRIP_HINT(), text: (r) => signedQty(r.drip?.shares), value: (r) => r.drip?.shares },
-  { key: 'dripUsd', label: 'DRIP $', hint: DRIP_USD_HINT(), text: (r) => signedUsd(r.drip?.usd), value: (r) => r.drip?.usd },
-  { key: 'frequency', label: t('Frequency'), text: (r) => r.u.paymentFrequency ?? '' },
-  { key: 'payout', label: t('To you'), text: (r) => usd(r.u.payout), value: (r) => r.u.payout },
-];
-
-function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position[]; accounts: Account[] }) {
-  const cols = DIV_COLS();
-  // the rows are split by account once per list, not on every filter keystroke, over one symbol map (500 rows times
-  // every account filtered all the securities again, ~30 ms a keystroke)
-  const bySymbol = useMemo(() => securitiesBySymbol(ps), [ps]);
-  const all = useMemo(() => rows.map((u): DivRow => { const parts = payoutParts(bySymbol, accounts, u); return { u, parts, drip: symbolDrip(parts), one: parts.length === 1 ? parts[0]!.account : null }; }), [rows, bySymbol, accounts]);
-  const table = useTypedTable(cols, all);
-  const shown = table.rows;
-  const toBuy = dripToBuy(shown.map((r) => r.drip));
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
-        <TypedHead cols={cols} control={table.control} className={`sticky top-0 z-10 ${ZOOM_HEAD}`} th="px-3 pt-2 pb-1 align-bottom font-medium" filterTh="min-w-[6.5rem] px-3 pb-2 font-normal" />
-        <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: shown.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(shown.map((r) => r.u)))}</td></tr>
-          {!shown.length && <tr><NoMatch span={10} /></tr>}
-        </tbody>
-        {shown.map(({ u: r, parts, drip, one }) => (
-          <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
-            <tr>
-              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</span></td>
-              <td className="text-slate-600 dark:text-slate-300">{one ? one.name : t('{n} accounts', { n: parts.length })}</td>
-              <td className="num">{siteDate(r.exDate)}</td>
-              <td className="num">{siteDate(r.payDate)}</td>
-              <td className="num text-right">{usd(r.dividendAmount)}</td>
-              <td className="num text-right">{qty(r.shares)}</td>
-              <td className="num text-right">{drip ? <DripValue value={drip.shares} as="shares" /> : '--'}</td>
-              <td className="num text-right">{drip ? <DripValue value={drip.usd} as="usd" /> : '--'}</td>
-              <td className="text-right">{r.paymentFrequency ?? ''}</td>
-              <td className="num text-right font-medium">{usd(r.payout)}</td>
-            </tr>
-            {!one && parts.map((p) => (
-              <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
-                <td />
-                <td className="pl-6">{p.account.name} <span title={p.account.number}>{maskAccount(p.account.number)}</span></td>
-                <td colSpan={3} />
-                <td className="num text-right">{qty(p.shares)}</td>
-                <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
-                <td className="num text-right">{p.drip ? <DripValue value={p.drip.usd} as="usd" /> : ''}</td>
-                <td />
-                <td className="num text-right">{usd(p.payout)}</td>
-              </tr>
-            ))}
-          </tbody>
-        ))}
-      </table>
-    </div>
-  );
-}
-
-// the big 52-week table (owner 2026-11-24: "more info here"): highs and lows apart, where the price sits in its range,
-// how far from the high and the low, today's move and what is held in the shown accounts. One head for both parts: a
-// sort or a filter works inside each; with no sort chosen the nearest to the high and to the low come first
-type RangeLine = RangeRow & { high: boolean };
-const RANGE_COLS = (): (TypedColumn<RangeLine> & HeadColumn)[] => [
-  { key: 'symbol', label: t('Symbol'), align: 'left', text: (r) => `${r.symbol} ${r.sector ?? ''} ${r.description}` },
-  { key: 'pos', label: t('52-week range'), text: (r) => pct(r.pos * 100), value: (r) => r.pos * 100 },
-  { key: 'lastPrice', label: t('Last price'), text: (r) => usd(r.lastPrice), value: (r) => r.lastPrice },
-  { key: 'fromHigh', label: t('From the high'), text: (r) => signedPct(r.fromHigh), value: (r) => r.fromHigh },
-  { key: 'fromLow', label: t('From the low'), text: (r) => signedPct(r.fromLow), value: (r) => r.fromLow },
-  { key: 'shares', label: t('Shares'), text: (r) => qty(r.shares), value: (r) => r.shares },
-  { key: 'value', label: t('Value'), text: (r) => usd(r.value), value: (r) => r.value },
-  { key: 'totalGl', label: t('Total'), text: (r) => signedUsd(r.totalGl), value: (r) => r.totalGl },
-];
-
-function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
-  const cols = RANGE_COLS();
-  const all: RangeLine[] = rangeRows(highs).sort((a, b) => b.pos - a.pos).map((r) => ({ ...r, high: true }))
-    .concat(rangeRows(lows).sort((a, b) => a.pos - b.pos).map((r) => ({ ...r, high: false })));
-  const table = useTypedTable(cols, all);
-  const section = (title: string, cls: string, rows: RangeLine[], high: boolean) => rows.length > 0 && (
-    <tbody>
-      <tr><td colSpan={8} className={`px-2 pt-4 pb-1 text-sm font-semibold ${cls}`}>{title}</td></tr>
-      {rows.map((r) => (
-        <tr key={r.symbol} className="border-t border-slate-100 dark:border-slate-800 [&>td]:px-2 [&>td]:py-1.5">
-          <td className="max-w-[18rem]"><div><span className="font-semibold">{r.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{r.sector ?? ''}</span></div><div className="truncate text-xs text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</div></td>
-          <td>
-            <div className="flex items-center justify-end gap-2 num text-xs text-slate-500 dark:text-slate-400">
-              <span>{usd(r.low52)}</span>
-              <RangeBar pos={r.pos} color={high ? 'var(--gain)' : 'var(--loss)'} className="w-24 flex-none" title={pct(r.pos * 100)} />
-              <span>{usd(r.high52)}</span>
-            </div>
-          </td>
-          <td className="num text-right"><div className="font-medium">{usd(r.lastPrice)}</div><div className={`text-xs ${tone(r.dayPct)}`}>{signedPct(r.dayPct)}</div></td>
-          <td className="num text-right">{signedPct(r.fromHigh)}</td>
-          <td className="num text-right">{signedPct(r.fromLow)}</td>
-          <td className="num text-right">{qty(r.shares)}</td>
-          <td className="num text-right">{usd(r.value)}</td>
-          <td className={`num text-right ${tone(r.totalGl)}`}><div>{signedUsd(r.totalGl)}</div><div className="text-xs">{signedPct(r.totalGlPct)}</div></td>
-        </tr>
-      ))}
-    </tbody>
-  );
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full whitespace-nowrap text-sm" data-range-table>
-        <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
-        {section(t('Near the high'), 'gain', table.rows.filter((r) => r.high), true)}
-        {section(t('Near the low'), 'loss', table.rows.filter((r) => !r.high), false)}
-        {!table.rows.length && <tbody><tr><NoMatch span={8} /></tr></tbody>}
-      </table>
-    </div>
-  );
-}
-
+// Summary: cards of information like the Fidelity summary page, for the chosen scope, each card a Card (Card.tsx)
 // `title`: the name of what is shown (All accounts, a group, the accounts chosen), the Balance card's title; `today`: the
 // owner's date (localToday) from App, so the numbers move to the next day on App's first draw after midnight, as before
 // Memoised with stable props from App (the accounts under useMemo, the rest strings), so a status message of the script

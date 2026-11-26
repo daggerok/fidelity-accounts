@@ -2,7 +2,8 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 // Keyboard paths of the viewer: a ⤢ window takes the focus and gives it back, a closed panel leaves the Tab order, the
-// chips of the accounts strip answer Enter and Space while the keys and clicks of their checkboxes stay the checkbox's
+// chips of the accounts strip answer Enter and Space while the keys and clicks of their checkboxes stay the checkbox's,
+// and Alt+Left and Alt+Right move a chip with the focus staying on it
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import type { Dataset } from '../../shared/model';
@@ -79,5 +80,91 @@ test('Enter and Space press a chip; Enter and a click on its checkbox do not', a
   expect(folds).toEqual(['*']);
   await act(async () => { document.querySelector('[data-scope="account:X0001111"]')!.dispatchEvent(key('Enter')); });
   expect(scopes).toEqual(['none', 'account:X0001111']);
+  await act(async () => root.unmount());
+});
+
+test('Alt+Left and Alt+Right move an account inside its group and a group among the groups, the focus stays on the chip', async () => {
+  const { act, useState } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { AccountTabs } = await import('./AccountTabs');
+  const { moveAccount, moveGroup, groupsOf, orderAccounts } = await import('../app/derive');
+  // made-up accounts
+  const raw = { version: 1, builtAt: '2026-01-01T00:00:00Z', asOf: null, warnings: [], positions: [], accounts: [
+    { number: 'X0001111', name: 'Alpha', group: 'Investment', asOf: '' }, { number: 'X0002222', name: 'Beta', group: 'Investment', asOf: '' },
+    { number: 'X0003333', name: 'Gamma', group: 'Retirement', asOf: '' },
+  ] } as unknown as Dataset;
+  const moves: string[] = [];
+  function Strip() {
+    const [order, setOrder] = useState<{ accounts: string[]; groups: string[] }>({ accounts: [], groups: [] });
+    const ds = orderAccounts(raw, order.accounts, order.groups);
+    return <AccountTabs ds={ds} scope="all" collapsed={[]} onScope={() => {}} onFold={() => {}}
+      onMove={(m, to) => { moves.push(`${m}>${to}`); setOrder((o) => ({ ...o, accounts: moveAccount(ds.accounts, m, to) })); }}
+      onMoveGroup={(m, to) => { moves.push(`${m}>${to}`); setOrder((o) => ({ ...o, groups: moveGroup(groupsOf(ds).map((g) => g.name), m, to) })); }} />;
+  }
+  const alt = (k: string, altKey = true) => new KeyboardEvent('keydown', { key: k, altKey, bubbles: true, cancelable: true });
+  const names = () => Array.from(document.querySelectorAll('[data-scope]')).map((el) => el.getAttribute('data-scope'));
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => root.render(<Strip />));
+  const alpha = () => document.querySelector<HTMLElement>('[data-scope="account:X0001111"]')!;
+  await act(async () => alpha().focus());
+  // the first account cannot go further left, but the key is still taken (not the browser's back)
+  const edge = alt('ArrowLeft');
+  await act(async () => { alpha().dispatchEvent(edge); });
+  expect(edge.defaultPrevented).toBe(true);
+  expect(moves).toEqual([]);
+  // a plain arrow and Alt+arrow on the checkbox inside are not the chip's
+  await act(async () => { alpha().dispatchEvent(alt('ArrowRight', false)); });
+  await act(async () => { alpha().querySelector('input')!.dispatchEvent(alt('ArrowRight')); });
+  expect(moves).toEqual([]);
+  await act(async () => { alpha().dispatchEvent(alt('ArrowRight')); });
+  expect(moves).toEqual(['X0002222>X0001111']);
+  expect(names()).toEqual(['all', 'group:Investment', 'account:X0002222', 'account:X0001111', 'group:Retirement', 'account:X0003333']);
+  expect(document.activeElement).toBe(alpha());
+  // the last account of a group does not jump into the next group
+  await act(async () => { alpha().dispatchEvent(alt('ArrowRight')); });
+  expect(moves).toEqual(['X0002222>X0001111']);
+  const retirement = () => document.querySelector<HTMLElement>('[data-scope="group:Retirement"]')!;
+  // the account chip losing the focus draws the strip again (the kept focus is let go)
+  await act(async () => retirement().focus());
+  await act(async () => { retirement().dispatchEvent(alt('ArrowLeft')); });
+  expect(moves).toEqual(['X0002222>X0001111', 'Retirement>Investment']);
+  expect(names()).toEqual(['all', 'group:Retirement', 'account:X0003333', 'group:Investment', 'account:X0002222', 'account:X0001111']);
+  expect(document.activeElement).toBe(retirement());
+  // All accounts stays first: no move on it
+  const all = document.querySelector<HTMLElement>('[data-scope="all"]')!;
+  const still = alt('ArrowRight');
+  await act(async () => { all.dispatchEvent(still); });
+  expect(still.defaultPrevented).toBe(false);
+  expect(moves.length).toBe(2);
+  await act(async () => root.unmount());
+});
+
+test('useKeepFocus gives the focus back to the kept item after a new order, and only then', async () => {
+  const { act, useRef } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { useKeepFocus } = await import('./useKeepFocus');
+  let keep: (id: string | null) => void = () => {};
+  function List({ order }: { order: string[] }) {
+    const root = useRef<HTMLDivElement>(null);
+    keep = useKeepFocus(root, 'data-id', order);
+    return <div ref={root}>{order.map((id) => <button key={id} data-id={id}>{id}</button>)}<button id="elsewhere" /></div>;
+  }
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  const a = ['a', 'b'];
+  await act(async () => root.render(<List order={a} />));
+  await act(async () => keep('a'));
+  expect(document.activeElement?.getAttribute('data-id')).toBe('a');
+  // a moved node can lose the focus in a browser; the next order brings it back
+  const elsewhere = document.getElementById('elsewhere')!;
+  await act(async () => elsewhere.focus());
+  await act(async () => root.render(<List order={['b', 'a']} />));
+  expect(document.activeElement?.getAttribute('data-id')).toBe('a');
+  // let go (the item lost the focus): a later order leaves the focus where it is
+  await act(async () => keep(null));
+  await act(async () => elsewhere.focus());
+  await act(async () => root.render(<List order={['a', 'b']} />));
+  expect(document.activeElement).toBe(elsewhere);
   await act(async () => root.unmount());
 });

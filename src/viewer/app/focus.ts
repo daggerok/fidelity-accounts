@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
 // Keyboard rules of the viewer, apart from the screens that use them (rules/reusable-components.md): the focus kept
-// inside a ⤢ window, the arrow keys of the main tabs, the keys that press a chip
+// inside a ⤢ window, the arrow keys of the main tabs, the keys that press or move a chip
 
 /**
  * Tab inside a modal window (Zoom): where the focus goes among its `count` focusable controls when Tab (`back` = Shift+Tab)
@@ -30,3 +30,13 @@ export function rovingIndex(count: number, current: number, key: string): number
  * key comes to the chip itself (`self`): Enter or Space on the checkbox inside it bubbles up and must not fold the strip
  */
 export const chipActivates = (key: string, self: boolean): boolean => self && (key === 'Enter' || key === ' ');
+
+/**
+ * Alt+Left or Alt+Right on a chip of the accounts strip (`alone`: Alt with no other modifier) moves it one place, the
+ * keyboard path of its drag: -1 left, 1 right, null = not ours. Plain arrows stay the page's, and like Enter and Space
+ * only a key that comes to the chip itself counts, not one of its checkbox
+ */
+export function chipStep(key: string, alone: boolean, self: boolean): -1 | 1 | null {
+  if (!self || !alone) return null;
+  return key === 'ArrowLeft' ? -1 : key === 'ArrowRight' ? 1 : null;
+}
