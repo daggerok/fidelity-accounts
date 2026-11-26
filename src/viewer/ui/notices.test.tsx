@@ -155,6 +155,36 @@ test('the pointer over a success popup holds it; it gets its whole time again af
   }
 });
 
+test('a popup that comes on top makes the earlier one slide down from its old place', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Notices } = await import('./Notices');
+  const { notices } = await import('../app/data');
+  // this DOM has no layout: a slot stands 62 px under the one before it; every slide asked for is written down
+  const proto = Element.prototype as unknown as { getBoundingClientRect: () => { top: number }; animate?: unknown };
+  const realRect = proto.getBoundingClientRect;
+  const realAnimate = proto.animate;
+  const slides: { text: string | null; from: string }[] = [];
+  proto.getBoundingClientRect = function rect(this: Element) { return { top: Array.from(document.querySelectorAll('[data-notice-slot]')).indexOf(this) * 62 }; };
+  proto.animate = function animate(this: Element, frames: { transform: string }[]) { slides.push({ text: this.textContent, from: frames[0]!.transform }); };
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  try {
+    await act(async () => { root.render(<Notices />); });
+    await act(async () => { notices.set([{ at: 7, level: 'error', text: 'first' }]); });
+    expect(slides).toEqual([]); // a new popup only fades in
+    await act(async () => { notices.set(notices.get().concat({ at: 8, level: 'error', text: 'second' })); });
+    expect(slides).toEqual([{ text: 'first✕', from: 'translateY(-62px)' }]); // it starts where it was and slides down
+    await act(async () => { notices.set(notices.get().filter((n) => n.text !== 'second')); });
+    expect(slides[1]).toEqual({ text: 'first✕', from: 'translateY(62px)' }); // and back up when the one above leaves
+  } finally {
+    proto.getBoundingClientRect = realRect;
+    proto.animate = realAnimate;
+    await act(async () => { notices.set([]); });
+    await act(async () => { root.unmount(); });
+  }
+});
+
 test('the stylesheet animates the way in and the way out, and not at all with reduced motion', () => {
   const css = readFileSync(join(__dirname, '..', 'index.css'), 'utf8');
   expect(css).toMatch(/@keyframes notice-in\s*\{\s*from\s*\{\s*opacity:\s*0/);
