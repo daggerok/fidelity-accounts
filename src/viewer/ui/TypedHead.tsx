@@ -122,7 +122,9 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
                   a long name wraps and keeps the badge at the bottom right */}
               <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''}`}>
                 {extras[c.key]}
-                <button type="button" className="min-w-0 cursor-pointer whitespace-normal text-left font-[inherit] hover:text-[var(--brand-strong)]"
+                {/* pb-0.5: the name's last line stands on the middle line of the 18 px type badge (and of the columns icon in
+                    Positions), not 2 px under it: measured in the browser, the name box is 13.2 px and all are bottom-aligned */}
+                <button type="button" className="min-w-0 cursor-pointer whitespace-normal pb-0.5 text-left font-[inherit] hover:text-[var(--brand-strong)]"
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
                 <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
