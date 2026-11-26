@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
+import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -200,6 +200,19 @@ test('sortAccounts puts an account with no today gain last for todayUsd', () => 
 test('moveGroup and moveAccount append at the end for an unknown target', () => {
   expect(moveGroup(['a', 'b', 'c'], 'a', 'gone')).toEqual(['b', 'c', 'a']);
   expect(moveAccount([acct('A'), acct('B'), acct('C')], 'A', 'gone')).toEqual(['B', 'C', 'A']);
+});
+
+test('stepMove: one place left or right through the drop-before rules, nothing past either end', () => {
+  const order = ['a', 'b', 'c'];
+  expect(stepMove(order, 'b', -1)).toEqual(['b', 'a']);
+  expect(stepMove(order, 'b', 1)).toEqual(['c', 'b']);
+  expect(moveGroup(order, ...stepMove(order, 'b', -1)!)).toEqual(['b', 'a', 'c']);
+  expect(moveGroup(order, ...stepMove(order, 'b', 1)!)).toEqual(['a', 'c', 'b']);
+  expect(moveGroup(order, ...stepMove(order, 'a', 1)!)).toEqual(['b', 'a', 'c']);
+  expect(moveAccount([acct('A'), acct('B'), acct('C')], ...stepMove(['A', 'B', 'C'], 'C', -1)!)).toEqual(['A', 'C', 'B']);
+  expect(stepMove(order, 'a', -1)).toBeNull();
+  expect(stepMove(order, 'c', 1)).toBeNull();
+  expect(stepMove(order, 'gone', 1)).toBeNull();
 });
 
 test('income facts: received from the transactions, planned adds what still comes; unknown until every account is read', () => {

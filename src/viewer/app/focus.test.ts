@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { chipActivates, rovingIndex, trapIndex } from './focus';
+import { chipActivates, chipStep, rovingIndex, trapIndex } from './focus';
 
 test('Tab and Shift+Tab wrap around inside a window and bring an outside focus in', () => {
   expect(trapIndex(3, 2, false)).toBe(0);
@@ -30,4 +30,13 @@ test('Enter and Space press a chip only when they come to the chip itself', () =
   expect(chipActivates('Enter', false)).toBe(false);
   expect(chipActivates(' ', false)).toBe(false);
   expect(chipActivates('a', true)).toBe(false);
+});
+
+test('Alt+Left and Alt+Right move a chip only with Alt alone and only when they come to the chip itself', () => {
+  expect(chipStep('ArrowLeft', true, true)).toBe(-1);
+  expect(chipStep('ArrowRight', true, true)).toBe(1);
+  expect(chipStep('ArrowRight', false, true)).toBeNull();
+  expect(chipStep('ArrowRight', true, false)).toBeNull();
+  expect(chipStep('ArrowUp', true, true)).toBeNull();
+  expect(chipStep('Enter', true, true)).toBeNull();
 });
