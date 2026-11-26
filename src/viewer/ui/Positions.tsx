@@ -161,7 +161,7 @@ const Cols = memo(function Cols({ cols }: { cols: { key: string; label: string }
 // The header table, a child of its own so a scroll of the rows does not draw it again: its props stay the same until the
 // columns (new with the language too), the sort, the filters or the counts change
 const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
-  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true }];
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true, bare: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   return (
     <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>

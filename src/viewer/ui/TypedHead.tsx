@@ -9,7 +9,9 @@ import { t } from '../app/i18n';
 // column type (ABC 123 % $ D FRQ; a click sets the next type, Shift+click returns to the detected one), and under it a
 // row of filter inputs. The rules are src/shared/typed-columns.ts over the workspace filter engine; this only draws
 // `wrap`: a narrow column whose extras may go to a second line (the Positions Symbol column, 120 px)
-export interface HeadColumn { key: string; label: string; hint?: string; wrap?: boolean }
+// `bare`: the name is not drawn, only its sort mark (the Positions Symbol column: its filter input already says "Symbol",
+// owner 2026-11-25: "no needs to have a Symbol word above input"); the name stays the button's accessible name
+export interface HeadColumn { key: string; label: string; hint?: string; wrap?: boolean; bare?: boolean }
 
 /** what a table hands its head: the state and what a click or typing does to it (useTypedTable, or Positions from prefs) */
 export interface TableControl {
@@ -123,7 +125,7 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
               <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''}`}>
                 {extras[c.key]}
                 <button type="button" className="min-w-0 cursor-pointer whitespace-normal text-left font-[inherit] hover:text-[var(--brand-strong)]"
-                  title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
+                  title={c.hint ?? t('Sort by {name}', { name: c.label })} aria-label={c.bare ? t('Sort by {name}', { name: c.label }) : undefined} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.bare ? (arrow(control.sort, c.key).trim() || '↕') : <>{c.label}{arrow(control.sort, c.key)}</>}</button>
                 <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
             </th>
