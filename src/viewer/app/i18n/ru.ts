@@ -392,6 +392,8 @@ export const RU: Record<string, string> = {
   Notifications: 'Уведомления',
   'Notifications off': 'Уведомления выключены',
   'Notifications on': 'Уведомления включены',
-  'A notification from Tampermonkey and a popup here when the script finishes a job (a sync, the daily reads) or fails.': 'Уведомление от Tampermonkey и всплывашка здесь, когда скрипт закончил работу (синхронизация, ежедневные чтения) или получил ошибку.',
+  'One notification when the script finishes a job (a sync, the daily reads) or fails: a popup here while this page is on screen, a Tampermonkey notification otherwise.': 'Одно уведомление, когда скрипт закончил работу (синхронизация, ежедневные чтения) или получил ошибку: всплывашка здесь, пока эта страница на экране, иначе уведомление от Tampermonkey.',
+  'The script writes nothing to spreadsheet {tail} until you press Allow on its panel in a Fidelity tab (bottom right).': 'Скрипт ничего не пишет в таблицу {tail}, пока ты не нажмёшь Allow на его панели во вкладке Fidelity (справа внизу).',
+  'Spreadsheet {tail} was declined on the script panel in a Fidelity tab: nothing is written to it. Press Allow there, or put your sheet back in ⚙️ Settings.': 'Таблица {tail} отклонена на панели скрипта во вкладке Fidelity: в неё ничего не пишется. Нажми там Allow или верни свою таблицу в ⚙️ Настройках.',
   'Needs the script: install it under Get started.': 'Нужен скрипт: установи его в разделе «Начало работы».',
 };

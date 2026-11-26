@@ -45,6 +45,17 @@ export function usableHandoff(raw: unknown, now: number): GoogleHandoff | null {
   }
 }
 
+// the spreadsheet id of the last handoff whether its token is still usable or not (pin.ts asks about it either way)
+export function handoffSheet(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  try {
+    const id = (JSON.parse(raw) as Partial<GoogleHandoff>).spreadsheetId;
+    return typeof id === 'string' ? id : '';
+  } catch {
+    return '';
+  }
+}
+
 export type Prints = Partial<Record<DataSet, string>>;
 
 /**

@@ -13,7 +13,7 @@ export function NotifySetting({ userscript }: { userscript: string | null }) {
       <Toggle value={on ? 'on' : 'off'} label={t('Notifications')} onChange={(v) => setNotify(v === 'on')}
         a={{ value: 'off', text: '🔕', title: t('Notifications off') }} b={{ value: 'on', text: '🔔', title: t('Notifications on') }} />
       <span className="min-w-0 flex-1 text-xs text-slate-600 dark:text-slate-300">
-        {userscript ? t('A notification from Tampermonkey and a popup here when the script finishes a job (a sync, the daily reads) or fails.') : t('Needs the script: install it under Get started.')}
+        {userscript ? t('One notification when the script finishes a job (a sync, the daily reads) or fails: a popup here while this page is on screen, a Tampermonkey notification otherwise.') : t('Needs the script: install it under Get started.')}
       </span>
     </div>
   );

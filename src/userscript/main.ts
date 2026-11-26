@@ -5,7 +5,7 @@
 import { buildDataset, type GridRow } from '../shared/parse';
 import { mergeDatasets, parseDataset } from '../shared/model';
 import { mountBadge, type Badge } from './badge';
-import { COMMAND_KEY, freshCommand } from './command';
+import { COMMAND_KEY, SYNC_AT_KEY, freshCommand, syncAllowed } from './command';
 import { DATASET_KEY, RUN_KEY, SHEETS_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
 import { POSITIONS_URL } from './header';
 import { PAGE_TAG, askGrid, injectPageReader } from './inject';
@@ -18,11 +18,13 @@ import { checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Findin
 import { FORCE_READ_MS, WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { DUE_TICK_MS, historyDue, marketOpen, txnsPlan } from './schedule';
 import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
-import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, makeNotice, type NoticeLevel } from '../shared/notice';
+import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, VIEWER_BEAT_MS, VIEWER_KEY, makeNotice, viewerOnScreen, type NoticeLevel } from '../shared/notice';
 import { readAsOf, readSidebar } from './read';
-import { GOOGLE_KEY, gmFetch, usableHandoff, writeSets, type Prints } from './sheets-gm';
+import { GOOGLE_KEY, gmFetch, handoffSheet, usableHandoff, writeSets, type Prints } from './sheets-gm';
+import { PIN_KEY, allowPin, declinePin, idTail, pinStep, readPin, type PinStep } from './pin';
+import { DATA_SETS } from '../shared/sheets/sync';
 import { createSheetsQueue } from './sheets-queue';
-import { isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
+import { inFlow, isLoginPage, passwordRefused, planSignin, signinStep, type Login } from './signin';
 
 declare const GM_xmlhttpRequest: Parameters<typeof gmFetch>[0] | undefined;
 declare const __VERSION__: string;
@@ -32,6 +34,7 @@ const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
 const LOGIN_KEY = 'fidelity-accounts.login'; // { user, pass }: never leaves Tampermonkey storage
 const AUTO_KEY = 'fidelity-accounts.autoLogin'; // log in whenever the login page opens (default on, owner 2026-11-23)
 const PRINTS_KEY = 'fidelity-accounts.sheetsPrints'; // { id, prints }: each set's last write to that sheet (skip same content)
+const ASKED_KEY = 'fidelity-accounts.sheetsAskedFor'; // the spreadsheet the last "waits for Allow" notice was about (one notice, not one per page)
 const RESUME_KEY = 'fidelity-accounts.resume'; // { at }: a sync asked while logged out, go to Positions after the login
 const FLOW_KEY = 'fidelity-accounts.loginFlowAt';
 const PASS_KEY = 'fidelity-accounts.loginPassAt';
@@ -44,6 +47,12 @@ function report(checked: string[], findings: Finding[]): Report {
   const next = mergeReport(prev, { at: new Date().toISOString(), checked, findings });
   gmSet(CONTRACT_KEY, JSON.stringify(next));
   return next;
+}
+
+// what the pin says about a handed-over spreadsheet (pin.ts), read only: the Fidelity tab acts on it, the viewer tab reports it
+function pinFor(id: string): PinStep {
+  const pin = readPin(gmGet<unknown>(PIN_KEY, null));
+  return pinStep({ pin: pin.id, declined: pin.declined, printsId: gmGet<{ id?: string } | null>(PRINTS_KEY, null)?.id ?? '', handoffId: id });
 }
 
 const time = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -77,10 +86,13 @@ function onPortfolio(): void {
   let readDone = false; // a copy of the grid was taken on this page (the round trip goes back after it)
   const watching = () => gmGet<boolean>(WATCH_KEY, false) === true;
   const notifying = () => gmGet<boolean>(NOTIFY_KEY, false) === true;
-  // a finished job or an error: a Tampermonkey notification and a popup in the viewer, only while 🔔 is on
+  // a finished job or an error, only while 🔔 is on: ONE notification (owner 2026-11-25: "why I have 2?", then "yes,
+  // fix the double notifications"): the notice is always left for the viewer (it shows only fresh ones, as a popup), the
+  // Tampermonkey notification goes out only when no viewer tab is on screen (its heartbeat, shared/notice.ts)
   const announce = (level: NoticeLevel, text: string) => {
     if (!notifying()) return;
     gmSet(NOTICE_KEY, makeNotice(level, text, Date.now()));
+    if (viewerOnScreen(gmGet<unknown>(VIEWER_KEY, null), Date.now())) return;
     notify(level === 'error' ? 'fidelity-accounts: error' : 'fidelity-accounts', text, level === 'error' ? 0 : NOTICE_OK_MS);
   };
   // the page to come back to after this visit of Positions (trip.ts)
@@ -110,6 +122,18 @@ function onPortfolio(): void {
     if (a === 'watch') gmSet(WATCH_KEY, !watching());
     if (a === 'notify') gmSet(NOTIFY_KEY, !notifying());
     if (a === 'json') { const saved = gmGet<string | null>(DATASET_KEY, null); if (saved) download(`fidelity-accounts-${new Date().toISOString().slice(0, 10)}.json`, saved); }
+    // Allow pins the spreadsheet that was shown, and only while the viewer still hands it over (a swap in between asks
+    // again); every stored set is then written to it, so a new sheet fills without waiting for the next reads
+    if (a === 'sheet-allow') {
+      if (askedId && askedId === handoffSheet(gmGet<string | null>(GOOGLE_KEY, null))) {
+        gmSet(PIN_KEY, allowPin(askedId));
+        sheetsNote = `sheets: spreadsheet ${idTail(askedId)} allowed`;
+        badge.sheets(sheetsNote);
+        checkPin();
+        void sheetsQueue.add(DATA_SETS);
+      } else checkPin();
+    }
+    if (a === 'sheet-keep' && askedId) { gmSet(PIN_KEY, declinePin(readPin(gmGet<unknown>(PIN_KEY, null)), askedId)); checkPin(); }
   }, loginHooks());
   badge.notifying(notifying());
   gmWatch(NOTIFY_KEY, () => badge.notifying(notifying()));
@@ -122,13 +146,54 @@ function onPortfolio(): void {
   // marks fidelity_updates and leaves a signal for the viewer, which then reads those sets back from the sheet. Without
   // a Google token the sets wait until the viewer hands one over
   let sheetsNote = '';
+  // the spreadsheet of the handoff against the pinned one (pin.ts): writes go only to the pinned id. The first handoff
+  // after the update to the pin pins the sheet this script has been writing to (its prints) with no click; any other id
+  // waits for Allow on this panel, and while it waits nothing is written at all: the token belongs to that handoff, and
+  // writing on to the old sheet with it is not what the viewer asked for
+  const sheetStep = (id: string): PinStep => {
+    const step = pinFor(id);
+    if (step !== 'adopt') return step;
+    gmSet(PIN_KEY, allowPin(id));
+    return 'write';
+  };
+  let askedId = ''; // the spreadsheet the panel asks about now
+  const checkPin = (): PinStep => {
+    const id = handoffSheet(gmGet<string | null>(GOOGLE_KEY, null));
+    const step = id ? sheetStep(id) : 'idle';
+    if (step !== 'ask' && step !== 'declined') {
+      if (askedId) { askedId = ''; badge.askSheet(null); }
+      return step;
+    }
+    askedId = id;
+    const current = readPin(gmGet<unknown>(PIN_KEY, null)).id;
+    badge.askSheet({ tail: idTail(id), current: current ? idTail(current) : '', declined: step === 'declined' });
+    sheetsNote = step === 'ask'
+      ? `sheets: the viewer hands over spreadsheet ${idTail(id)}: nothing is written until Allow on this panel`
+      : `sheets: spreadsheet ${idTail(id)} was declined here: nothing is written`;
+    badge.sheets(sheetsNote);
+    // one notice per asked spreadsheet, kept in storage: the pages of a round trip and the other Fidelity tabs ask again
+    // on the panel but do not ring again
+    if (step === 'ask' && gmGet<string>(ASKED_KEY, '') !== id) {
+      gmSet(ASKED_KEY, id);
+      announce('error', `sheets: the new spreadsheet ${idTail(id)} waits for Allow on the Fidelity panel; nothing is written until then`);
+    }
+    return step;
+  };
   const sheetsQueue = createSheetsQueue({
-    ready: () => !!usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now()) && typeof GM_xmlhttpRequest === 'function',
-    waiting: () => { sheetsNote = 'sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'; badge.sheets(sheetsNote); announce('error', sheetsNote); },
+    ready: () => {
+      const g = usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now());
+      return !!g && typeof GM_xmlhttpRequest === 'function' && sheetStep(g.spreadsheetId) === 'write';
+    },
+    waiting: () => {
+      const step = checkPin();
+      if (step === 'ask' || step === 'declined') return;
+      sheetsNote = 'sheets: waiting for ☁️ in the viewer (it hands over the Google sign-in)'; badge.sheets(sheetsNote); announce('error', sheetsNote);
+    },
     failed: (err) => { sheetsNote = `sheets: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200); badge.sheets(sheetsNote); announce('error', sheetsNote); },
     write: async (sets) => {
       const g = usableHandoff(gmGet<string | null>(GOOGLE_KEY, null), Date.now());
       if (!g || typeof GM_xmlhttpRequest !== 'function') throw new Error('no Google sign-in');
+      if (sheetStep(g.spreadsheetId) !== 'write') throw new Error(`spreadsheet ${idTail(g.spreadsheetId)} waits for Allow on this panel`);
       const data = { ds: parseDataset(gmGet<string>(DATASET_KEY, '')), store: parseTxnStore(gmGet<string>(TXNS_KEY, '')) };
       // prints belong to one spreadsheet: a new one gets every set
       const kept = gmGet<{ id?: string; prints?: Prints }>(PRINTS_KEY, {});
@@ -140,7 +205,10 @@ function onPortfolio(): void {
       badge.sheets(`${sheetsNote} ${time()}`);
     },
   });
-  gmWatch(GOOGLE_KEY, () => void sheetsQueue.retry());
+  checkPin();
+  gmWatch(GOOGLE_KEY, () => { checkPin(); void sheetsQueue.retry(); });
+  // Allow or decline in another Fidelity tab
+  gmWatch(PIN_KEY, () => { checkPin(); void sheetsQueue.retry(); });
 
   // the daily values for the chart (BalanceHistory): 3Y the first time, then 1M
   const syncHistory = async () => {
@@ -309,8 +377,12 @@ function onPortfolio(): void {
 
   // ⬇ Sync in the viewer (and each viewer reload): this tab was opened (or is reused) for it
   const takeCommand = (raw: unknown) => {
-    if (!freshCommand(raw, Date.now())) return;
+    const now = Date.now();
+    if (!freshCommand(raw, now)) return;
     gmDelete(COMMAND_KEY);
+    // at most one sync command a minute (command.ts: a page of the viewer's origin could post them in a loop)
+    if (!syncAllowed(gmGet<unknown>(SYNC_AT_KEY, null), now)) { badge.status('sync asked again within a minute: skipped'); return; }
+    gmSet(SYNC_AT_KEY, now);
     badge.status('sync asked from the viewer: reading the positions…');
     syncNow();
   };
@@ -358,7 +430,7 @@ function onLogin(): void {
       }
     }
     const marks = { flowAt: gmGet<number>(FLOW_KEY, 0), passAt: gmGet<number>(PASS_KEY, 0) };
-    const step = signinStep(document, login, planSignin(marks, now));
+    const step = signinStep(document, login, { ...planSignin(marks, now), flow: inFlow(marks, now) });
     if (step === 'filled-user') gmSet(FLOW_KEY, now);
     if (step === 'filled-pass') {
       if (now - marks.flowAt >= 2 * 60 * 1000) gmSet(FLOW_KEY, now); // one-page form: the password step starts the flow
@@ -367,6 +439,9 @@ function onLogin(): void {
     }
     if (step === 'mfa') { notify('fidelity-accounts: enter the code', 'Fidelity asks for a one-time code: type it, reading starts after the login'); badge.status('!type the one-time code: reading starts after the login'); }
     if (step === 'too-soon') badge.status('!an automatic login was tried less than 30 minutes ago: log in yourself (no lockout)');
+    // not one password field with a user name (a change-password or reset form?): nothing typed; looked at again each
+    // second while the page renders, until the 2 minutes are over
+    if (step === 'not-login') badge.status('!this page is not a plain login form (one password field and a username): the saved login is not typed here');
     if (step === 'filled-pass' || step === 'mfa' || step === 'too-soon' || ++tries > 120) clearInterval(timer);
   }, 1000);
 }
@@ -380,19 +455,44 @@ function onViewer(): void {
   const postWatch = () => post('fidelity-accounts:watch', JSON.stringify({ on: gmGet<boolean>(WATCH_KEY, false) === true, chosen: gmGet<boolean | null>(WATCH_KEY, null) !== null }));
   // 🔔 on or off (shared/notice.ts), and each new notice of the Fidelity tab for the popup
   const postNotify = () => post('fidelity-accounts:notify', JSON.stringify({ on: gmGet<boolean>(NOTIFY_KEY, false) === true }));
+  // a handed-over spreadsheet that waits for Allow (or was declined) on the Fidelity panel (pin.ts): status only, the tail
+  // of the id, so the viewer can say where to confirm. A sheet the Fidelity tab will pin by itself (adopt) does not wait
+  const postPin = () => {
+    const id = handoffSheet(gmGet<string | null>(GOOGLE_KEY, null));
+    const step = pinFor(id);
+    post('fidelity-accounts:sheet-pin', JSON.stringify(step === 'ask' || step === 'declined' ? { waiting: step, tail: idTail(id) } : { waiting: null }));
+  };
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data) return;
-    // the Google token after ☁️ and each silent renew: the Fidelity tab writes the fidelity_* tabs with it
-    if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') gmSet(GOOGLE_KEY, e.data.json);
+    // the Google token after ☁️ and each silent renew: the Fidelity tab writes the fidelity_* tabs with it, to the pinned
+    // spreadsheet only (a page of this origin may post another id: it waits for Allow on Fidelity, pin.ts)
+    if (e.data.type === 'fidelity-accounts:google' && typeof e.data.json === 'string') { gmSet(GOOGLE_KEY, e.data.json); postPin(); }
     if (e.data.type === 'fidelity-accounts:command' && e.data.mode === 'sync') gmSet(COMMAND_KEY, JSON.stringify({ mode: 'sync', at: Date.now() }));
     if (e.data.type === 'fidelity-accounts:watch-set' && typeof e.data.on === 'boolean') gmSet(WATCH_KEY, e.data.on);
     if (e.data.type === 'fidelity-accounts:notify-set' && typeof e.data.on === 'boolean') gmSet(NOTIFY_KEY, e.data.on);
     if (e.data.type === 'fidelity-accounts:request') { post('fidelity-accounts:run', gmGet(RUN_KEY, null)); post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null)); }
     // Full reset in the viewer: the script forgets its copy of the data, the last read and the Google token (the
-    // Fidelity login stays: 🔑 on Fidelity manages it)
+    // Fidelity login stays: 🔑 on Fidelity manages it). The spreadsheet pin (PIN_KEY) and the time of the last sync command
+    // stay too: any page of this origin can post this message, so a reset must not open the way to another sheet. With
+    // the prints gone the next handoff cannot be adopted either: the same sheet as the pin writes on, another one asks
     if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, SHEETS_KEY, PRINTS_KEY, TRIP_KEY, NOTIFY_KEY, NOTICE_KEY].forEach(gmDelete);
-    if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); postNotify(); }
+    if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); postNotify(); postPin(); }
   });
+  // the heartbeat of a viewer on screen (shared/notice.ts): while this tab is visible the Fidelity tab leaves its notices
+  // to the popup here and sends no browser notification. Written on load, on each change of visibility and every
+  // VIEWER_BEAT_MS; cleared when hidden or left, unless another visible viewer tab wrote it since. Whether a write in
+  // pagehide still lands is not checked: if it does not, the heartbeat goes stale in two beats and notifications go out again
+  let beat = 0;
+  const clearBeat = () => { if (beat && gmGet<unknown>(VIEWER_KEY, null) === beat) gmDelete(VIEWER_KEY); beat = 0; };
+  const onScreen = () => {
+    if (document.visibilityState !== 'visible') { clearBeat(); return; }
+    beat = Date.now();
+    gmSet(VIEWER_KEY, beat);
+  };
+  onScreen();
+  document.addEventListener('visibilitychange', onScreen);
+  setInterval(() => { if (document.visibilityState === 'visible') onScreen(); }, VIEWER_BEAT_MS);
+  window.addEventListener('pagehide', clearBeat);
   // no data crosses this bridge (one way data flow): only the signal that the sheet has new sets, the viewer reads them
   // from the sheet; the run state, the login yes or no, 👀 and the contract report are status, not data
   gmWatch(SHEETS_KEY, (v) => post('fidelity-accounts:sheets', v));
@@ -407,6 +507,9 @@ function onViewer(): void {
   gmWatch(NOTICE_KEY, (v) => post('fidelity-accounts:notice', v));
   post('fidelity-accounts:contract', gmGet(CONTRACT_KEY, null));
   gmWatch(CONTRACT_KEY, (v) => post('fidelity-accounts:contract', v));
+  postPin();
+  gmWatch(PIN_KEY, postPin);
+  gmWatch(GOOGLE_KEY, postPin);
 }
 
 if (location.hostname === 'digital.fidelity.com' && isLoginPage(location.pathname)) onLogin();

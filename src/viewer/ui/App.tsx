@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeIcon, themeTitle } from '../../shared/theme';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
-import { autoWatch, dataset, loginSaved, runState, setWatch, watchChosen, watching } from '../app/data';
+import { autoWatch, dataset, loginSaved, runState, setWatch, sheetPin, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -47,6 +47,7 @@ export function App() {
   const watch = useStore(watching);
   const chosen = useStore(watchChosen);
   const run = useStore(runState);
+  const pin = useStore(sheetPin);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
   const [userscript, setUserscript] = useState<string | null>(() => userscriptVersion(document.documentElement));
@@ -197,6 +198,10 @@ export function App() {
 
         {/* what is wrong with the data and with Google (a lost sign-in says "press ☁️", and ☁️ is back in the navbar) */}
         {[error, g.error].filter((m): m is string => !!m).map((m, i) => <Banner key={i}>{m}</Banner>)}
+        {/* the spreadsheet handed over waits for Allow on the Fidelity panel (userscript/pin.ts): says where to confirm, until it is done */}
+        {pin && <Banner>{pin.waiting === 'ask'
+          ? t('The script writes nothing to spreadsheet {tail} until you press Allow on its panel in a Fidelity tab (bottom right).', { tail: pin.tail })
+          : t('Spreadsheet {tail} was declined on the script panel in a Fidelity tab: nothing is written to it. Press Allow there, or put your sheet back in ⚙️ Settings.', { tail: pin.tail })}</Banner>}
 
         {/* no data: nothing here (owner 2026-11-23: a "no data yet" card is useless), 🚀 in the navbar leads to the setup */}
         {ds ? (
