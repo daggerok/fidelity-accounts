@@ -174,9 +174,9 @@ test('a popup that comes on top makes the earlier one slide down from its old pl
     await act(async () => { notices.set([{ at: 7, level: 'error', text: 'first' }]); });
     expect(slides).toEqual([]); // a new popup only fades in
     await act(async () => { notices.set(notices.get().concat({ at: 8, level: 'error', text: 'second' })); });
-    expect(slides).toEqual([{ text: 'first✕', from: 'translateY(-62px)' }]); // it starts where it was and slides down
+    expect(slides).toEqual([{ text: 'first', from: 'translateY(-62px)' }]); // it starts where it was and slides down
     await act(async () => { notices.set(notices.get().filter((n) => n.text !== 'second')); });
-    expect(slides[1]).toEqual({ text: 'first✕', from: 'translateY(62px)' }); // and back up when the one above leaves
+    expect(slides[1]).toEqual({ text: 'first', from: 'translateY(62px)' }); // and back up when the one above leaves
   } finally {
     proto.getBoundingClientRect = realRect;
     proto.animate = realAnimate;
