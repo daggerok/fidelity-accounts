@@ -16,29 +16,23 @@ export function SettingsPanel({ userscript, done, expand, theme }: { userscript:
   const [setupOpen, setSetupOpen] = useState(!done);
   useEffect(() => { setSetupOpen(!done); }, [done]);
   useEffect(() => { if (expand) setSetupOpen(true); }, [expand]);
-  const [lookOpen, setLookOpen] = useState(true);
-  const [notifyOpen, setNotifyOpen] = useState(true);
-  const [themeOpen, setThemeOpen] = useState(true);
-  const [watchOpen, setWatchOpen] = useState(true);
+  const [prefsOpen, setPrefsOpen] = useState(true);
 
   return (
     <div className="flex flex-col gap-6 text-sm">
     <Section id="get-started" title={`🚀 ${t('Get started')}`} note={done ? t('all set') : t('needs setup')} open={setupOpen} onToggle={() => setSetupOpen((v) => !v)}>
       <GetStarted userscript={userscript} all={done} />
     </Section>
-    {/* the navbar's theme, language and 👀 switches once more (owner 2026-11-25), ui/LookSettings.tsx */}
-    <Section id="look" title={`🌗 ${t('Theme and language')}`} open={themeOpen} onToggle={() => setThemeOpen((v) => !v)}>
-      <ThemeLanguageSetting theme={theme} />
-    </Section>
-    {/* the color palette of the whole app (owner 2026-11-24, like gex's Settings -> Color palette) */}
-    <Section id="palette" title={`🎨 ${t('Color palette')}`} open={lookOpen} onToggle={() => setLookOpen((v) => !v)}>
-      <PalettePicker />
-    </Section>
-    <Section id="watch" title={`👀 ${t('Watch')}`} open={watchOpen} onToggle={() => setWatchOpen((v) => !v)}>
-      <WatchSetting userscript={userscript} />
-    </Section>
-    <Section id="notifications" title={`🔔 ${t('Notifications')}`} open={notifyOpen} onToggle={() => setNotifyOpen((v) => !v)}>
-      <NotifySetting userscript={userscript} />
+    {/* one section for everything a person sets to taste (owner 2026-11-25: "all these must be merged in 1 section called
+        User preferences"): the theme and the language, the color palette of the whole app (owner 2026-11-24, like gex's
+        Settings -> Color palette), 👀 and 🔔; the switches are the navbar's own buttons (ui/IconButtons.tsx) */}
+    <Section id="preferences" title={`🎛️ ${t('User preferences')}`} open={prefsOpen} onToggle={() => setPrefsOpen((v) => !v)}>
+      <div className="flex flex-col gap-4">
+        <ThemeLanguageSetting theme={theme} />
+        <PalettePicker />
+        <WatchSetting userscript={userscript} />
+        <NotifySetting userscript={userscript} />
+      </div>
     </Section>
     </div>
   );
