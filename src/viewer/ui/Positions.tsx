@@ -161,7 +161,7 @@ const Cols = memo(function Cols({ cols }: { cols: { key: string; label: string }
 // The header table, a child of its own so a scroll of the rows does not draw it again: its props stay the same until the
 // columns (new with the language too), the sort, the filters or the counts change
 const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
-  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true, bare: true }];
+  const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   return (
     <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
@@ -175,7 +175,8 @@ const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, s
         extras={{ [SYMBOL]: (
           <span className="-ml-1 flex flex-none items-center">
             {/* an icon, not a word (owner 2026-11-24: "so it will be clear that we are configuring"), at the left, right
-                before the word Symbol (owner 2026-11-25: floating between the name and the badge "looks ugly") */}
+                before the word Symbol (owner 2026-11-25: floating between the name and the badge "looks ugly"; the word stays,
+                it is what sorts by symbol: a bare sort mark in its place "looks ugly" too) */}
             <button ref={colsButton} type="button" className={`hit grid size-6 place-items-center rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${showCols ? 'bg-slate-200 dark:bg-slate-700' : ''}`} title={t('Columns: choose what the table shows')} aria-label={t('Columns: choose what the table shows')} onClick={() => onCols(true)} aria-haspopup="dialog" data-columns-button><SlidersIcon /></button>
           </span>
         ) }} />
