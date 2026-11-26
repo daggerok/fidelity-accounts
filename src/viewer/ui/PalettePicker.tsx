@@ -4,7 +4,7 @@ import { PALETTES, readPalette, savePalette, type Palette } from '../../shared/t
 import { t } from '../app/i18n';
 
 // The color palette of the app, chosen in ⚙️ Settings (owner 2026-11-24, like gex's Color palette): a swatch and a
-// name per palette, the chosen one ringed; a click recolours the page at once and is remembered. The palettes of the
+// name per palette, only the chosen one has a border (owner 2026-11-25: "only border for enabled / selected button"); a click recolours the page at once and is remembered. The palettes of the
 // owner's other apps: green (this app, twitter, youtube, fundamentals), indigo (gex, options-desk), blue (investments,
 // ETFs, Stocks, fidelity-reports)
 const storage = (): Storage | undefined => {
@@ -23,7 +23,7 @@ export function PalettePicker() {
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('Color palette')} data-palette-picker>
       {PALETTES.map((p) => (
         <button key={p} type="button" role="radio" aria-checked={p === palette} title={from[p]}
-          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors ${p === palette ? 'border-[var(--brand-ring)] bg-[var(--brand-soft)] text-[var(--brand-ink)]' : 'border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800'}`}
+          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors ${p === palette ? 'border-[var(--brand-ring)] bg-[var(--brand-soft)] text-[var(--brand-ink)]' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           onClick={() => { setPalette(p); savePalette(storage(), p); }} data-palette-choice={p}>
           <span className="size-3.5 rounded-full ring-2 ring-white dark:ring-slate-900" style={{ background: SWATCH[p] }} />
           {name[p]}
