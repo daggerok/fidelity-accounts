@@ -154,8 +154,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 200ms; }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none; } }
 
-/* a popup of 🔔 fades in when it comes and out before it goes (ui/Notices.tsx, owner 2026-11-25) */
-@keyframes notice-in { from { opacity: 0; } to { opacity: 1; } }
-.notice { animation: notice-in .2s ease-out; transition: opacity .2s ease-in; }
-.notice.out { opacity: 0; }
+/* a popup of 🔔 fades and slides in from above when it comes and back out before it goes, .3 s each way (ui/Notices.tsx
+   NOTICE_FADE_MS; owner 2026-11-25: "it should fade in / fade out", "make sure we have animation for appear/disappear") */
+@keyframes notice-in { from { opacity: 0; transform: translateY(-.5rem); } to { opacity: 1; transform: none; } }
+.notice { animation: notice-in .3s ease-out; transition: opacity .3s ease-in, transform .3s ease-in; }
+.notice.out { opacity: 0; transform: translateY(-.5rem); }
 @media (prefers-reduced-motion: reduce) { .notice { animation: none; transition: none; } }
