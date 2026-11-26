@@ -9,10 +9,12 @@ test('sets asked during a write go in the next round, together', async () => {
   let release: () => void = () => {};
   const q = createSheetsQueue({ ready: () => true, waiting: () => {}, failed: () => {}, write: (sets) => { rounds.push(sets); return rounds.length === 1 ? new Promise<void>((r) => { release = r; }) : Promise.resolve(); } });
   const first = q.add(['summary', 'positions']);
+  expect(q.busy()).toBe(true);
   void q.add(['transactions']);
   void q.add(['summary']);
   release();
   await first;
+  expect(q.busy()).toBe(false);
   expect(rounds).toEqual([['summary', 'positions'], ['transactions', 'summary']]);
   expect(q.pending()).toEqual([]);
 });

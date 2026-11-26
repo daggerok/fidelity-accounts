@@ -9,7 +9,6 @@ import { BENCHMARK, CHART_BATCH, CHART_URL, ETF_SCREENER_URL, SCREEN_BATCH, STOC
 import type { Finding } from '../shared/contract';
 import type { FetchLike } from '../shared/sheets/client';
 import type { Dataset } from '../shared/model';
-import { historyDue } from './history-sync';
 
 export type BetaRequest = (method: 'GET' | 'POST', url: string, body?: string) => Promise<string>;
 
@@ -33,8 +32,8 @@ export function betaRequest(fetcher: FetchLike): BetaRequest {
   };
 }
 
-/** due once a day, when there are positions */
-export const betasDue = (ds: Dataset | null, now: Date): boolean => !!ds && ds.positions.some((p) => p.kind !== 'pending') && historyDue(ds.betasAt, now);
+/** due once a day (local calendar day), when there are positions */
+export const betasDue = (ds: Dataset | null, now: Date): boolean => !!ds && ds.positions.some((p) => p.kind !== 'pending') && (!ds.betasAt || new Date(ds.betasAt).toDateString() !== now.toDateString());
 
 /** the held symbols: securities worth asking for, and the cash core ones (beta 0) */
 export function heldSymbols(ds: Dataset): { ask: string[]; cash: string[]; all: number } {

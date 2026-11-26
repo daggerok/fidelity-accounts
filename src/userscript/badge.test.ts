@@ -22,7 +22,12 @@ test('panel: actions, minimize remembered, the login only masked, auto login swi
   const q = <T extends HTMLElement = HTMLElement>(s: string) => root.querySelector(s) as T;
   q('[data-a="read"]').click();
   q('[data-a="json"]').click();
-  expect(actions).toEqual(['read', 'json']);
+  q('[data-a="notify"]').click();
+  expect(actions).toEqual(['read', 'json', 'notify']);
+  badge.notifying(true);
+  expect(q('[data-a="notify"]').textContent).toBe('🔔');
+  badge.notifying(false);
+  expect(q('[data-a="notify"]').textContent).toBe('🔕');
   badge.status('read: 3 accounts, 10 positions\n!sheets: 403');
   expect(q('.st').children.length).toBe(2);
   expect(q('.st .imp').textContent).toBe('sheets: 403');

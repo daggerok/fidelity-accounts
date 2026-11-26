@@ -7,6 +7,7 @@ import { parseTxnStore, type TxnStore } from '../../shared/transactions';
 import { parseDataset, type Dataset } from '../../shared/model';
 import { createStore } from '../../shared/store';
 import type { Report } from '../../shared/contract';
+import { freshNotice, pushNotice, type Notice } from '../../shared/notice';
 import { POSITIONS_URL } from '../../userscript/header';
 import { cacheGet, cacheSet } from './cache';
 import { t } from './i18n';
@@ -31,6 +32,16 @@ export const watchChosen = createStore<boolean>(mirror() !== null);
 const remember = (on: boolean) => { try { localStorage.setItem(WATCH_MIRROR, on ? 'on' : 'off'); } catch { /* private window */ } };
 // the script's live check of the contract with Fidelity (src/shared/contract.ts)
 export const contract = createStore<Report | null>(null);
+// 🔔 notifications (shared/notice.ts): off by default, kept in the script's storage like 👀, so this switch and the 🔔 of
+// the Fidelity panel are one; while on, each notice of the Fidelity tab shows here as a popup
+export const notifyOn = createStore<boolean>(false);
+export const notices = createStore<Notice[]>([]);
+export function setNotify(on: boolean): void {
+  window.postMessage({ type: 'fidelity-accounts:notify-set', on }, location.origin);
+  notifyOn.set(on);
+  if (!on) notices.set([]);
+}
+export const closeNotice = (n: Notice): void => notices.set(notices.get().filter((x) => x !== n));
 
 const CACHE_KEY = 'dataset';
 const TXNS_CACHE_KEY = 'transactions';
@@ -78,6 +89,13 @@ export function startData(): void {
         watching.set(!!w.on);
         if (w.chosen) { watchChosen.set(true); remember(!!w.on); }
       } catch { /* ignore */ }
+    }
+    if (e.data.type === 'fidelity-accounts:notify') {
+      try { notifyOn.set(!!(JSON.parse(e.data.json) as { on?: boolean }).on); } catch { /* ignore */ }
+    }
+    if (e.data.type === 'fidelity-accounts:notice') {
+      const n = freshNotice(e.data.json, Date.now());
+      if (n && notifyOn.get()) notices.set(pushNotice(notices.get(), n));
     }
     if (e.data.type === 'fidelity-accounts:login') {
       try { loginSaved.set(!!(JSON.parse(e.data.json) as { saved?: boolean }).saved); } catch { /* ignore */ }

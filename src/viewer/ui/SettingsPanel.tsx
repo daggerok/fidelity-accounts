@@ -3,6 +3,7 @@ import { t } from '../app/i18n';
 import { resetView } from '../app/prefs';
 import { fullReset } from '../app/reset';
 import { GetStarted } from './GetStarted';
+import { NotifySetting } from './NotifySetting';
 import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
 
@@ -14,6 +15,7 @@ export function SettingsPanel({ userscript, done, expand }: { userscript: string
   useEffect(() => { setSetupOpen(!done); }, [done]);
   useEffect(() => { if (expand) setSetupOpen(true); }, [expand]);
   const [lookOpen, setLookOpen] = useState(true);
+  const [notifyOpen, setNotifyOpen] = useState(true);
 
   return (
     <div className="flex flex-col gap-6 text-sm">
@@ -23,6 +25,9 @@ export function SettingsPanel({ userscript, done, expand }: { userscript: string
     {/* the color palette of the whole app (owner 2026-11-24, like gex's Settings -> Color palette) */}
     <Section id="palette" title={`🎨 ${t('Color palette')}`} open={lookOpen} onToggle={() => setLookOpen((v) => !v)}>
       <PalettePicker />
+    </Section>
+    <Section id="notifications" title={`🔔 ${t('Notifications')}`} open={notifyOpen} onToggle={() => setNotifyOpen((v) => !v)}>
+      <NotifySetting userscript={userscript} />
     </Section>
     </div>
   );

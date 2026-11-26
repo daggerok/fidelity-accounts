@@ -1,7 +1,7 @@
 /// <reference lib="esnext" />
-// The transactions history, read with the page's session (the request the Activity page makes, a read), once a day
-// after the positions: the first time each account from its first daily value on, month by month; then from 10 days
-// before the last read day, so late postings are caught. A window that came back too full is split until it fits.
+// The transactions history, read with the page's session (the request the Activity page makes, a read), when
+// schedule.ts says: the first time each account from its first daily value on, month by month; then from 10 days
+// before the last read day, so late postings are caught (`full`), or only yesterday and today (`recent`, 👀 in the session). A window that came back too full is split until it fits.
 // One account failing waits for the next day, the others keep their rows
 import { addDays } from '../shared/dates';
 import type { History } from '../shared/history';
@@ -11,12 +11,13 @@ import type { Post } from './history-sync';
 
 export const EMPTY_STORE: TxnStore = { version: 1, at: '', synced: {}, rows: [] };
 const FIRST_DAY = '2024-01-01'; // an account with no daily values yet starts here
-const OVERLAP_DAYS = 10;
+export const OVERLAP_DAYS = 10; // a full read goes this far back again
+export const RECENT_DAYS = 1; // a recent read: yesterday and today
 
 /** the first day to read for an account */
-export function startDay(account: string, store: TxnStore, history: History | undefined): string {
+export function startDay(account: string, store: TxnStore, history: History | undefined, overlap = OVERLAP_DAYS): string {
   const last = store.synced[account];
-  if (last) return addDays(last, -OVERLAP_DAYS);
+  if (last) return addDays(last, -overlap);
   return history?.[account]?.[0]?.date ?? FIRST_DAY;
 }
 
@@ -31,12 +32,12 @@ async function readWindow(account: Account, w: [string, string], post: Post, dep
 }
 
 /** read every account up to `today`; returns the new store and the accounts that failed */
-export async function readTransactions(accounts: Account[], store: TxnStore, history: History | undefined, today: string, post: Post): Promise<{ store: TxnStore; failed: string[] }> {
+export async function readTransactions(accounts: Account[], store: TxnStore, history: History | undefined, today: string, post: Post, overlap = OVERLAP_DAYS): Promise<{ store: TxnStore; failed: string[] }> {
   let rows = store.rows;
   const synced = { ...store.synced };
   const failed: string[] = [];
   for (const a of accounts) {
-    const from = startDay(a.number, store, history);
+    const from = startDay(a.number, store, history, overlap);
     try {
       const fresh: Txn[] = [];
       for (const w of monthWindows(from, today)) fresh.push(...(await readWindow(a, w, post)));

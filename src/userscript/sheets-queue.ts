@@ -4,7 +4,7 @@
 // token or after a failure the sets stay queued until `retry` (a new token from the viewer, the next read)
 import type { DataSet } from '../shared/sheets/sync';
 
-export interface SheetsQueue { add: (sets: readonly DataSet[]) => Promise<void>; retry: () => Promise<void>; pending: () => DataSet[] }
+export interface SheetsQueue { add: (sets: readonly DataSet[]) => Promise<void>; retry: () => Promise<void>; pending: () => DataSet[]; busy: () => boolean }
 
 export function createSheetsQueue(o: { ready: () => boolean; write: (sets: DataSet[]) => Promise<void>; waiting: () => void; failed: (err: unknown) => void }): SheetsQueue {
   const queued = new Set<DataSet>();
@@ -33,5 +33,7 @@ export function createSheetsQueue(o: { ready: () => boolean; write: (sets: DataS
     add: (sets) => { sets.forEach((s) => queued.add(s)); return run(); },
     retry: run,
     pending: () => Array.from(queued),
+    // a write is running (the round trip back from Positions waits for it)
+    busy: () => busy,
   };
 }
