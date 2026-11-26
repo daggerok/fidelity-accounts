@@ -1,7 +1,7 @@
 /// <reference lib="esnext" />
 import { useEffect, useState } from 'react';
 import { NOTICE_OK_MS, type Notice } from '../../shared/notice';
-import { say } from '../../shared/notice-words';
+import { lines } from '../../shared/notice-words';
 import { closeNotice, notices } from '../app/data';
 import { lang, t } from '../app/i18n';
 import { useStore } from './useStore';
@@ -33,13 +33,16 @@ function Popup({ n }: { n: Notice }) {
   const language = useStore(lang);
   const error = n.level === 'error';
   const accent = error ? 'var(--loss)' : 'var(--brand-ring)';
-  const text = n.words ? say(n.words, (key) => t(key), language === 'ru' ? 'ru-RU' : 'en-US') : n.text;
+  // one item a line (owner 2026-11-25: "toast should contain 1 line per item"): what happened first, in a heavier weight
+  const rows = n.words ? lines(n.words, (key) => t(key), language === 'ru' ? 'ru-RU' : 'en-US') : [n.text];
   return (
     <div role={error ? 'alert' : 'status'} data-notice={n.level} data-leaving={leaving || undefined}
-      className={`notice pointer-events-auto flex min-h-[3.375rem] items-center gap-3 rounded-2xl border bg-white px-6 py-2 text-sm text-slate-800 shadow-lg dark:bg-slate-900 dark:text-slate-100 ${leaving ? 'out' : ''}`}
+      className={`notice pointer-events-auto flex min-h-[3.375rem] items-start gap-3 rounded-2xl border bg-white px-6 py-2 text-sm text-slate-800 shadow-lg dark:bg-slate-900 dark:text-slate-100 ${leaving ? 'out' : ''}`}
       style={{ borderColor: accent }}>
-      <span aria-hidden className="size-2 flex-none rounded-full" style={{ background: accent }} />
-      <span className="min-w-0 flex-1 break-words">{text}</span>
+      <span aria-hidden className="mt-1.5 size-2 flex-none rounded-full" style={{ background: accent }} />
+      <span className="flex min-w-0 flex-1 flex-col break-words" data-notice-lines>
+        {rows.map((row, i) => <span key={i} className={i === 0 && rows.length > 1 ? 'font-semibold' : undefined}>{row}</span>)}
+      </span>
       <button type="button" className="hit flex-none text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label={t('Close')} onClick={() => setLeaving(true)}>✕</button>
     </div>
   );
