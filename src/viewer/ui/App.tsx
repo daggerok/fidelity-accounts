@@ -1,17 +1,17 @@
 /// <reference lib="esnext" />
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { themeIcon, themeTitle } from '../../shared/theme';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
-import { autoWatch, dataset, loginSaved, runState, setWatch, sheetPin, watchChosen, watching } from '../app/data';
+import { autoWatch, dataset, loginSaved, sheetPin, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
-import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
+import { lang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
 import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { rovingIndex } from '../app/focus';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
+import { LangButton, ThemeButton, WatchButton } from './IconButtons';
 import { Banner } from './Banner';
 import { ErrorBoundary } from './ErrorBoundary';
 import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
@@ -22,7 +22,7 @@ import { SettingsPanel, SettingsResets } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
 import { Summary } from './Summary';
 import { animate } from './animate';
-import { clockTime, readTime } from './format';
+import { readTime } from './format';
 import { useStore } from './useStore';
 import { useTheme } from './useTheme';
 
@@ -46,7 +46,6 @@ export function App() {
   useStore(loginSaved);
   const watch = useStore(watching);
   const chosen = useStore(watchChosen);
-  const run = useStore(runState);
   const pin = useStore(sheetPin);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
 
@@ -100,18 +99,11 @@ export function App() {
   // Kept from draw to draw: App draws again on every status message of the script and every Sheets log line, and a new
   // list made Summary and Positions work every number out again
   const accounts = useMemo(() => (ds ? (scope === 'none' ? ds.accounts : accountsIn(ds, scope)) : NO_ACCOUNTS), [ds, scope]);
-  const icon = themeIcon(theme.mode, theme.systemDark);
   const one = accounts.length === 1 ? accounts[0] : null;
   // the name of what is shown titles the Balance card (owner 2026-11-24), the right of the tabs keeps only the time
   const title = !ds ? '' : scopeTitle(scope, accounts, { all: t('All accounts'), count: (n) => t('{n} accounts', { n }) });
   const year = new Date().getFullYear();
-  // the words of the icon buttons are their title and their accessible name (an emoji alone says nothing to a reader)
-  const watchTitle = !userscript ? t('Install the script first (🚀 Get started)') : watch
-    ? t('Watching Fidelity: Positions refresh every 10 minutes while the market is open and the numbers here follow (last read {at}). Click to stop', { at: run?.at ? clockTime(run.at, language) : '—' })
-    : t('Watch: opens Fidelity on Positions and keeps the numbers here live while markets are open (read only)');
   const googleTitle = loadConfig().clientId ? t('Connect Google Sheets') : t('Google Sheets: set the Client ID first (🚀 Get started)');
-  // shared/theme stays free of the app's words: its English title is the key of the Russian line
-  const themeText = t(themeTitle(theme.mode, theme.systemDark));
   const onTabKey = (e: React.KeyboardEvent) => {
     const to = rovingIndex(MAIN_TABS.length, MAIN_TABS.indexOf(pr.tab), e.key);
     if (to === null) return;
@@ -151,12 +143,8 @@ export function App() {
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-[9px] rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
                   title={t('The installed script is {installed}; this page serves {served}', { installed: userscript ?? '', served: APP_VERSION })}>{t('Script update {version} →', { version: APP_VERSION })}</a>
               )}
-              {/* 👀 watch the data (owner 2026-11-23), instead of a one-off ⬇; watching shows only as the green dot, the button
-                  itself looks the same on and off (owner 2026-11-24) */}
-              <button type="button" className="tb" data-watch={watch ? 'on' : 'off'} disabled={!userscript} title={watchTitle} aria-label={watchTitle}
-                onClick={() => setWatch(!watch)}>
-                <span className="relative inline-flex">👀{watch && <span className="absolute -right-1 -top-1 size-2 animate-pulse rounded-full bg-[var(--brand-ring)]" />}</span>
-              </button>
+              {/* 👀, the language and the theme are the icon switches of ui/IconButtons.tsx, drawn in ⚙️ Settings too */}
+              <WatchButton userscript={userscript} />
               {/* ☁️ only until Google is connected, like 🚀; disconnecting lives in ⚙️ Settings (owner 2026-11-23) */}
               {settled && !g.connected && <button type="button" className="tb" data-google disabled={g.busy || !loadConfig().clientId}
                 title={googleTitle} aria-label={googleTitle}
@@ -165,12 +153,8 @@ export function App() {
               {settled && !done && <button type="button" className="tb" title={t('Get started: the setup steps')} aria-label={t('Get started: the setup steps')} onClick={openSetup} data-get-started-button>🚀</button>}
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
               <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-label={t('Settings')} aria-expanded={showSettings} aria-controls="settings-wrap" data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
-              <button type="button" className="tb" aria-label={t('Language: English (click for Russian)')} data-lang-button={language} onClick={() => setLang(language === 'en' ? 'ru' : 'en')} title={t('Language: English (click for Russian)')}>
-                <span aria-hidden="true" className="text-base leading-none">{LANG_FLAGS[language]}</span>
-              </button>
-              <button type="button" onClick={theme.cycle} title={themeText} aria-label={themeText} data-theme-button={theme.mode} className="tb sun">
-                <span className="relative inline-flex">{icon.icon}{icon.auto && <span className="absolute -right-2 -top-1.5 text-[8px] font-bold leading-none">A</span>}</span>
-              </button>
+              <LangButton />
+              <ThemeButton theme={theme} />
             </div>
           </header>
           {/* the 🔔 popups lie over the right end of the navbar (ui/Notices.tsx) */}

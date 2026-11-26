@@ -39,8 +39,5 @@ export function useTheme() {
     });
   }, []);
 
-  // a mode chosen by name (⚙️ Settings), remembered like a step of the button
-  const set = useCallback((next: ThemeMode) => { saveThemeMode(storage(), next); setMode(next); }, []);
-
-  return { mode, systemDark, dark, cycle, set };
+  return { mode, systemDark, dark, cycle };
 }
