@@ -10,7 +10,8 @@ import { say, wordsOf, type Word } from './notice-words';
 
 export const NOTIFY_KEY = 'fidelity-accounts.notify'; // boolean, off when missing
 export const NOTICE_KEY = 'fidelity-accounts.notice'; // the newest Notice as JSON
-export const NOTICE_OK_MS = 6_000; // a success closes by itself, an error stays until closed
+// a success closes by itself after 12 s (it was 6: owner 2026-11-25 "show toast 2 times longer"), an error stays until closed
+export const NOTICE_OK_MS = 12_000;
 export const NOTICE_MAX_AGE_MS = 60_000; // an older notice is not shown when a viewer opens later
 export const VIEWER_KEY = 'fidelity-accounts.viewerSeen'; // ms of the last heartbeat of a visible viewer tab
 export const VIEWER_BEAT_MS = 20_000;
