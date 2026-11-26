@@ -75,6 +75,23 @@ test('a click elsewhere on the page closes a popup, but not in its first 2 secon
   }
 });
 
+test('Esc closes a popup at once, with no wait', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Notices } = await import('./Notices');
+  const { notices } = await import('../app/data');
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => { root.render(<Notices />); });
+  await act(async () => { notices.set([{ at: 3, level: 'ok', text: 'Positions updated' }]); });
+  await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true })); });
+  expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(false); // another key
+  await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+  expect(document.querySelector('[data-notice]')!.classList.contains('out')).toBe(true);
+  await act(async () => { notices.set([]); });
+  await act(async () => { root.unmount(); });
+});
+
 test('the stylesheet animates the way in and the way out, and not at all with reduced motion', () => {
   const css = readFileSync(join(__dirname, '..', 'index.css'), 'utf8');
   expect(css).toMatch(/@keyframes notice-in\s*\{\s*from\s*\{\s*opacity:\s*0/);
