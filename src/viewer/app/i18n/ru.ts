@@ -428,7 +428,6 @@ export const RU: Record<string, string> = {
   'Positions were not read within 3 minutes': 'Позиции не прочитаны за 3 минуты',
   // ⚙️ the navbar switches once more (ui/LookSettings.tsx)
   'Theme and language': 'Тема и язык',
-  'Light, dark, or the same as your system': 'Светлая, тёмная или как в системе',
   'The language of the app': 'Язык приложения',
   'Notifications on. Click to switch them off': 'Уведомления включены. Нажми, чтобы выключить',
   'Notifications off. Click to switch them on': 'Уведомления выключены. Нажми, чтобы включить',
