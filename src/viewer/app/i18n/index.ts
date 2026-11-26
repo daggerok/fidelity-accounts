@@ -21,8 +21,21 @@ export function setLang(next: Lang): void {
   lang.set(next);
 }
 
+/** the Russian plural form of a count: 0 for 1, 21, 101 (выплата), 1 for 2-4, 22-24 (выплаты), 2 for the rest (5, 11-14: выплат) */
+export function ruPlural(n: number): 0 | 1 | 2 {
+  const a = Math.abs(Math.trunc(n));
+  const ten = a % 10;
+  const hundred = a % 100;
+  if (ten === 1 && hundred !== 11) return 0;
+  if (ten >= 2 && ten <= 4 && (hundred < 12 || hundred > 14)) return 1;
+  return 2;
+}
+
+// A Russian line may hold its three plural forms split by | ('{n} выплата|{n} выплаты|{n} выплат'): the count in {n}
+// picks one. English keys never hold a |
 export function t(text: string, params?: Record<string, string | number>): string {
   let out = lang.get() === 'ru' ? RU[text] ?? text : text;
+  if (out.includes('|') && typeof params?.n === 'number') out = out.split('|')[ruPlural(params.n)] ?? out;
   if (params) Object.keys(params).forEach((k) => { out = out.split(`{${k}}`).join(String(params[k])); });
   return out;
 }

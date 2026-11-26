@@ -17,7 +17,8 @@ export function PalettePicker() {
   const [palette, setPalette] = useState<Palette>(() => readPalette(storage()));
   useLayoutEffect(() => { document.documentElement.dataset.palette = palette; }, [palette]);
   const name: Record<Palette, string> = { green: t('Fidelity green'), indigo: t('Indigo Desk'), blue: t('Ocean blue') };
-  const from: Record<Palette, string> = { green: t('like twitter, youtube and fundamentals'), indigo: t('like gex and options-desk'), blue: t('like investments, ETFs and Stocks') };
+  // the hints describe the colour itself: a stranger does not know the owner's other apps
+  const from: Record<Palette, string> = { green: t('Green accents, the default'), indigo: t('Deep indigo accents'), blue: t('Bright blue accents') };
   return (
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('Color palette')} data-palette-picker>
       {PALETTES.map((p) => (

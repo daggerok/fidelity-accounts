@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { resample, valueRange, type Point } from '../../shared/history';
-import { siteDate, usd } from './format';
+import { shortUsd, siteDate, usd } from './format';
 
 // A light SVG line chart in the Fidelity look: the line with a soft fill, three value levels on the right, the first and
 // last date below, a crosshair with the date and value under the pointer. Sizes itself to its box (ResizeObserver)
@@ -59,7 +59,6 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
   const area = `${line}L${(pad.l + w).toFixed(1)},${pad.t + h}L${pad.l},${pad.t + h}Z`;
   const color = up ? 'var(--gain)' : 'var(--loss)';
   const levels = [max - (max - min) * 0.05, (max + min) / 2, min + (max - min) * 0.05];
-  const short = (v: number) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}K` : usd(v));
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const i = Math.round(((e.clientX - r.left - pad.l) / w) * (points.length - 1));
@@ -68,7 +67,10 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
   const hp = hover === null ? null : points[hover]!;
   return (
     <div ref={box} className="relative w-full select-none" style={{ height }} data-chart>
-      <svg width={width} height={height} onPointerMove={onMove} onPointerLeave={() => setHover(null)} className="block touch-none">
+      {/* a vertical swipe over the chart scrolls the page on a phone (touch-pan-y; touch-none held the page still); a
+          sideways finger still moves the crosshair, and when the browser takes the swipe for the page it cancels the
+          pointer, so the crosshair goes away */}
+      <svg width={width} height={height} onPointerMove={onMove} onPointerLeave={() => setHover(null)} onPointerCancel={() => setHover(null)} className="block touch-pan-y">
         <defs>
           <linearGradient id="fa-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={color} stopOpacity="0.22" />
@@ -78,7 +80,7 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
         {levels.map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={pad.l + w} y1={y(v)} y2={y(v)} stroke="currentColor" strokeOpacity="0.15" strokeDasharray="4 4" />
-            <text x={pad.l + w + 8} y={y(v) + 4} fontSize="11" fill="currentColor" fillOpacity="0.6">{short(v)}</text>
+            <text x={pad.l + w + 8} y={y(v) + 4} fontSize="11" fill="currentColor" fillOpacity="0.6">{shortUsd(v)}</text>
           </g>
         ))}
         <path d={area} fill="url(#fa-fill)" />
@@ -97,7 +99,7 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
         // is pointed at, that text matters less), so the line under the cursor stays visible
         <div className="pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs shadow dark:border-slate-700 dark:bg-slate-800"
           style={{ left: Math.min(Math.max(0, x(hover!) - 90), width - 190) }} data-chart-tip>
-          <span className="num font-semibold">{usd(hp.value)}</span> <span className="text-slate-500">{siteDate(hp.date)}</span>
+          <span className="num font-semibold">{usd(hp.value)}</span> <span className="text-slate-500 dark:text-slate-400">{siteDate(hp.date)}</span>
         </div>
       )}
     </div>

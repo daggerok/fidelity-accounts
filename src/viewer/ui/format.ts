@@ -1,5 +1,7 @@
 /// <reference lib="esnext" />
 // Money and percents the way the Fidelity pages show them: $1,234.56, +$12.30, -4.06%; "--" when unknown
+import type { Lang } from '../app/i18n';
+
 const usdFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const DASH = '--';
@@ -27,6 +29,20 @@ export const bigNum = (n: number | undefined | null): string => {
   const a = Math.abs(n);
   return a >= 1e12 ? `${(n / 1e12).toFixed(2)}T` : a >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : a >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : a >= 1e3 ? `${(n / 1e3).toFixed(2)}K` : String(Math.round(n));
 };
+/** the value levels of a chart: $850.0K below a million, $1.25M from it ($1234.5K was hard to read) */
+export const shortUsd = (n: number): string => {
+  const a = Math.abs(n);
+  return a >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : a >= 1000 ? `$${(n / 1000).toFixed(1)}K` : usd(n);
+};
+/** "···1234": an account number shown on screen keeps its last four, the full one goes into the hint */
+export const maskAccount = (number: string): string => (number ? `···${number.slice(-4)}` : '');
+const LOCALES: Record<Lang, string> = { en: 'en-US', ru: 'ru-RU' };
+/** our read time in the app's language and the browser's time zone ("Dec 12, 09:41 AM"): As of and the read in Get started */
+export const readTime = (iso: string | number, lang: Lang): string =>
+  new Date(iso).toLocaleString(LOCALES[lang], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+/** the hour and minute alone in the app's language (the last read of 👀) */
+export const clockTime = (iso: string | number, lang: Lang): string =>
+  new Date(iso).toLocaleTimeString(LOCALES[lang], { hour: '2-digit', minute: '2-digit' });
 /** $234.93B style for market caps */
 export const bigUsd = (n: number | undefined | null): string => {
   if (typeof n !== 'number' || !Number.isFinite(n)) return DASH;

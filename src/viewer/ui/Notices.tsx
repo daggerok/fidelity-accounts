@@ -6,7 +6,8 @@ import { t } from '../app/i18n';
 import { useStore } from './useStore';
 
 // The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): bottom right
-// above the footer, a success in the palette's color closes by itself, an error in red stays until ✕
+// above the footer, a success in the palette's color closes by itself, an error in red stays until ✕ (one dark red in
+// both themes: the dark theme's light --loss under white text was 2.8:1)
 function Popup({ n }: { n: Notice }) {
   useEffect(() => {
     if (n.level !== 'ok') return undefined;
@@ -17,7 +18,7 @@ function Popup({ n }: { n: Notice }) {
   return (
     <div role={error ? 'alert' : 'status'} data-notice={n.level}
       className="pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 text-sm text-white shadow-lg"
-      style={{ background: error ? 'var(--loss)' : 'var(--brand-btn)' }}>
+      style={{ background: error ? 'var(--notice-error)' : 'var(--brand-btn)' }}>
       <span className="min-w-0 flex-1 break-words">{n.text}</span>
       <button type="button" className="flex-none opacity-80 hover:opacity-100" aria-label={t('Close')} onClick={() => closeNotice(n)}>✕</button>
     </div>

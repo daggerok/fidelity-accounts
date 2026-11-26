@@ -6,7 +6,8 @@ import { SortableList } from './SortableList';
 
 // The positions columns, chosen in the ⤢ window (owner 2026-11-24, like Fidelity's "Create My View"): all columns by
 // group on the left with a filter, the chosen ones on the right in the table's order, moved by their ≡ handle. Every
-// change shows in the table at once, no Save; Default brings back every column in its place.
+// change shows in the table at once, no Save; Default brings back the shipped view (`defaultHidden`: the columns that
+// start hidden, prefs DEFAULT_PREFS), every column in its place.
 // One grid for both halves (owner 2026-11-24: "geometrically in sync"): the same header row, boxes of the same height
 // starting on the same line, every row ROW tall with the same padding, every checkbox on one vertical line; the
 // explanations of our columns are tooltips, so no row grows
@@ -24,7 +25,7 @@ function GroupCheck({ keys, hidden, onHidden, label }: { keys: string[]; hidden:
   );
 }
 
-export function ColumnPicker({ cols, order, hidden, onChange }: { cols: PickColumn[]; order: string[]; hidden: string[]; onChange: (p: { columns?: string[]; hidden?: string[] }) => void }) {
+export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: { cols: PickColumn[]; order: string[]; hidden: string[]; defaultHidden: readonly string[]; onChange: (p: { columns?: string[]; hidden?: string[] }) => void }) {
   const [q, setQ] = useState('');
   const all = cols.map((c) => c.key);
   const byKey = new Map(cols.map((c) => [c.key, c]));
@@ -37,11 +38,11 @@ export function ColumnPicker({ cols, order, hidden, onChange }: { cols: PickColu
     <div className="grid gap-4 md:grid-cols-2" data-column-picker>
       <section className="flex min-w-0 flex-col gap-2">
         <div className={HEAD}>
-          <h3 className="font-semibold">{t('All columns')} <span className="text-sm font-normal text-slate-500">{all.length + 1}</span></h3>
+          <h3 className="font-semibold">{t('All columns')} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">{all.length + 1}</span></h3>
         </div>
         <div className={BOX}>
           <div className={ROW}>
-            <input className="h-7 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-[var(--brand-ring)] focus:outline-none dark:border-slate-600 dark:bg-slate-900"
+            <input className="tap-text h-7 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-[var(--brand-strong)] focus:outline-none dark:border-slate-600 dark:bg-slate-900"
               placeholder={t('Filter by column name')} aria-label={t('Filter by column name')} value={q} onChange={(e) => setQ(e.target.value)} data-column-filter />
           </div>
           {groups.map((g) => {
@@ -51,7 +52,7 @@ export function ColumnPicker({ cols, order, hidden, onChange }: { cols: PickColu
                 <label className={`${ROW} rounded-md bg-slate-100 font-medium dark:bg-slate-800`}>
                   <GroupCheck keys={keys} hidden={hidden} onHidden={setHidden} label={t('Select all')} />
                   <span className="flex-1 truncate">{g.name}</span>
-                  <span className="text-xs font-normal text-slate-500">{keys.filter((k) => hidden.indexOf(k) < 0).length}/{keys.length}</span>
+                  <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{keys.filter((k) => hidden.indexOf(k) < 0).length}/{keys.length}</span>
                 </label>
                 {g.cols.map((c) => (
                   <label key={c.key} className={ROW} title={c.hint}>
@@ -62,17 +63,17 @@ export function ColumnPicker({ cols, order, hidden, onChange }: { cols: PickColu
               </div>
             );
           })}
-          {!groups.length && <p className={`${ROW} text-slate-500`}>{t('No column matches')}</p>}
+          {!groups.length && <p className={`${ROW} text-slate-500 dark:text-slate-400`}>{t('No column matches')}</p>}
         </div>
       </section>
       <section className="flex min-w-0 flex-col gap-2">
         <div className={HEAD}>
-          <h3 className="font-semibold">{t('Selected columns')} <span className="text-sm font-normal text-slate-500">{shown.length + 1}</span></h3>
-          <button type="button" className="btn sm" title={t('Every column back, in its default place')} onClick={() => onChange({ columns: [], hidden: [] })}>{t('Default')}</button>
+          <h3 className="font-semibold">{t('Selected columns')} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">{shown.length + 1}</span></h3>
+          <button type="button" className="btn sm" title={t('The default columns back, each in its default place')} onClick={() => onChange({ columns: [], hidden: defaultHidden.slice() })}>{t('Default')}</button>
         </div>
         <div className={BOX}>
           {/* Symbol always comes first, as on Fidelity */}
-          <div className={`${ROW} text-slate-500`}><input type="checkbox" checked disabled aria-label={t('Symbol')} /><span className="flex-1">{t('Symbol')}</span></div>
+          <div className={`${ROW} text-slate-500 dark:text-slate-400`}><input type="checkbox" checked disabled aria-label={t('Symbol')} /><span className="flex-1">{t('Symbol')}</span></div>
           <SortableList keys={shown} label={(k) => byKey.get(k)?.label ?? k}
             onMove={(keys) => onChange({ columns: orderAfterDrag(all, order, hidden, keys) })}
             row={(k) => (

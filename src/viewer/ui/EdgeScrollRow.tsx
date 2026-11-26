@@ -80,7 +80,8 @@ export function EdgeScrollRow({ prevLabel, nextLabel, items, label, storeKey, cl
   const mask = edgeFadeMask(edges, EDGE_FADE_PX, ARROW_PX) ?? undefined;
   return (
     <div className={`relative flex min-w-0 ${className}`} data-strip>
-      <nav ref={rowRef} aria-label={label} className="scrollbar-hidden flex min-w-0 flex-auto items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>
+      {/* hit-room: on a touch screen the chips' larger hit areas (index.css .hit) fit inside the scroll box */}
+      <nav ref={rowRef} aria-label={label} className="hit-room scrollbar-hidden flex min-w-0 flex-auto items-center gap-1.5 overflow-x-auto py-0.5" style={{ maskImage: mask, WebkitMaskImage: mask }} data-strip-row>
         {children}
       </nav>
       <EdgeButton dir={-1} label={prevLabel} show={edges.left} onClick={() => step(-1)} />

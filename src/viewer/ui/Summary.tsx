@@ -23,7 +23,7 @@ import { transactions } from '../app/data';
 import { lang, t } from '../app/i18n';
 import { NoMatch, TypedHead, type HeadColumn } from './TypedHead';
 import { useTypedTable } from './useTypedTable';
-import { pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd, usd0 } from './format';
+import { maskAccount, pct, qty, signedPct, signedQty, signedUsd, siteDate, tone, usd, usd0 } from './format';
 
 // Summary: cards of information like the Fidelity summary page, for the chosen scope. Each card is as tall as its
 // content and the cards pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
@@ -158,7 +158,7 @@ function AllocationTable({ slices }: { slices: Slice[] }) {
       <table className="w-full text-sm [&_td]:px-2" data-allocation-table>
         <TypedHead cols={cols} control={table.control} className={ZOOM_HEAD} th={ZOOM_TH} filterTh={ZOOM_FILTER_TH} />
         <tbody>
-          {table.rows.map((s) => <tr key={s.name} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1.5">{s.name}</td><td className="num py-1.5 text-right">{usd(s.value)}</td><td className="num py-1.5 text-right text-slate-500">{pct(s.pct)}</td></tr>)}
+          {table.rows.map((s) => <tr key={s.name} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1.5">{s.name}</td><td className="num py-1.5 text-right">{usd(s.value)}</td><td className="num py-1.5 text-right text-slate-500 dark:text-slate-400">{pct(s.pct)}</td></tr>)}
           {!table.rows.length && <tr><NoMatch span={3} /></tr>}
         </tbody>
       </table>
@@ -210,13 +210,13 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
       <table className="w-full whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-1.5" data-dividends-table>
         <TypedHead cols={cols} control={table.control} className={`sticky top-0 z-10 ${ZOOM_HEAD}`} th="px-3 pt-2 pb-1 align-bottom font-medium" filterTh="min-w-[6.5rem] px-3 pb-2 font-normal" />
         <tbody>
-          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500">{t('{n} payouts', { n: shown.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(shown.map((r) => r.u)))}</td></tr>
+          <tr className="border-t border-slate-200 font-semibold dark:border-slate-700"><td colSpan={6}>{t('Total')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: shown.length })}</span></td><td /><td className="num text-right" title={t('to buy so every listed dividend reinvests')}>{toBuy ? <DripValue value={toBuy} as="usd" /> : ''}</td><td /><td className="num text-right">{usd(payoutTotal(shown.map((r) => r.u)))}</td></tr>
           {!shown.length && <tr><NoMatch span={10} /></tr>}
         </tbody>
         {shown.map(({ u: r, parts, drip, one }) => (
           <tbody key={r.symbol} className="border-t border-slate-100 dark:border-slate-800">
             <tr>
-              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500" title={r.description}>{r.description}</span></td>
+              <td><span className="font-semibold">{r.symbol}</span> <span className="inline-block max-w-[22rem] truncate align-bottom text-xs text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</span></td>
               <td className="text-slate-600 dark:text-slate-300">{one ? one.name : t('{n} accounts', { n: parts.length })}</td>
               <td className="num">{siteDate(r.exDate)}</td>
               <td className="num">{siteDate(r.payDate)}</td>
@@ -230,7 +230,7 @@ function DividendsTable({ rows, ps, accounts }: { rows: Upcoming[]; ps: Position
             {!one && parts.map((p) => (
               <tr key={p.account.number} className="text-xs text-slate-500 dark:text-slate-400">
                 <td />
-                <td className="pl-6">{p.account.name} <span className="text-slate-400">···{p.account.number.slice(-4)}</span></td>
+                <td className="pl-6">{p.account.name} <span title={p.account.number}>{maskAccount(p.account.number)}</span></td>
                 <td colSpan={3} />
                 <td className="num text-right">{qty(p.shares)}</td>
                 <td className="num text-right">{p.drip ? <DripValue value={p.drip.shares} as="shares" /> : ''}</td>
@@ -271,9 +271,9 @@ function RangeTable({ highs, lows }: { highs: Position[]; lows: Position[] }) {
       <tr><td colSpan={8} className={`px-2 pt-4 pb-1 text-sm font-semibold ${cls}`}>{title}</td></tr>
       {rows.map((r) => (
         <tr key={r.symbol} className="border-t border-slate-100 dark:border-slate-800 [&>td]:px-2 [&>td]:py-1.5">
-          <td className="max-w-[18rem]"><div><span className="font-semibold">{r.symbol}</span> <span className="text-xs text-slate-500">{r.sector ?? ''}</span></div><div className="truncate text-xs text-slate-500" title={r.description}>{r.description}</div></td>
+          <td className="max-w-[18rem]"><div><span className="font-semibold">{r.symbol}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{r.sector ?? ''}</span></div><div className="truncate text-xs text-slate-500 dark:text-slate-400" title={r.description}>{r.description}</div></td>
           <td>
-            <div className="flex items-center justify-end gap-2 num text-xs text-slate-500">
+            <div className="flex items-center justify-end gap-2 num text-xs text-slate-500 dark:text-slate-400">
               <span>{usd(r.low52)}</span>
               <RangeBar pos={r.pos} color={high ? 'var(--gain)' : 'var(--loss)'} className="w-24 flex-none" title={pct(r.pos * 100)} />
               <span>{usd(r.high52)}</span>
@@ -376,7 +376,7 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
           {shownAccounts.map((a) => (
             <div key={a.number} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div className="min-w-0 flex-1"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400">{a.number} · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
+              <div className="min-w-0 flex-1"><div className="font-medium">{a.name}</div><div className="text-xs text-slate-500 dark:text-slate-400"><span title={a.number}>{maskAccount(a.number)}</span> · {a.group}{a.type ? ` · ${a.type}` : ''}</div></div>
               <div className="text-right"><div className="num">{usd(a.balance)}</div><div className="text-xs" title={totalView ? t('Total gain/loss') : t("Today's gain/loss")}>{totalView ? <GainLoss usd={a.totalGl} pct={a.totalGlPct} /> : <GainLoss usd={a.todayGl} pct={a.todayGlPct} />}</div></div>
               {/* the account's beta from its positions' sizes, the right-most column (owner 2026-11-25) */}
               <div className="w-10 shrink-0 text-right"><div><BetaValue mix={betas.get(a.number)!} /></div><div className="text-xs text-slate-500 dark:text-slate-400">{t('Beta')}</div></div>
@@ -409,7 +409,7 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
                 <div className="min-w-0"><div className="font-semibold">{p.symbol}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('ex date: {ex} pay date: {pay}', { ex: siteDate(p.exDate), pay: siteDate(p.payDate) })}</div></div>
                 <div className="text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
-                  {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
+                  {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500 dark:text-slate-400">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
                 </div>
               </div>
             ))}
@@ -437,11 +437,11 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
         {/* the tiles take the width their numbers need, never cut (owner 2026-11-24: "values without ...", the year wider);
             the total is in whole dollars; on a narrow card they wrap */}
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-3" data-income>
-          {[{ key: 'Y', v: incY }, { key: 'Q', v: incQ }, { key: 'M', v: incM }].map(({ key, v }) => (
+          {[{ key: 'Y', name: t('YTD / Y'), v: incY }, { key: 'Q', name: t('QTD / Q'), v: incQ }, { key: 'M', name: t('MTD / M'), v: incM }].map(({ key, name, v }) => (
             // received so far is a fact only the transactions history gives (owner 2026-11-24: the estimate from today's
             // shares overstated it): -- until it is read; the total is the plan at today's holdings
             <div key={key} className="flex-auto" data-income-period={key} title={v.received === null ? t('planned {total} at today\'s holdings; still to come {coming}', { total: usd(v.planned), coming: usd(v.coming) }) : t('received {received} of the planned {total}; still to come {coming}', { received: usd(v.received), total: usd(v.planned), coming: usd(v.coming) })}>
-              <div className="text-xs text-slate-500 dark:text-slate-400">{key}TD / {key}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{name}</div>
               <div className="num whitespace-nowrap">{v.received === null
                 ? <span className="text-xl font-semibold text-slate-400 sm:text-2xl" title={t('Needs the transactions history: update the script (the button in the navbar), then open Fidelity once')}>--</span>
                 : <span className="text-xl font-semibold sm:text-2xl">{usd(v.received)}</span>} <span className="text-sm text-slate-500 dark:text-slate-400">/ {usd0(v.planned)}</span></div>
@@ -454,6 +454,11 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
             </div>
           ))}
         </div>
+        {/* with no fact in any period the reason and the next step show once under the tiles: the tooltip of -- is
+            invisible on a touch screen */}
+        {incY.received === null && incQ.received === null && incM.received === null && (
+          <p className="text-xs text-slate-500 dark:text-slate-400" data-income-hint>{t('Needs the transactions history: update the script (the button in the navbar), then open Fidelity once')}</p>
+        )}
       </Card>
     </div>
   );
