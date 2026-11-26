@@ -438,4 +438,13 @@ export const RU: Record<string, string> = {
   'The script writes nothing to spreadsheet {tail} until you press Allow on its panel in a Fidelity tab (bottom right).': 'Скрипт ничего не пишет в таблицу {tail}, пока ты не нажмёшь Allow на его панели во вкладке Fidelity (справа внизу).',
   'Spreadsheet {tail} was declined on the script panel in a Fidelity tab: nothing is written to it. Press Allow there, or put your sheet back in ⚙️ Settings.': 'Таблица {tail} отклонена на панели скрипта во вкладке Fidelity: в неё ничего не пишется. Нажми там Allow или верни свою таблицу в ⚙️ Настройках.',
   'Needs the script: install it under Get started.': 'Нужен скрипт: установи его в разделе «Начало работы».',
+  // the merge switch next to the Positions tab (ui/IconButtons.tsx MergeButton)
+  'Merge positions: choose more than one account first': 'Объединить позиции: сначала выбери больше одного счёта',
+  'Merged: one line per ticker over the shown accounts. Click to show each account apart': 'Объединено: одна строка на тикер по показанным счетам. Нажми, чтобы показать каждый счёт отдельно',
+  'Merge positions: one line per ticker over the shown accounts': 'Объединить позиции: одна строка на тикер по показанным счетам',
+  // Min. DRIP and Min. DRIP $ (ui/Drip.tsx)
+  'Min. DRIP': 'Мин. DRIP',
+  'Min. DRIP $': 'Мин. DRIP $',
+  'The fewest shares to hold so the next dividend buys 0.001 share by DRIP: from the last price and the dividend, the same in every account': 'Наименьшее число акций, чтобы следующий дивиденд купил по DRIP 0.001 акции: из последней цены и дивиденда, одно и то же в любом счёте',
+  'The fewest shares to hold for DRIP, in dollars at the last price': 'Наименьшее число акций для DRIP, в долларах по последней цене',
 };

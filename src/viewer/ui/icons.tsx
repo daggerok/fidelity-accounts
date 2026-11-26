@@ -7,6 +7,8 @@ export const ExpandIcon = () => svg(<><path d="M15 3h6v6" /><path d="M9 21H3v-6"
 export const CloseIcon = () => svg(<path d="M18 6 6 18M6 6l12 12" />);
 /** settings sliders: a control that configures what a view shows (the positions columns) */
 export const SlidersIcon = () => svg(<><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>);
+/** merge: two lines joining into one (the Positions of several accounts as one line per ticker) */
+export const MergeIcon = () => svg(<><path d="M6 3v3a6 6 0 0 0 6 6" /><path d="M18 3v3a6 6 0 0 1-6 6v9" /><path d="M8.5 18.5 12 22l3.5-3.5" /></>);
 
 // the corner icon (owner 2026-11-24: "same spacing" as the title): measured live, the title's first letter starts 26 px
 // from the left and 28 px from the top of the card. The drawing keeps 2.25 px inside its 18 px box and the button 4 px

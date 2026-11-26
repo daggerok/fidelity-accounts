@@ -280,15 +280,33 @@ export function perPayment(p: Position): number | undefined {
  * the need is rounded up (to 0.001 share, to a cent), so a plus bought is always enough. null: no dividend or no price
  */
 export interface Drip { shares: number; usd: number }
-export function dripGap(p: Position): Drip | null {
+/** the DRIP threshold of a ticker: the shares whose next payment makes the cents that buy 0.001 share, unrounded, and the
+ * price; null: no dividend or no price */
+function dripNeed(p: Position): { need: number; price: number } | null {
   const price = p.lastPrice;
   const per = perPayment(p);
   if (p.kind !== 'position' || !price || price <= 0 || !per || per <= 0) return null;
   const cash = Math.ceil(DRIP_MIN * price * 100 - 1e-9) / 100; // the cents that buy 0.001 share
-  const gap = cash / per - (p.quantity ?? 0);
-  const up = (x: number, k: number) => Math.ceil(x * k - 1e-9) / k;
-  const near = (x: number, k: number) => Math.round(x * k) / k || 0; // || 0: no "-0"
-  return gap > 0 ? { shares: up(gap, 1000), usd: up(gap * price, 100) } : { shares: near(gap, 1000), usd: near(gap * price, 100) };
+  return { need: cash / per, price };
+}
+// a need rounded up (to 0.001 share, to a cent), so it is always enough; a margin to the nearest
+const up = (x: number, k: number) => Math.ceil(x * k - 1e-9) / k;
+const near = (x: number, k: number) => Math.round(x * k) / k || 0; // || 0: no "-0"
+export function dripGap(p: Position): Drip | null {
+  const n = dripNeed(p);
+  if (!n) return null;
+  const gap = n.need - (p.quantity ?? 0);
+  return gap > 0 ? { shares: up(gap, 1000), usd: up(gap * n.price, 100) } : { shares: near(gap, 1000), usd: near(gap * n.price, 100) };
+}
+/**
+ * Min. DRIP and Min. DRIP $ (owner 2026-11-25: "these values are related only to: div frequency, last price and div %, so
+ * we can easily calculate minimal needed shares or Dollars amount for certain ticker to have in account for automatic
+ * drip"): the fewest shares an account must hold so the next dividend buys 0.001 share, and those shares at the last
+ * price. dripGap is this minus the shares held; the same in every account, whatever it holds
+ */
+export function dripMin(p: Position): Drip | null {
+  const n = dripNeed(p);
+  return n ? { shares: up(n.need, 1000), usd: up(n.need * n.price, 100) } : null;
 }
 
 /** the calendar month, quarter and year around `today`, first and last day */
@@ -366,17 +384,25 @@ export function payoutParts(ps: Position[] | Map<string, Position[]>, accounts: 
 }
 
 /**
- * The DRIP of one upcoming dividend over its accounts (owner 2026-11-24: a DRIP column in the Upcoming dividends rows):
- * what to buy in all the accounts still short of 0.001 share, summed; when none is short, the smallest margin (the
- * negative closest to zero); null when no account can tell (no dividend or price)
+ * The DRIP of one symbol over its accounts, each account's own dripGap (DRIP runs per account); null when no account can
+ * tell (no dividend or price), an account that cannot tell adds nothing. Two ways to add them up:
+ * - 'short', the Upcoming dividends rows (owner 2026-11-24: a DRIP column there): what to buy in all the accounts still
+ *   short of 0.001 share, summed; when none is short, the smallest margin (the negative closest to zero)
+ * - 'all', a merged Positions line (owner 2026-11-25: "when we have merge, we want to aggregate drips similarly like we do
+ *   for gains"): every account's number summed, plus and minus alike (+7 and -8 give -1)
  */
-export function symbolDrip(parts: PayoutPart[]): Drip | null {
+export function symbolDrip(parts: { drip: Drip | null }[], add: 'short' | 'all' = 'short'): Drip | null {
   const known = parts.map((p) => p.drip).filter((d): d is Drip => d !== null);
   if (!known.length) return null;
-  const short = known.filter((d) => d.shares > 0);
-  if (!short.length) return known.reduce((a, d) => (d.shares > a.shares ? d : a));
-  return { shares: Math.round(short.reduce((x, d) => x + d.shares, 0) * 1000) / 1000, usd: Math.round(short.reduce((x, d) => x + d.usd, 0) * 100) / 100 };
+  const summed = add === 'all' ? known : known.filter((d) => d.shares > 0);
+  if (!summed.length) return known.reduce((a, d) => (d.shares > a.shares ? d : a));
+  // to 0.001 share and to a cent, as dripGap gives each; || 0: no "-0"
+  return { shares: Math.round(summed.reduce((x, d) => x + d.shares, 0) * 1000) / 1000 || 0, usd: Math.round(summed.reduce((x, d) => x + d.usd, 0) * 100) / 100 || 0 };
 }
+
+/** the DRIP of a Positions row: a merged line carries its own (symbolDrip 'all' over its accounts, app/merge.ts), a row
+ * of one account works it out (dripGap) */
+export const rowDrip = (p: Position & { drip?: Drip | null }): Drip | null => (p.drip !== undefined ? p.drip : dripGap(p));
 
 /** the dollars to buy so every listed dividend reinvests: the plus DRIP $ of the rows summed */
 export const dripToBuy = (drips: (Drip | null)[]): number => Math.round(drips.reduce((x, d) => x + (d && d.usd > 0 ? d.usd : 0), 0) * 100) / 100;

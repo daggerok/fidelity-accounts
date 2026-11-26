@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -280,6 +280,42 @@ test('DRIP of an upcoming dividend: per account, short accounts summed, else the
   expect(symbolDrip(both)?.shares).toBe(-0.26); // the closer margin of -0.76 and -0.26
   expect(symbolDrip([])).toBeNull();
   expect(dripToBuy([{ shares: 0.14, usd: 7.33 }, null, { shares: -1, usd: -50 }, { shares: 0.04, usd: 2.1 }])).toBe(9.43);
+});
+
+test('Min. DRIP: the fewest shares to hold, from the price and the dividend only; DRIP is it minus the shares held', () => {
+  const pos = (extra: Partial<Position>): Position => ({ account: 'A', kind: 'position', symbol: 'X', description: '', lastPrice: 52.3, dividendAmount: 0.25, quantity: 0.1, fields: {}, ...extra });
+  // 0.001 x $52.30 -> 6 cents; 0.06 / 0.25 = 0.24 shares, at $52.30 = $12.552 -> $12.56 (up to a cent)
+  expect(dripMin(pos({}))).toEqual({ shares: 0.24, usd: 12.56 });
+  // the same whatever is held, in any account
+  expect(dripMin(pos({ quantity: 7, account: 'B' }))).toEqual(dripMin(pos({})));
+  // no dividend, price or security: nothing, like DRIP
+  expect(dripMin(pos({ dividendAmount: undefined }))).toBeNull();
+  expect(dripMin(pos({ lastPrice: 0 }))).toBeNull();
+  expect(dripMin(pos({ kind: 'core' }))).toBeNull();
+  // DRIP = Min. DRIP - shares held, within the rounding
+  [0, 0.1, 0.2391, 0.24, 1, 3.5].forEach((quantity) => {
+    const p = pos({ quantity });
+    expect(Math.abs(dripMin(p)!.shares - quantity - dripGap(p)!.shares)).toBeLessThan(0.001);
+  });
+});
+
+test('DRIP of a merged Positions line: every account\'s own number added up, plus and minus alike', () => {
+  // the owner's example: the ticker needs 12 shares ($1.50 buys 0.001 share at $1,500, a payment is $0.125 a share)
+  const pos = (account: string, quantity: number, extra: Partial<Position> = {}): Position => ({ account, kind: 'position', symbol: 'X', description: '', lastPrice: 1500, dividendAmount: 0.125, quantity, fields: {}, ...extra });
+  const a = dripGap(pos('A', 5));
+  const b = dripGap(pos('B', 20));
+  expect(a).toEqual({ shares: 7, usd: 10500 });
+  expect(b).toEqual({ shares: -8, usd: -12000 });
+  expect(symbolDrip([{ drip: a }, { drip: b }], 'all')).toEqual({ shares: -1, usd: -1500 });
+  // the Upcoming dividends way keeps only the short account
+  expect(symbolDrip([{ drip: a }, { drip: b }])).toEqual({ shares: 7, usd: 10500 });
+  // an account that cannot tell adds nothing; none can tell: no number
+  expect(symbolDrip([{ drip: a }, { drip: dripGap(pos('C', 3, { lastPrice: undefined })) }], 'all')).toEqual(a);
+  expect(symbolDrip([{ drip: null }, { drip: null }], 'all')).toBeNull();
+  // one account: its own dripGap, and no "-0" from a sum that comes to nothing
+  const one = dripGap(pos('A', 0.3, { lastPrice: 52.3, dividendAmount: 0.25 }));
+  expect(symbolDrip([{ drip: one }], 'all')).toEqual(one);
+  expect(Object.is(symbolDrip([{ drip: { shares: 0.1, usd: 5 } }, { drip: { shares: -0.1, usd: -5 } }], 'all')!.shares, 0)).toBe(true);
 });
 
 test('the name of what is shown: All accounts, a group, up to three accounts by name, else a count', () => {
