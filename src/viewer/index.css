@@ -138,7 +138,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
    negative margin): a scroll box clips what sticks out of its padding box. iOS zooms the page into a field whose text is
    under 16 px, so fields get 16 px there */
 @media (pointer: coarse) {
-  .hit { position: relative; }
+  /* an element that is already placed (the floating Clear Filters is absolute) holds its ::after by itself: making it
+     relative put it back into the flow, as a full-width bar that pushed the table down on a phone (seen 2026-11-26) */
+  .hit:where(:not(.absolute, .fixed)) { position: relative; }
   .hit::after { content: ''; position: absolute; inset: calc(-1 * var(--hit-y, 8px)) calc(-1 * var(--hit-x, 2px)); }
   .hit-room { padding-block: 8px; margin-block: -8px; }
   .inp, .tap-text { font-size: 16px; }
