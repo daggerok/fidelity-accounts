@@ -23,10 +23,11 @@ describe('notification words', () => {
     expect(lines(jobFailed('positions', new Error('no grid')))).toEqual(['Failed positions update', 'no grid']);
     expect(say(sheetsFailed('x'.repeat(500))).length).toBeLessThan(260);
     expect(lines(sheetsFailed(new Error('403 forbidden')))).toEqual(['Failed Google Sheets update', '403 forbidden']);
+    expect(lines(fidelityChanged(['no POSITION rows', 'no POSITION rows', 'a new row kind: HOLDING']))).toEqual(['Fidelity changed something this script reads', 'no POSITION rows', 'a new row kind: HOLDING', 'Details are in ⚙️ Settings of the viewer']);
   });
 
   test('no line is glued from several things and no notice is longer than the popup holds', () => {
-    const all = [positionsRead(6, 1090, true), balancesRead(6, 6, true), transactionsRead(10, 1, true), transactionsFailed(2), betasRead(1, 2, true), betasFailed(1, 2, ['betas.etf']), jobFailed('page', 'x'), fidelityChanged('grid.fields'), SHEETS_WAITING, sheetsFailed('x'), sheetWaitsAllow('…abc123'), NO_READER, NO_POSITIONS];
+    const all = [positionsRead(6, 1090, true), balancesRead(6, 6, true), transactionsRead(10, 1, true), transactionsFailed(2), betasRead(1, 2, true), betasFailed(1, 2, ['betas.etf']), jobFailed('page', 'x'), fidelityChanged(['POSITION.qty is gone', 'a', 'b', 'c', 'd', 'e']), SHEETS_WAITING, sheetsFailed('x'), sheetWaitsAllow('…abc123'), NO_READER, NO_POSITIONS];
     all.forEach((w) => {
       expect(w.length).toBeLessThanOrEqual(NOTICE_LINES);
       expect(wordsOf(JSON.parse(JSON.stringify(w)))).not.toBeNull();

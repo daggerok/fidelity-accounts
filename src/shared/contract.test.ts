@@ -5,7 +5,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { CLAUSES, checkBalanceHistory, checkGridRows, checkPage, describe, mergeReport, type Finding } from './contract';
+import { CLAUSES, brokenProblems, checkBalanceHistory, checkGridRows, checkPage, describe, mergeReport, type Finding } from './contract';
 import { ROWS } from './fixtures/grid';
 
 beforeAll(() => GlobalRegistrator.register({ url: 'https://digital.fidelity.com/ftgw/digital/portfolio/positions' }));
@@ -27,6 +27,9 @@ test('rows shaped like the Fidelity ones pass; every kind of change is caught wi
   expect(errors(checkGridRows(gone))).toEqual([{ id: 'grid.fields', level: 'error', problem: 'POSITION.curVal is gone' }]);
   const renamed = clone().map((r) => (r.rowType === 'POSITION' ? { ...r, rowType: 'HOLDING' } : r));
   expect(checkGridRows(renamed).map((f) => `${f.level} ${f.id} ${f.problem}`)).toEqual(['error grid.rowTypes no POSITION rows', 'warning grid.rowTypes a new row kind: HOLDING']);
+  // the notice names each problem of a broken check once, the warning of the same check after it, nothing of others
+  expect(brokenProblems(checkGridRows(renamed).concat([{ id: 'asOf', level: 'warning', problem: 'no line' }]))).toEqual(['no POSITION rows', 'a new row kind: HOLDING']);
+  expect(brokenProblems([{ id: 'asOf', level: 'warning', problem: 'no line' }])).toEqual([]);
   const plain = clone().map((r) => (r.rowType === 'POSITION' ? { ...r, qty: 2.5 } : r));
   expect(errors(checkGridRows(plain))[0]!.problem).toContain('POSITION.qty is not a { val, disp } cell');
   const dates = clone().map((r) => (r.rowType === 'POSITION' && r.exDvDte ? { ...r, exDvDte: { val: 1, disp: '2026-12-12' } } : r));
