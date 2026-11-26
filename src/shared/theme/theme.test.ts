@@ -23,9 +23,9 @@ describe('theme', () => {
     expect(isDarkTheme('system', false)).toBe(false);
   });
 
-  test('icon shows the other theme, system shows the current one with A', () => {
-    expect(themeIcon('light', true)).toEqual({ icon: '🌙', auto: false });
-    expect(themeIcon('dark', false)).toEqual({ icon: '☀', auto: false });
+  test('icon shows the theme in use, system shows the current one with A', () => {
+    expect(themeIcon('light', true)).toEqual({ icon: '☀', auto: false });
+    expect(themeIcon('dark', false)).toEqual({ icon: '🌙', auto: false });
     expect(themeIcon('system', true)).toEqual({ icon: '🌙', auto: true });
     expect(themeIcon('system', false)).toEqual({ icon: '☀', auto: true });
   });
