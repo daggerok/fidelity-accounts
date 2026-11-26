@@ -221,7 +221,7 @@ function onPortfolio(): void {
       badge.sheets(`${sheetsNote} ${time()}`);
     },
   });
-  // queue these sets and tell whether this run saved something new to the sheet (a notice says "Saved to Google Sheets")
+  // queue these sets and tell whether this run saved something new to the sheet (a notice is then titled "Google Sheets updated")
   const saveSets = async (sets: DataSet[]): Promise<boolean> => { sheetsSaved = false; await sheetsQueue.add(sets); return sheetsSaved; };
   checkPin();
   gmWatch(GOOGLE_KEY, () => { checkPin(); void sheetsQueue.retry(); });
