@@ -5,6 +5,7 @@ import { lines } from '../../shared/notice-words';
 import { closeNotice, notices } from '../app/data';
 import { moved } from '../app/flip';
 import { lang, t } from '../app/i18n';
+import { CORNER_BUTTON, CloseIcon } from './icons';
 import { useStore } from './useStore';
 
 // The popups of 🔔 (shared/notice.ts; owner 2026-11-25: "success color - our theme, red color - error"): a success closes
@@ -60,7 +61,8 @@ function Popup({ n, leaving, onLeave }: { n: Notice; leaving: boolean; onLeave: 
       <span className="flex min-w-0 flex-1 flex-col break-words" data-notice-lines>
         {rows.map((row, i) => <span key={i} className={i === 0 && n.words ? 'font-bold' : undefined}>{row}</span>)}
       </span>
-      <button type="button" className="hit flex-none text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label={t('Close')} onClick={onLeave}>✕</button>
+      {/* the same ✕ as the ⤢ windows: the line icon and the corner button of ui/icons.tsx (owner 2026-11-25) */}
+      <button type="button" className={CORNER_BUTTON} title={t('Close')} aria-label={t('Close')} onClick={onLeave}><CloseIcon /></button>
     </div>
   );
 }
