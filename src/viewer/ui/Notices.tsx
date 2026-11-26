@@ -59,7 +59,10 @@ function Popup({ n, leaving, onLeave }: { n: Notice; leaving: boolean; onLeave: 
       style={{ borderColor: accent }}>
       <span aria-hidden className="mt-1.5 size-2 flex-none rounded-full" style={{ background: accent }} />
       <span className="flex min-w-0 flex-1 flex-col break-words" data-notice-lines>
-        {rows.map((row, i) => <span key={i} className={i === 0 && n.words ? 'font-bold' : undefined}>{row}</span>)}
+        {/* only the title is bright, the data under it a step quieter (owner 2026-11-26: "bright color only for title, for
+            data it can be a little bit less bright"): slate-900 or white for the first line, slate-600 or slate-300 for the
+            rest (7.5:1 and 12:1 on the popup's surface); a notice of one plain line is all title */}
+        {rows.map((row, i) => <span key={i} className={i === 0 ? `text-slate-900 dark:text-white ${n.words ? 'font-bold' : ''}` : 'text-slate-600 dark:text-slate-300'}>{row}</span>)}
       </span>
       {/* the same ✕ as the ⤢ windows: the line icon and the corner button of ui/icons.tsx (owner 2026-11-25) */}
       <button type="button" className={CORNER_BUTTON} title={t('Close')} aria-label={t('Close')} onClick={onLeave}><CloseIcon /></button>

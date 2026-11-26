@@ -34,6 +34,9 @@ test('a popup appears animated, fades out on ✕ and leaves only after the fade'
   expect(rows.map((r) => r.textContent)).toEqual(['Failed positions update', 'no grid']);
   expect(rows[0]!.className).toContain('font-bold');
   expect(rows[1]!.className).not.toContain('font-bold');
+  // only the title is bright, the data a step quieter
+  expect(rows[0]!.className).toContain('text-slate-900');
+  expect(rows[1]!.className).toContain('text-slate-600');
 
   await act(async () => { popup.querySelector('button')!.click(); });
   const leaving = document.querySelector('[data-notice]')!;
