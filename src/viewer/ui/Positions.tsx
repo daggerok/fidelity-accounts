@@ -2,8 +2,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
-import { dripGap, positionsIn, rangePos, securities, totalsOf } from '../app/derive';
+import { dripMin, positionsIn, rangePos, rowDrip, securities, totalsOf } from '../app/derive';
 import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
+import { mergeOn, mergePositions, type MergeKind } from '../app/merge';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
 import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
 import { lang, t } from '../app/i18n';
@@ -12,17 +13,18 @@ import { useStore } from './useStore';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
 import { CellScroll } from './CellScroll';
-import { DRIP_HINT, DRIP_USD_HINT, DripValue } from './Drip';
+import { DRIP_HINT, DRIP_MIN_HINT, DRIP_MIN_USD_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
 import { rowWindow, sameWindow } from '../app/row-window';
 import { DASH, bigUsd, maskAccount, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
-// grand total when several accounts are shown. Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
+// grand total when several accounts are shown (merged: one line per ticker over them, app/merge.ts). Our own columns come first (owner 2026-11-24: DRIP and DRIP $), then
 // Fidelity's. Columns are chosen in a window like the ⤢ of the cards and remembered. Every column has a detected type,
 // sorts by it and has a filter under its name (owner 2026-11-24; TypedHead, what a column reads: app/position-columns.ts)
-interface Col { key: string; label: string; group: string; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
+// `merge`: how the column joins a ticker's rows of several accounts when merge is on (app/merge.ts), chosen with the column
+interface Col { key: string; label: string; group: string; merge: MergeKind; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
 
 const sum = (ps: Position[], f: (p: Position) => number | undefined) => ps.reduce((s, p) => s + (f(p) ?? 0), 0);
 const glCell = (v: number | undefined, text: string) => <span className={tone(v)}>{text}</span>;
@@ -38,7 +40,7 @@ function Range({ p }: { p: Position }) {
   );
 }
 
-const dripOf = (p: Position, f: (d: { shares: number; usd: number }) => React.ReactNode) => { const d = dripGap(p); return d ? f(d) : DASH; };
+const dripOf = (p: Position, f: (d: { shares: number; usd: number }) => React.ReactNode, of = rowDrip) => { const d = of(p); return d ? f(d) : DASH; };
 
 // the groups of the columns window, in Fidelity's words where it has them; the column names are short (owner 2026-11-25:
 // Today's gain/loss -> Today's, Total gain/loss -> Total, Est. annual income -> Est. income, Payment frequency -> Frequency;
@@ -74,7 +76,7 @@ const FIELD_LABEL = (): Record<string, [string, string]> => ({
 });
 const fieldCols = (): Col[] => {
   const label = FIELD_LABEL();
-  return FIELD_COLUMNS.map((c) => ({ key: c.key, group: FIELD_GROUP[c.group](), label: label[c.key]?.[0] ?? c.key, hint: label[c.key]?.[1], cell: (p: Position) => {
+  return FIELD_COLUMNS.map((c) => ({ key: c.key, group: FIELD_GROUP[c.group](), merge: c.merge, label: label[c.key]?.[0] ?? c.key, hint: label[c.key]?.[1], cell: (p: Position) => {
     const text = fieldText(p, c) || DASH;
     // the news column shows how fresh the latest headline is, the headline itself in the tooltip
     if (c.key === 'news') return <span title={typeof p.fields.text === 'string' ? p.fields.text : undefined}>{text}</span>;
@@ -83,31 +85,40 @@ const fieldCols = (): Col[] => {
 };
 const lowHigh = (p: Position): string => { const lo = p.fields.dayRange_low; const hi = p.fields.dayRange_high; return typeof lo === 'number' && typeof hi === 'number' ? `${usd(lo)} - ${usd(hi)}` : DASH; };
 
+// The merge kind of each column (owner 2026-11-25, merge): "Today's $ should have sum of all Today's $ for all accounts.
+// same for total. cost bases, value, quantity, also should be sum across accounts", "Today's % should be aggregated", "%
+// of account should be aggregated, meaning for all 3 accts in total how much % this ticker is weighed", "last price is the
+// same", "Dist rate, sec yield are static. est income aggregated. frequency, marketcap, 52-week, ex-date, pay day, sector -
+// static"; DRIP and DRIP $: each account's own number added up, "when we have merge, we want to aggregate drips similarly
+// like we do for gains". The ($ and %) pairs sum the dollars, their % is worked out as Today's % and Total %
 export const COLUMNS = (): Col[] => [
-  { key: 'drip', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
-  { key: 'dripUsd', label: 'DRIP $', group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
-  { key: 'todayGlPct', group: GL(), label: t("Today's %"), hint: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
-  { key: 'todayGl', group: GL(), label: t("Today's $"), hint: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
-  { key: 'totalGlPct', group: GL(), label: t('Total %'), hint: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
-  { key: 'totalGl', group: GL(), label: t('Total $'), hint: t('Total gain/loss $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
-  { key: 'costBasisTotal', group: ACCT(), label: t('Cost basis'), hint: t('Cost basis total'), cell: (p) => usd(p.costBasisTotal) },
-  { key: 'currentValue', group: ACCT(), label: t('Value'), hint: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
-  { key: 'quantity', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
-  { key: 'lastPrice', group: QUOTE(), label: t('Last price'), cell: (p) => usd(p.lastPrice) },
-  { key: 'percentOfAccount', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
-  { key: 'distRate', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
-  { key: 'secYield', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield) },
-  { key: 'estAnnualIncome', group: DIV(), label: t('Est. income'), hint: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
-  { key: 'paymentFrequency', group: DIV(), label: t('Frequency'), hint: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
-  { key: 'marketCap', group: QUOTE(), label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
-  { key: 'high52', group: QUOTE(), label: t('52-week'), hint: t('52-week range'), cell: (p) => <Range p={p} /> },
-  { key: 'exDate', group: DIV(), label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
-  { key: 'payDate', group: DIV(), label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
-  { key: 'sector', group: QUOTE(), label: t('Sector'), cell: (p) => p.sector ?? DASH },
+  { key: 'drip', merge: 'sum', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
+  { key: 'dripUsd', merge: 'sum', label: 'DRIP $', group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
+  // the threshold of DRIP, hidden at first (prefs NEW_COLUMN_KEYS): from the last price and the dividend only, so static
+  { key: 'dripMin', merge: 'static', label: t('Min. DRIP'), group: OURS(), hint: DRIP_MIN_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMin) },
+  { key: 'dripMinUsd', merge: 'static', label: t('Min. DRIP $'), group: OURS(), hint: DRIP_MIN_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" min />, dripMin) },
+  { key: 'todayGlPct', merge: 'recomputed', group: GL(), label: t("Today's %"), hint: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
+  { key: 'todayGl', merge: 'sum', group: GL(), label: t("Today's $"), hint: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
+  { key: 'totalGlPct', merge: 'recomputed', group: GL(), label: t('Total %'), hint: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
+  { key: 'totalGl', merge: 'sum', group: GL(), label: t('Total $'), hint: t('Total gain/loss $'), cell: (p) => glCell(p.totalGl, signedUsd(p.totalGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsd(x.totalGl)); } },
+  { key: 'costBasisTotal', merge: 'sum', group: ACCT(), label: t('Cost basis'), hint: t('Cost basis total'), cell: (p) => usd(p.costBasisTotal) },
+  { key: 'currentValue', merge: 'sum', group: ACCT(), label: t('Value'), hint: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
+  { key: 'quantity', merge: 'sum', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
+  { key: 'lastPrice', merge: 'static', group: QUOTE(), label: t('Last price'), cell: (p) => usd(p.lastPrice) },
+  { key: 'percentOfAccount', merge: 'recomputed', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
+  { key: 'distRate', merge: 'static', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
+  { key: 'secYield', merge: 'static', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield) },
+  { key: 'estAnnualIncome', merge: 'sum', group: DIV(), label: t('Est. income'), hint: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
+  { key: 'paymentFrequency', merge: 'static', group: DIV(), label: t('Frequency'), hint: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
+  { key: 'marketCap', merge: 'static', group: QUOTE(), label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
+  { key: 'high52', merge: 'static', group: QUOTE(), label: t('52-week'), hint: t('52-week range'), cell: (p) => <Range p={p} /> },
+  { key: 'exDate', merge: 'static', group: DIV(), label: t('Ex-date'), cell: (p) => siteDate(p.exDate) },
+  { key: 'payDate', merge: 'static', group: DIV(), label: t('Pay date'), cell: (p) => siteDate(p.payDate) },
+  { key: 'sector', merge: 'static', group: QUOTE(), label: t('Sector'), cell: (p) => p.sector ?? DASH },
   // the rest of Fidelity's columns, hidden until turned on (prefs NEW_COLUMN_KEYS)
-  { key: 'todayGlBoth', group: GL(), label: t("Today's $ & %"), hint: t("Today's gain/loss ($ and %)"), cell: (p) => glCell(p.todayGl, p.todayGl === undefined ? DASH : signedUsdPct(p.todayGl, p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsdPct(x.todayGl, x.todayGlPct)); } },
-  { key: 'totalGlBoth', group: GL(), label: t('Total $ & %'), hint: t('Total gain/loss ($ and %)'), cell: (p) => glCell(p.totalGl, p.totalGl === undefined ? DASH : signedUsdPct(p.totalGl, p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsdPct(x.totalGl, x.totalGlPct)); } },
-  { key: 'dayRange', group: QUOTE(), label: t("Day's range"), cell: lowHigh },
+  { key: 'todayGlBoth', merge: 'sum', group: GL(), label: t("Today's $ & %"), hint: t("Today's gain/loss ($ and %)"), cell: (p) => glCell(p.todayGl, p.todayGl === undefined ? DASH : signedUsdPct(p.todayGl, p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsdPct(x.todayGl, x.todayGlPct)); } },
+  { key: 'totalGlBoth', merge: 'sum', group: GL(), label: t('Total $ & %'), hint: t('Total gain/loss ($ and %)'), cell: (p) => glCell(p.totalGl, p.totalGl === undefined ? DASH : signedUsdPct(p.totalGl, p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGl, signedUsdPct(x.totalGl, x.totalGlPct)); } },
+  { key: 'dayRange', merge: 'static', group: QUOTE(), label: t("Day's range"), cell: lowHigh },
   ...fieldCols(),
 ];
 
@@ -186,19 +197,23 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   const colKeys = cols.map((c) => c.key).join(',');
   const all = useMemo(() => positionsIn(ds, accounts), [ds, accounts]);
   const several = accounts.length > 1;
+  // merge (owner 2026-11-25): with several accounts shown and the switch next to the Positions tab on, one line per
+  // ticker; everything below (types, filters, sort, the count, the row window) works on these lines
+  const merging = mergeOn(pr.merge, accounts.length);
+  const rows = useMemo((): Position[] => (merging ? mergePositions(all, accounts) : all), [all, accounts, merging]);
   // the Symbol column and every column of the table, also the hidden ones: a filter keeps working when its column is
   // switched off, as in the investments apps (Clear filters and its number tell that one is on)
   const typed = useMemo(() => [SYMBOL].concat(every.map((c) => c.key)).map(positionColumn), [every.length]);
   // types come from all the securities shown, before any filter, so a filter never changes the type of its own column
-  const { types, detected } = useMemo(() => columnTypes(typed, securities(all), pr.types), [typed, all, pr.types]);
+  const { types, detected } = useMemo(() => columnTypes(typed, securities(rows), pr.types), [typed, rows, pr.types]);
   const filters = useMemo(() => withFilter(pr.filters, SYMBOL, pr.search), [pr.filters, pr.search]);
   const filtered = activeFilters(filters) > 0;
   // the securities that pass the filters, in the chosen order: filtered and sorted once, then cut by account
   const shown = useMemo(() => {
     const test = rowTest(typed, types, filters);
-    const kept = test ? securities(all).filter(test) : securities(all);
+    const kept = test ? securities(rows).filter(test) : securities(rows);
     return sortRows(kept, positionColumn(pr.sort.key), types[pr.sort.key] ?? columnTypes([positionColumn(pr.sort.key)], kept).types[pr.sort.key]!, pr.sort.dir);
-  }, [all, typed, types, filters, pr.sort.key, pr.sort.dir]);
+  }, [rows, typed, types, filters, pr.sort.key, pr.sort.dir]);
   const control = useMemo((): TableControl => ({
     sort: pr.sort, filters, types, detected,
     onSort: (key) => setPrefs({ sort: nextSort(pr.sort, key, types[key] ?? 'string') }),
@@ -208,30 +223,34 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
 
   const lines = useMemo(() => {
     const out: Line[] = [];
-    accounts.forEach((a) => {
+    // the cash, security and pending rows of one block: an account's, or the merged lines of all of them (`at` keys them)
+    const block = (at: string, own: Position[], secs: Position[]) => {
+      own.filter((p) => p.kind === 'core').forEach((p) => out.push({ key: `${at}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
+        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{p.description}</span></CellScroll><div className="text-xs text-slate-500 dark:text-slate-400">{p.symbol}</div></td>
+        {cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? usd(p.currentValue) : c.key === 'secYield' || c.key === 'distRate' ? c.cell(p) : ''}</td>)}
+      </> }));
+      secs.forEach((p) => out.push({ key: `${at}-${p.symbol}`, cls: '', cells: () => <>
+        <td><div className="font-semibold">{p.symbol}</div><CellScroll className="text-xs text-slate-500 dark:text-slate-400">{p.description}</CellScroll></td>
+        {cols.map((c) => <td key={c.key}>{c.cell(p)}</td>)}
+      </> }));
+      own.filter((p) => p.kind === 'pending').forEach((p) => out.push({ key: `${at}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
+    };
+    // merged: no account headers and no account totals, the cash on top as in an account's block; nothing when the
+    // filters leave no row, like an account
+    if (merging) { if (!filtered || shown.length) block('merged', rows, shown); } else accounts.forEach((a) => {
       const own = all.filter((p) => p.account === a.number);
-      const cash = own.filter((p) => p.kind === 'core');
-      const pending = own.filter((p) => p.kind === 'pending');
       const secs = shown.filter((p) => p.account === a.number);
       // an account with no row left by the filters is not shown
       if (filtered && !secs.length) return;
       out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></td> });
-      cash.forEach((p) => out.push({ key: `${a.number}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
-        <td><CellScroll className="font-semibold">{t('Cash')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{p.description}</span></CellScroll><div className="text-xs text-slate-500 dark:text-slate-400">{p.symbol}</div></td>
-        {cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? usd(p.currentValue) : c.key === 'secYield' || c.key === 'distRate' ? c.cell(p) : ''}</td>)}
-      </> }));
-      secs.forEach((p) => out.push({ key: `${a.number}-${p.symbol}`, cls: '', cells: () => <>
-        <td><div className="font-semibold">{p.symbol}</div><CellScroll className="text-xs text-slate-500 dark:text-slate-400">{p.description}</CellScroll></td>
-        {cols.map((c) => <td key={c.key}>{c.cell(p)}</td>)}
-      </> }));
-      pending.forEach((p) => out.push({ key: `${a.number}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
+      block(a.number, own, secs);
       out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
     });
     if (filtered && !shown.length) out.push({ key: 'none', cls: '', cells: () => <NoMatch span={cols.length + 1} /> });
-    if (several) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(all, accounts) : ''}</td>)}</> });
+    if (several) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(rows, accounts) : ''}</td>)}</> });
     return out;
     // cols follow colKeys; the rest are the inputs of the rows (no lint in this repo)
-  }, [all, shown, accounts, filtered, colKeys, several]);
+  }, [all, rows, shown, accounts, filtered, colKeys, several, merging]);
 
   const box = useRef<HTMLDivElement>(null);
   const headBox = useRef<HTMLDivElement>(null);
@@ -299,7 +318,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   }, []);
   const first = win.first;
   const last = Math.min(lines.length, win.end);
-  const total = useMemo(() => securities(all).length, [all]);
+  const total = useMemo(() => securities(rows).length, [rows]);
   const on = activeFilters(filters);
   const tableWidth = useMemo(() => SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0), [cols]);
 

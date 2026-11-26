@@ -6,7 +6,8 @@ import type { Position } from '../../shared/model';
 import { parseCellValue } from '../../shared/filter-engine';
 import { columnTypes, sortRows, type ColumnType, type TypedColumn } from '../../shared/typed-columns';
 import { DASH, bigNum, bigUsd, pct, qty, signedPct, signedQty, signedUsd, signedUsdPct, siteDate, usd } from '../ui/format';
-import { dripGap, rangePos } from './derive';
+import { dripMin, rangePos, rowDrip } from './derive';
+import type { MergeKind } from './merge';
 
 type Cell = Omit<TypedColumn<Position>, 'key'>;
 
@@ -18,71 +19,78 @@ type Cell = Omit<TypedColumn<Position>, 'key'>;
  */
 export type FieldFormat = 'usd' | 'signedUsd' | 'pct' | 'signedPct' | 'num' | 'int' | 'big' | 'date' | 'text' | 'flag' | 'stars';
 export type FieldGroup = 'acct' | 'quote' | 'div' | 'fund' | 'perf' | 'other';
-// `since`: the columns list version that added it (prefs COLUMNS_V): a choice saved before that version gets it hidden once
-export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; sortBy?: string; width?: number; since?: number }
+// `since`: the columns list version that added it (prefs COLUMNS_V): a choice saved before that version gets it hidden once.
+// `merge`: how the column joins a ticker's rows of several accounts (app/merge.ts): the quotes, fundamentals and returns
+// are the security's own (static); the average cost is worked out again from the summed cost and shares; the account
+// type has no meaning over several accounts (blank); the cost method and the holding type are the account's own settings,
+// shown only when every account agrees; shares on loan show when they are on loan in any account (owner 2026-11-25:
+// "loaned should show yes if loaned in any account")
+export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; merge: MergeKind; sortBy?: string; width?: number; since?: number }
 export const FIELD_COLUMNS: FieldColumn[] = [
-  { key: 'avgCost', field: 'cstBasShr', format: 'usd', group: 'acct' },
-  { key: 'acctType', field: 'meta_acctType', format: 'text', group: 'acct', width: 140 },
-  { key: 'costMethod', field: 'meta_cstbasType', format: 'text', group: 'acct', width: 140 },
-  { key: 'hardToBorrow', field: 'isHTB', format: 'flag', group: 'acct' },
-  { key: 'lastChange', field: 'lstPrChg', format: 'signedUsd', group: 'quote' },
-  { key: 'lastChangePct', field: 'lstPrChgPct', format: 'signedPct', group: 'quote' },
-  { key: 'open', field: 'openPrice', format: 'usd', group: 'quote' },
-  { key: 'prevClose', field: 'lstPrcPrevCls', format: 'usd', group: 'quote' },
-  { key: 'bid', field: 'bidPrice', format: 'usd', group: 'quote' },
-  { key: 'bidSize', field: 'bidSize', format: 'int', group: 'quote' },
-  { key: 'ask', field: 'askPrice', format: 'usd', group: 'quote' },
-  { key: 'askSize', field: 'askSize', format: 'int', group: 'quote' },
-  { key: 'volume', field: 'volume', format: 'int', group: 'quote' },
-  { key: 'avgVolume10', field: 'avgVol10Day', format: 'big', group: 'quote' },
-  { key: 'avgVolume90', field: 'avgVol90Day', format: 'big', group: 'quote' },
-  { key: 'high52Price', field: 'fifTwo_high', format: 'usd', group: 'quote' },
-  { key: 'low52Price', field: 'fifTwo_low', format: 'usd', group: 'quote' },
-  { key: 'high52Date', field: 'yearHighDate', format: 'date', group: 'quote' },
-  { key: 'low52Date', field: 'yearLowDate', format: 'date', group: 'quote' },
-  { key: 'volatility30', field: 'volatility30Day', format: 'pct', group: 'quote' },
-  { key: 'volatility250', field: 'volatility250Day', format: 'pct', group: 'quote' },
-  { key: 'dividendAmount', field: 'dvAmt', format: 'usd', group: 'div' },
-  { key: 'peRatio', field: 'peRatio', format: 'num', group: 'fund' },
-  { key: 'shortPct', field: 'pctFloat', format: 'pct', group: 'fund' },
-  { key: 'shortInterest', field: 'shortInterest', format: 'big', group: 'fund' },
-  { key: 'shortRatio', field: 'shortInterestRatio', format: 'num', group: 'fund' },
-  { key: 'sharesOut', field: 'sharesOutstanding', format: 'big', group: 'fund' },
-  { key: 'earningsDate', field: 'earningsAnnouncementDate', format: 'date', group: 'fund' },
-  { key: 'analystRating', field: 'equitySummaryRating', format: 'text', group: 'fund', sortBy: 'equitySummaryScore', width: 140 },
-  { key: 'industry', field: 'industry', format: 'text', group: 'fund', width: 160 },
-  { key: 'subIndustry', field: 'subIndustry', format: 'text', group: 'fund', width: 180 },
-  { key: 'morningstar', field: 'mstar_rate', format: 'stars', group: 'fund' },
-  { key: 'morningstarCategory', field: 'mngCtg', format: 'text', group: 'fund', width: 180 },
-  { key: 'expenseGross', field: 'exRtGs', format: 'pct', group: 'fund' },
-  { key: 'expenseNet', field: 'exRtNt', format: 'pct', group: 'fund' },
-  { key: 'returnYtd', field: 'ytdDly', format: 'signedPct', group: 'perf' },
-  { key: 'return1y', field: 'oneYr', format: 'signedPct', group: 'perf' },
-  { key: 'return3y', field: 'thrYr', format: 'signedPct', group: 'perf' },
-  { key: 'return5y', field: 'fivYr', format: 'signedPct', group: 'perf' },
-  { key: 'return10y', field: 'tenYr', format: 'signedPct', group: 'perf' },
-  { key: 'cusip', field: 'sym_cusip', format: 'text', group: 'other' },
-  { key: 'securityType', field: 'meta_securityType', format: 'text', group: 'other', width: 140 },
-  { key: 'optionable', field: 'isOptionable', format: 'flag', group: 'other' },
-  { key: 'currency', field: 'currency', format: 'text', group: 'other' },
+  { key: 'avgCost', field: 'cstBasShr', format: 'usd', group: 'acct', merge: 'recomputed' },
+  { key: 'acctType', field: 'meta_acctType', format: 'text', group: 'acct', width: 140, merge: 'blank' },
+  { key: 'costMethod', field: 'meta_cstbasType', format: 'text', group: 'acct', width: 140, merge: 'agree' },
+  { key: 'hardToBorrow', field: 'isHTB', format: 'flag', group: 'acct', merge: 'static' },
+  { key: 'lastChange', field: 'lstPrChg', format: 'signedUsd', group: 'quote', merge: 'static' },
+  { key: 'lastChangePct', field: 'lstPrChgPct', format: 'signedPct', group: 'quote', merge: 'static' },
+  { key: 'open', field: 'openPrice', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'prevClose', field: 'lstPrcPrevCls', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'bid', field: 'bidPrice', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'bidSize', field: 'bidSize', format: 'int', group: 'quote', merge: 'static' },
+  { key: 'ask', field: 'askPrice', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'askSize', field: 'askSize', format: 'int', group: 'quote', merge: 'static' },
+  { key: 'volume', field: 'volume', format: 'int', group: 'quote', merge: 'static' },
+  { key: 'avgVolume10', field: 'avgVol10Day', format: 'big', group: 'quote', merge: 'static' },
+  { key: 'avgVolume90', field: 'avgVol90Day', format: 'big', group: 'quote', merge: 'static' },
+  { key: 'high52Price', field: 'fifTwo_high', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'low52Price', field: 'fifTwo_low', format: 'usd', group: 'quote', merge: 'static' },
+  { key: 'high52Date', field: 'yearHighDate', format: 'date', group: 'quote', merge: 'static' },
+  { key: 'low52Date', field: 'yearLowDate', format: 'date', group: 'quote', merge: 'static' },
+  { key: 'volatility30', field: 'volatility30Day', format: 'pct', group: 'quote', merge: 'static' },
+  { key: 'volatility250', field: 'volatility250Day', format: 'pct', group: 'quote', merge: 'static' },
+  { key: 'dividendAmount', field: 'dvAmt', format: 'usd', group: 'div', merge: 'static' },
+  { key: 'peRatio', field: 'peRatio', format: 'num', group: 'fund', merge: 'static' },
+  { key: 'shortPct', field: 'pctFloat', format: 'pct', group: 'fund', merge: 'static' },
+  { key: 'shortInterest', field: 'shortInterest', format: 'big', group: 'fund', merge: 'static' },
+  { key: 'shortRatio', field: 'shortInterestRatio', format: 'num', group: 'fund', merge: 'static' },
+  { key: 'sharesOut', field: 'sharesOutstanding', format: 'big', group: 'fund', merge: 'static' },
+  { key: 'earningsDate', field: 'earningsAnnouncementDate', format: 'date', group: 'fund', merge: 'static' },
+  { key: 'analystRating', field: 'equitySummaryRating', format: 'text', group: 'fund', sortBy: 'equitySummaryScore', width: 140, merge: 'static' },
+  { key: 'industry', field: 'industry', format: 'text', group: 'fund', width: 160, merge: 'static' },
+  { key: 'subIndustry', field: 'subIndustry', format: 'text', group: 'fund', width: 180, merge: 'static' },
+  { key: 'morningstar', field: 'mstar_rate', format: 'stars', group: 'fund', merge: 'static' },
+  { key: 'morningstarCategory', field: 'mngCtg', format: 'text', group: 'fund', width: 180, merge: 'static' },
+  { key: 'expenseGross', field: 'exRtGs', format: 'pct', group: 'fund', merge: 'static' },
+  { key: 'expenseNet', field: 'exRtNt', format: 'pct', group: 'fund', merge: 'static' },
+  { key: 'returnYtd', field: 'ytdDly', format: 'signedPct', group: 'perf', merge: 'static' },
+  { key: 'return1y', field: 'oneYr', format: 'signedPct', group: 'perf', merge: 'static' },
+  { key: 'return3y', field: 'thrYr', format: 'signedPct', group: 'perf', merge: 'static' },
+  { key: 'return5y', field: 'fivYr', format: 'signedPct', group: 'perf', merge: 'static' },
+  { key: 'return10y', field: 'tenYr', format: 'signedPct', group: 'perf', merge: 'static' },
+  { key: 'cusip', field: 'sym_cusip', format: 'text', group: 'other', merge: 'static' },
+  { key: 'securityType', field: 'meta_securityType', format: 'text', group: 'other', width: 140, merge: 'static' },
+  { key: 'optionable', field: 'isOptionable', format: 'flag', group: 'other', merge: 'static' },
+  { key: 'currency', field: 'currency', format: 'text', group: 'other', merge: 'static' },
   // version 3 (owner 2026-11-25: "it also has some other stuff we can add")
-  { key: 'distRateDate', field: 'distYldDate', format: 'date', group: 'div', since: 3 },
-  { key: 'secYieldDate', field: 'secYldDate', format: 'date', group: 'div', since: 3 },
-  { key: 'volatility10', field: 'volatility10Day', format: 'pct', group: 'quote', since: 3 },
-  { key: 'volatility60', field: 'volatility60Day', format: 'pct', group: 'quote', since: 3 },
-  { key: 'volatility90', field: 'volatility90Day', format: 'pct', group: 'quote', since: 3 },
-  { key: 'volatility120', field: 'volatility120Day', format: 'pct', group: 'quote', since: 3 },
-  { key: 'prevShortInterest', field: 'prevShortInterest', format: 'big', group: 'fund', since: 3 },
-  { key: 'industryGroup', field: 'industryGroup', format: 'text', group: 'fund', width: 160, since: 3 },
-  { key: 'news', field: 'headlineTime_text', format: 'text', group: 'other', sortBy: 'headlineTime', since: 3 },
-  { key: 'holdingType', field: 'meta_holdingType', format: 'text', group: 'other', since: 3 },
-  { key: 'loaned', field: 'isLoaned', format: 'flag', group: 'other', since: 3 },
+  { key: 'distRateDate', field: 'distYldDate', format: 'date', group: 'div', since: 3, merge: 'static' },
+  { key: 'secYieldDate', field: 'secYldDate', format: 'date', group: 'div', since: 3, merge: 'static' },
+  { key: 'volatility10', field: 'volatility10Day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
+  { key: 'volatility60', field: 'volatility60Day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
+  { key: 'volatility90', field: 'volatility90Day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
+  { key: 'volatility120', field: 'volatility120Day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
+  { key: 'prevShortInterest', field: 'prevShortInterest', format: 'big', group: 'fund', since: 3, merge: 'static' },
+  { key: 'industryGroup', field: 'industryGroup', format: 'text', group: 'fund', width: 160, since: 3, merge: 'static' },
+  { key: 'news', field: 'headlineTime_text', format: 'text', group: 'other', sortBy: 'headlineTime', since: 3, merge: 'static' },
+  { key: 'holdingType', field: 'meta_holdingType', format: 'text', group: 'other', since: 3, merge: 'agree' },
+  { key: 'loaned', field: 'isLoaned', format: 'flag', group: 'other', since: 3, merge: 'any' },
 ];
 
 /** the columns added after the owner's own view, by the version that added them: hidden until turned on */
 export const NEW_COLUMNS_BY_V: Record<number, string[]> = {
   2: ['todayGlBoth', 'totalGlBoth', 'dayRange'].concat(FIELD_COLUMNS.filter((c) => !c.since || c.since === 2).map((c) => c.key)),
   3: FIELD_COLUMNS.filter((c) => c.since === 3).map((c) => c.key),
+  // owner 2026-11-25: "add two more columns disabled by default ... called Min. DRIP and Min. DRIP $"
+  4: ['dripMin', 'dripMinUsd'],
 };
 export const NEW_COLUMN_KEYS: string[] = Object.keys(NEW_COLUMNS_BY_V).map(Number).sort((a, b) => a - b).reduce<string[]>((all, v) => all.concat(NEW_COLUMNS_BY_V[v]!), []);
 
@@ -119,8 +127,10 @@ const inRange = (p: Position): number | undefined => { const r = rangePos(p); re
 const CELLS: Record<string, Cell> = {
   // the ticker first, so the order is by ticker; the name is in it for the search (owner 2026-11-24: symbol or name)
   symbol: { text: (p) => `${p.symbol} ${p.description}`.trim() },
-  drip: num((p) => dripGap(p)?.shares, signedQty),
-  dripUsd: num((p) => dripGap(p)?.usd, signedUsd),
+  drip: num((p) => rowDrip(p)?.shares, signedQty),
+  dripUsd: num((p) => rowDrip(p)?.usd, signedUsd),
+  dripMin: num((p) => dripMin(p)?.shares, qty),
+  dripMinUsd: num((p) => dripMin(p)?.usd, usd),
   todayGlPct: num((p) => p.todayGlPct, signedPct),
   todayGl: num((p) => p.todayGl, signedUsd),
   totalGlPct: num((p) => p.totalGlPct, signedPct),

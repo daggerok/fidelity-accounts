@@ -43,6 +43,8 @@ html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --bran
 .dark .tb:hover{background:#334155;color:#e2e8f0}
 .dark .tb.on{background:#475569;color:#e2e8f0}
 .dark .tb.sun{color:#facc15}.dark .tb.sun:hover{color:#fde047;background:#1e293b}
+/* a switch that is on wears the palette's accent (the merge switch next to the Positions tab) */
+.tb.accent,.dark .tb.accent{background:var(--brand-soft);color:var(--brand)}
 .slide-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.4,0,.2,1),opacity .25s ease-out;opacity:0;overflow:hidden}
 .slide-wrap.open{grid-template-rows:1fr;opacity:1}
 .slide-inner{overflow:hidden;min-height:0}

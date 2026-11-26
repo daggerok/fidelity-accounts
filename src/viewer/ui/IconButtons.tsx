@@ -2,7 +2,10 @@
 import { themeIcon, themeTitle, type ThemeMode } from '../../shared/theme';
 import { notifyOn, runState, setNotify, setWatch, watching } from '../app/data';
 import { LANG_FLAGS, lang, setLang, t } from '../app/i18n';
+import { mergeOn, toggleMerge } from '../app/merge';
+import { prefs, setPrefs } from '../app/prefs';
 import { clockTime } from './format';
+import { MergeIcon } from './icons';
 import { useStore } from './useStore';
 
 // The icon switches: one round button whose icon is its state, a click moves to the next one (owner 2026-11-25, about
@@ -58,6 +61,26 @@ export function NotifyButton({ userscript }: { userscript: string | null }) {
   return (
     <button type="button" className="tb" data-notify={on ? 'on' : 'off'} disabled={!userscript} title={text} aria-label={text} aria-pressed={on} onClick={() => setNotify(!on)}>
       <span aria-hidden="true">{on ? '🔔' : '🔕'}</span>
+    </button>
+  );
+}
+
+/**
+ * Merge next to the Positions tab (owner 2026-11-25: "near [Positions tab] we need to add a logo/ icon for merge"): the
+ * Positions of several accounts as one line per ticker (app/merge.ts). Always there, so the tabs panel never moves; off
+ * and dimmed while one account is shown. A click on Summary also opens Positions, where the result shows
+ */
+export function MergeButton({ accounts }: { accounts: number }) {
+  const pr = useStore(prefs);
+  useStore(lang);
+  const several = accounts > 1;
+  const on = mergeOn(pr.merge, accounts);
+  const text = !several ? t('Merge positions: choose more than one account first') : on
+    ? t('Merged: one line per ticker over the shown accounts. Click to show each account apart')
+    : t('Merge positions: one line per ticker over the shown accounts');
+  return (
+    <button type="button" className={`tb ${on ? 'accent' : ''}`} data-merge={on ? 'on' : 'off'} disabled={!several} title={text} aria-label={text} aria-pressed={on} onClick={() => setPrefs(toggleMerge(prefs.get()))}>
+      <MergeIcon />
     </button>
   );
 }

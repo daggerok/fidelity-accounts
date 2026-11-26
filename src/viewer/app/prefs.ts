@@ -35,9 +35,10 @@ export interface Prefs {
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
   collapsed: string[]; // folded groups in the accounts bar, '*' = All accounts folded
+  merge: boolean; // Positions of several accounts as one line per ticker (app/merge.ts)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 3, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [] };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 4, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -68,6 +69,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
       collapsed: Array.isArray(p.collapsed) ? p.collapsed.filter((x): x is string => typeof x === 'string') : [],
+      merge: p.merge === true,
       sort: p.sort && typeof p.sort.key === 'string' && (p.sort.dir === 1 || p.sort.dir === -1) ? p.sort : DEFAULT_PREFS.sort,
     };
   } catch {
@@ -76,7 +78,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
 }
 
 /** the version of the Positions columns list; a lower stored one hides the columns that came after it */
-export const COLUMNS_V = 3;
+export const COLUMNS_V = 4;
 export function withNewColumns(hidden: string[], v: unknown): string[] {
   const seen = typeof v === 'number' ? v : 1;
   const added = Object.keys(NEW_COLUMNS_BY_V).map(Number).filter((n) => n > seen).reduce<string[]>((all, n) => all.concat(NEW_COLUMNS_BY_V[n]!), []);
