@@ -499,4 +499,5 @@ export const RU: Record<string, string> = {
   // ☰ of the phone navbar (ui/MobileMenu.tsx)
   'Show the buttons': 'Показать кнопки',
   'Hide the buttons': 'Скрыть кнопки',
+  'Yield a year / payments a year': 'Доходность в год / выплат в год',
 };

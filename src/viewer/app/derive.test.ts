@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, yieldNote, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -401,4 +401,16 @@ test('an order under a dollar is shown as one dollar, the least Fidelity sells; 
   expect(adjustedBuy(0)).toBe(0); // nothing to buy
   expect(adjustedBuy(-0.5)).toBe(-0.5); // the dividend already buys 0.001 share
   expect(adjustedBuy(-12000)).toBe(-12000);
+});
+
+test('a dividend row says the yield a year and the payments a year after its ticker', () => {
+  expect(yieldNote({ distRate: 5.587, paymentFrequency: 'Quarterly' })).toBe('5.59% / 4');
+  // no rate from Fidelity: 0.25 a share, 12 times a year, at 50 -> 6%
+  expect(yieldNote({ dividendAmount: 0.25, lastPrice: 50, paymentFrequency: 'Monthly' })).toBe('6.00% / 12');
+  expect(yieldNote({ distRate: 3, dividendAmount: 0.25, lastPrice: 50, paymentFrequency: 'Monthly' })).toBe('3.00% / 12');
+  // a part that is not known is left out
+  expect(yieldNote({ distRate: 2.5 })).toBe('2.50%');
+  expect(yieldNote({ paymentFrequency: 'Semi-annually' })).toBe('2');
+  expect(yieldNote({ dividendAmount: 0.25, lastPrice: 0, paymentFrequency: 'Annually' })).toBe('1');
+  expect(yieldNote({})).toBe('');
 });
