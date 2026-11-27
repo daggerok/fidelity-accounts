@@ -23,6 +23,8 @@ test('the map is accurate: unique ids, every file it points to exists', () => {
 test('rows shaped like the Fidelity ones pass; every kind of change is caught with its entry', () => {
   expect(errors(checkGridRows(clone()))).toEqual([]);
   expect(checkGridRows([])[0]!.id).toBe('grid.api');
+  // another grid of the page: one finding with the names of its fields, not four about missing kinds
+  expect(checkGridRows([{ lot: 1, acquired: 'x' }, { lot: 2 }])).toEqual([{ id: 'grid.api', level: 'error', problem: 'the grid that was read is not the positions one (2 rows without a row kind, fields lot, acquired)' }]);
   const gone = clone().map((r) => { if (r.rowType === 'POSITION') delete r.curVal; return r; });
   expect(errors(checkGridRows(gone))).toEqual([{ id: 'grid.fields', level: 'error', problem: 'POSITION.curVal is gone' }]);
   const renamed = clone().map((r) => (r.rowType === 'POSITION' ? { ...r, rowType: 'HOLDING' } : r));

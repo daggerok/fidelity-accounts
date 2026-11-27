@@ -57,6 +57,10 @@ const isCell = (v: unknown): boolean => !!v && typeof v === 'object' && ('val' i
 export function checkGridRows(rows: Array<Record<string, unknown>>): Finding[] {
   const out: Finding[] = [];
   if (!rows.length) return [{ id: 'grid.api', level: 'error', problem: 'the grid gave no rows' }];
+  // not the positions grid at all (another ag-grid of the page): one finding that says what the rows do carry, names only
+  if (!rows.some((r) => typeof r.rowType === 'string')) {
+    return [{ id: 'grid.api', level: 'error', problem: `the grid that was read is not the positions one (${rows.length} rows without a row kind, fields ${Object.keys(rows[0] ?? {}).slice(0, 8).join(', ') || 'none'})` }];
+  }
   const kinds = new Set(rows.map((r) => String(r.rowType)));
   ['POSITION', 'ACCOUNT', 'ACCOUNT_TOTAL'].forEach((k) => { if (!kinds.has(k)) out.push({ id: 'grid.rowTypes', level: 'error', problem: `no ${k} rows` }); });
   kinds.forEach((k) => { if (ROW_TYPES.indexOf(k) < 0) out.push({ id: 'grid.rowTypes', level: 'warning', problem: `a new row kind: ${k}` }); });
