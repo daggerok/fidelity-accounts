@@ -47,7 +47,11 @@ test('merged: one line per ticker, no account headers or totals, one total; one 
   await draw(ACCOUNTS);
   // per account: header, cash, 2 securities, total; twice; the grand total
   expect(rows()).toBe(11);
+  // the switch belongs to the Positions tab: on another one it looks off, and a click opens Positions merged
   expect(button().disabled).toBe(false);
+  expect(button().getAttribute('data-merge-here')).toBe('no');
+  expect(button().className).toContain('opacity-40');
+  expect(button().title).toBe('Open Positions merged: one line per ticker over the shown accounts');
   expect(button().getAttribute('aria-pressed')).toBe('false');
   await act(async () => { button().click(); });
   expect(prefs.get()).toMatchObject({ merge: true, tab: 'positions' });

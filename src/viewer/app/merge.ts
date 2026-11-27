@@ -62,8 +62,12 @@ export const fieldMerge = (field: string): MergeKind => FIELD_MERGE[field] ?? 'a
 /** merge applies only with more than one account shown; with one the table stays as it is */
 export const mergeOn = (merge: boolean, shownAccounts: number): boolean => merge && shownAccounts > 1;
 
-/** the merge switch next to the Positions tab: flips the choice and opens Positions, so a click on Summary shows its result */
-export const toggleMerge = (p: { merge: boolean }): { merge: boolean; tab: MainTab } => ({ merge: !p.merge, tab: 'positions' });
+/**
+ * The merge switch before the Positions tab. On Positions it flips the choice. On another tab it opens Positions
+ * merged (owner 2026-11-27: "if we click on that while we are sitting on Summary we will switch to Positions page with
+ * merge mode enabled"), never unmerged
+ */
+export const toggleMerge = (p: { merge: boolean; tab?: MainTab }): { merge: boolean; tab: MainTab } => ({ merge: p.tab !== undefined && p.tab !== 'positions' ? true : !p.merge, tab: 'positions' });
 
 type Value = string | number | boolean;
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

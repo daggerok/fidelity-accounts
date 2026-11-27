@@ -191,17 +191,20 @@ export function App() {
           {ds && (
             <div className="sticky top-0 z-20 bg-slate-100 pt-4 dark:bg-slate-950 lg:pt-6" data-tabs-wrap>
             <nav className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900" data-tabs-panel>
-              {/* the merge switch follows the Positions tab (owner 2026-11-25), outside the tablist: a tablist holds only tabs and
-                  its arrow keys move between them; it is always drawn (dimmed with one account), so the panel never moves */}
-              <div className="flex items-center gap-x-1.5">
+              {/* the merge switch stands before the word Positions (owner 2026-11-27; it followed the tab since 2026-11-25),
+                  outside the tablist in the code: a tablist holds only tabs and its arrow keys move between them (the tablist
+                  leaves no box, so the three lie in one row and `order` places them); it is always drawn (dimmed with one
+                  account or on another tab), so the panel never moves */}
+              <div className="flex items-center gap-x-6">
                 {/* WAI-ARIA tabs: only the chosen tab is in the Tab order, Left and Right (Home, End) choose the next one */}
-                <div className="flex items-center gap-x-6 text-sm leading-none lg:text-base" role="tablist" aria-label={t('Pages')} onKeyDown={onTabKey}>
+                <div className="contents text-sm leading-none lg:text-base" role="tablist" aria-label={t('Pages')} onKeyDown={onTabKey}>
                   {MAIN_TABS.map((tab) => (
                     <button key={tab} id={`tab-${tab}`} type="button" role="tab" aria-selected={pr.tab === tab} aria-controls={TAB_PANEL} tabIndex={pr.tab === tab ? 0 : -1}
-                      className={`main-tab flex h-9 items-center ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
+                      className={`main-tab flex h-9 items-center ${tab === 'positions' ? 'order-3' : 'order-1'} ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
                   ))}
                 </div>
-                <MergeButton accounts={accounts.length} />
+                {/* drawn between Summary and Positions, 6 px before the word it belongs to */}
+                <MergeButton accounts={accounts.length} className="order-2 -mr-[18px]" />
               </div>
               <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: readTime(ds.builtAt, language) })}</span>
             </nav>

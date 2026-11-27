@@ -500,4 +500,5 @@ export const RU: Record<string, string> = {
   'Show the buttons': 'Показать кнопки',
   'Hide the buttons': 'Скрыть кнопки',
   'Yield a year / payments a year': 'Доходность в год / выплат в год',
+  'Open Positions merged: one line per ticker over the shown accounts': 'Открыть «Позиции» объединёнными: одна строка на тикер по показанным счетам',
 };
