@@ -131,7 +131,9 @@ export function fingerprint(set: DataSet, data: { ds: Dataset | null; store: Txn
     json = JSON.stringify(betaRows(betas).map(({ asOf: _asOf, ...b }) => b));
   } else {
     if (!data.store) return null;
-    json = JSON.stringify([data.store.synced, data.store.rows]);
+    // 'repeats': the tab now holds every transaction, also those that are the same in every column (0.1.31). The mark
+    // makes this print differ from the one of the last write, so the tab is written whole once with the same rows
+    json = JSON.stringify(['repeats', data.store.synced, data.store.rows]);
   }
   let h = 5381;
   for (let i = 0; i < json.length; i++) h = ((h * 33) ^ json.charCodeAt(i)) >>> 0;
