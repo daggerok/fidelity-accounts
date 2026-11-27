@@ -3,7 +3,7 @@
 // login page (optional automatic login) and the viewer (bridge to the page). READ ONLY on Fidelity: the script never
 // clicks or submits anything there except the login form with the owner's saved login
 import { buildDataset, type GridRow } from '../shared/parse';
-import { mergeDatasets, parseDataset } from '../shared/model';
+import { mergeDatasets, parseDataset, type Account } from '../shared/model';
 import { mountBadge, type Badge } from './badge';
 import { COMMAND_KEY, SYNC_AT_KEY, freshCommand, syncAllowed } from './command';
 import { DATASET_KEY, RUN_KEY, SHEETS_KEY, TXNS_CHECKED_KEY, TXNS_KEY, gmDelete, gmGet, gmSet, gmWatch, notify } from './gm';
@@ -17,6 +17,7 @@ import { betaRequest, betasDue, readBetas } from './beta-sync';
 import { brokenProblems, checkBalanceHistory, checkGridRows, checkPage, mergeReport, type Finding, type Report } from '../shared/contract';
 import { FORCE_READ_MS, WATCH_KEY, WATCH_REFRESH_MS, acceptRead, findRefreshButton, sheetsDue } from './watch';
 import { DUE_TICK_MS, historyDue, marketOpen, txnsPlan } from './schedule';
+import { READS_KEY, accountsHere, markRead, oldestRead, readsOf, type ReadKind } from './here';
 import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
 import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, VIEWER_BEAT_MS, VIEWER_KEY, makeNotice, viewerOnScreen, type NoticeLevel } from '../shared/notice';
 import { readAsOf, readSidebar } from './read';
@@ -228,20 +229,27 @@ function onPortfolio(): void {
   // Allow or decline in another Fidelity tab
   gmWatch(PIN_KEY, () => { checkPin(); void sheetsQueue.retry(); });
 
+  // the accounts of the login that is signed in on this page (here.ts): the API reads ask only for these
+  const here = () => accountsHere(storedDataset()?.accounts ?? [], readSidebar(document));
+  const readAt = (kind: ReadKind) => oldestRead(readsOf(gmGet<unknown>(READS_KEY, null)), here(), kind);
+  const wasRead = (accounts: Account[], kind: ReadKind) => gmSet(READS_KEY, markRead(readsOf(gmGet<unknown>(READS_KEY, null)), accounts, kind, new Date().toISOString()));
+
   // the daily values for the chart (BalanceHistory): 3Y the first time, then 1M
   const syncHistory = async () => {
     try {
       const stored = storedDataset();
-      if (!stored || !stored.accounts.length) return;
+      const mine = here();
+      if (!stored || !mine.length) return;
       const seen: Finding[] = [];
-      const fresh = await readHistory(stored.accounts, stored.history, async (url, body) => { const json = await pagePost(url, body); seen.push(...checkBalanceHistory(json)); return json; });
+      const fresh = await readHistory(mine, stored.history, async (url, body) => { const json = await pagePost(url, body); seen.push(...checkBalanceHistory(json)); return json; });
       report(['balanceHistory'], seen.slice(0, 1));
       const latest = storedDataset() ?? stored;
       gmSet(DATASET_KEY, JSON.stringify({ ...latest, history: mergeHistory(latest.history, fresh), historyAt: new Date().toISOString() }));
-      const line = `daily values: ${Object.keys(fresh).length} of ${stored.accounts.length} accounts`;
+      wasRead(mine, 'history');
+      const line = `daily values: ${Object.keys(fresh).length} of ${mine.length} accounts`;
       badge.status(`${line} · ${time()}`);
       const saved = await saveSets(['summary']);
-      announce(seen.length ? 'error' : 'ok', seen.length ? fidelityChanged([seen[0]!.problem]) : balancesRead(Object.keys(fresh).length, stored.accounts.length, saved));
+      announce(seen.length ? 'error' : 'ok', seen.length ? fidelityChanged([seen[0]!.problem]) : balancesRead(Object.keys(fresh).length, mine.length, saved));
     } catch (err) {
       const line = `daily values: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);
@@ -253,13 +261,14 @@ function onPortfolio(): void {
   const syncTransactions = async (plan: 'full' | 'recent') => {
     try {
       const stored = storedDataset();
-      if (!stored || !stored.accounts.length) return;
+      const mine = here();
+      if (!stored || !mine.length) return;
       badge.status(`transactions: reading${plan === 'recent' ? ' the last days' : ''}…`);
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const kept = storedTxns();
       const before = kept ?? EMPTY_STORE;
-      const { store, failed } = await readTransactions(stored.accounts, before, stored.history, today, pagePost, plan === 'recent' ? RECENT_DAYS : OVERLAP_DAYS);
+      const { store, failed } = await readTransactions(mine, before, stored.history, today, pagePost, plan === 'recent' ? RECENT_DAYS : OVERLAP_DAYS);
       // nothing new (the usual 👀 read): only its time is kept, not the whole store again (sameTxns). A changed store is
       // stored, and its object stands for the stored string (it is plain JSON data, a parse of the string equals it)
       if (kept && sameTxns(kept, store)) gmSet(TXNS_CHECKED_KEY, store.at);
@@ -268,6 +277,7 @@ function onPortfolio(): void {
         gmSet(TXNS_KEY, raw);
         txnsMemo.prime(raw, store);
       }
+      wasRead(mine, 'txns');
       const added = store.rows.length - before.rows.length;
       const line = `transactions: ${store.rows.length} rows${added > 0 ? `, ${added} new` : ''}${failed.length ? `, ${failed.length} accounts failed` : ''}`;
       badge.status(`${failed.length ? '!' : ''}${line} · ${time()}`);
@@ -317,12 +327,12 @@ function onPortfolio(): void {
   let dueBusy = false;
   const runDue = async () => {
     if (dueBusy) return;
-    const stored = storedDataset();
-    if (!stored || !stored.accounts.length) return;
+    // nothing to ask while the page shows no account of the stored copy (another login before its first Positions read)
+    if (!here().length) return;
     dueBusy = true;
     try {
-      if (historyDue(stored.historyAt, new Date())) await syncHistory();
-      const plan = txnsPlan(txnsAt() || undefined, new Date(), watching());
+      if (historyDue(readAt('history'), new Date())) await syncHistory();
+      const plan = txnsPlan(readAt('txns'), new Date(), watching());
       if (plan) await syncTransactions(plan);
       if (betasDue(storedDataset(), new Date())) await syncBetas();
     } finally {
@@ -502,7 +512,7 @@ function onViewer(): void {
     // Fidelity login stays: 🔑 on Fidelity manages it). The spreadsheet pin (PIN_KEY) and the time of the last sync command
     // stay too: any page of this origin can post this message, so a reset must not open the way to another sheet. With
     // the prints gone the next handoff cannot be adopted either: the same sheet as the pin writes on, another one asks
-    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, TXNS_CHECKED_KEY, SHEETS_KEY, PRINTS_KEY, TRIP_KEY, NOTIFY_KEY, NOTICE_KEY].forEach(gmDelete);
+    if (e.data.type === 'fidelity-accounts:forget') [DATASET_KEY, RUN_KEY, GOOGLE_KEY, COMMAND_KEY, RESUME_KEY, WATCH_KEY, CONTRACT_KEY, TXNS_KEY, TXNS_CHECKED_KEY, SHEETS_KEY, PRINTS_KEY, TRIP_KEY, NOTIFY_KEY, NOTICE_KEY, READS_KEY].forEach(gmDelete);
     if (e.data.type === 'fidelity-accounts:hello') { post('fidelity-accounts:login', JSON.stringify({ saved: !!gmGet<Login | null>(LOGIN_KEY, null) })); postWatch(); postNotify(); postPin(); }
   });
   // the heartbeat of a viewer on screen (shared/notice.ts): while this tab is visible the Fidelity tab leaves its notices
