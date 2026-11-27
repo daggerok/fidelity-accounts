@@ -19,6 +19,7 @@ import { DRIP_ADJ_USD_HINT, DRIP_HINT, DRIP_MIN_ADJ_USD_HINT, DRIP_MIN_HINT, DRI
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
 import { rowWindow, sameWindow } from '../app/row-window';
+import { squashAsk } from '../app/squash';
 import { DASH, bigUsd, maskAccount, pct, qty, signedPct, signedUsd, signedUsdPct, siteDate, tone, usd } from './format';
 
 // Positions: the columns of Fidelity's "My View", sortable, one block per account with its cash and its total, and a
@@ -197,7 +198,9 @@ interface Line { key: string; cls: string; cells: () => React.ReactNode }
 
 // Memoised with stable props from App (the accounts under useMemo), so App drawing again on a status message of the script
 // does not draw the table again
-export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset; accounts: Account[] }) {
+// `onAsk`: what a scroll of the rows asks of the page on a phone (app/squash.ts); `layout` changes when the page around
+// the table changed its height, so the table measures its room again
+export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }: { ds: Dataset; accounts: Account[]; onAsk?: (ask: 'squash' | 'open') => void; layout?: unknown }) {
   const pr = useStore(prefs);
   // the column names are words: built again on a switch of the language only, not on every draw (~93 columns, ~250 t())
   const language = useStore(lang);
@@ -274,6 +277,8 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   const box = useRef<HTMLDivElement>(null);
   const headBox = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const asks = useRef(onAsk);
+  asks.current = onAsk;
   // the window of rows drawn, kept as the first and the end index: a scroll inside one row keeps the same window and the
   // same state, so React skips the draw (a new { top, height } every frame drew the whole table on every frame)
   const [win, setWin] = useState(() => rowWindow(0, 800, ROW, OVERSCAN));
@@ -281,7 +286,11 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
     const el = box.current;
     if (!el) return undefined;
     let frame = 0;
+    let before = el.scrollTop;
     const on = () => {
+      const ask = squashAsk(el.scrollTop, before);
+      before = el.scrollTop;
+      if (ask) asks.current?.(ask);
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => { const next = rowWindow(el.scrollTop, el.clientHeight, ROW, OVERSCAN); setWin((w) => (sameWindow(w, next) ? w : next)); });
     };
@@ -322,6 +331,12 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
   // height is the room between its top and the footer, measured again on a resize
   const [fill, setFill] = useState<number | null>(null);
+  // the page around the table changed (the phone's navbar folded or came back, 350 ms): measure while it moves
+  const remeasure = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const timers = [0, 120, 240, 380, 500].map((ms) => setTimeout(() => remeasure.current(), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [layout]);
   // a phone gets the compact table: a narrow Symbol column and four columns across the box (app/fit.ts)
   const isPhone = useMedia(PHONE_QUERY);
   const [boxWidth, setBoxWidth] = useState(0);
@@ -335,6 +350,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       setBoxWidth(el.clientWidth);
     };
     measure();
+    remeasure.current = measure;
     window.addEventListener('resize', measure);
     const ro = new ResizeObserver(measure);
     if (el.parentElement) ro.observe(el.parentElement);

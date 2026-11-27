@@ -1,5 +1,5 @@
 /// <reference lib="esnext" />
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
 import { autoWatch, dataset, loginSaved, sheetPin, watchChosen, watching } from '../app/data';
@@ -8,6 +8,7 @@ import { lang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
 import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { rovingIndex } from '../app/focus';
+import { squashed } from '../app/squash';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
@@ -68,6 +69,12 @@ export function App() {
   const themeHome = useRef<HTMLSpanElement>(null);
   const themeAway = useRef<HTMLSpanElement>(null);
   const [showSettings, setShowSettings] = useState(panelOpen);
+  // a phone on Positions (owner 2026-11-27, after Fidelity's own app): once the rows are scrolled the navbar folds away
+  // and the tabs panel is squashed into two stripes, so the table has the screen; the lit stripe is the open page. A
+  // tap on the other stripe opens Summary, a tap on the lit one (or the rows back at their top) brings everything back
+  const [asked, setAsked] = useState(false);
+  const [held, setHeld] = useState(false);
+  const onAsk = useCallback((ask: 'squash' | 'open') => { setAsked(ask === 'squash'); if (ask === 'squash') setHeld(false); }, []);
   const autoOpened = useRef(false);
   const [expandSetup, setExpandSetup] = useState(0); // 🚀: open settings with Get started expanded
   const rememberPanel = (open: boolean) => { try { localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed'); } catch { /* private window */ } };
@@ -103,6 +110,15 @@ export function App() {
     if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLElement).closest('[data-get-started]')) closeSettings();
   };
 
+  useEffect(() => { if (pr.tab !== 'positions') { setAsked(false); setHeld(false); } }, [pr.tab]);
+  const flat = squashed({ phone, positions: pr.tab === 'positions', settings: showSettings, asked, held });
+  // the navbar is clipped while it is folded and while it grows back (350 ms), never when it is open: its popups hang out
+  const [clip, setClip] = useState(false);
+  useEffect(() => {
+    if (flat) { setClip(true); return undefined; }
+    const timer = setTimeout(() => setClip(false), 380);
+    return () => clearTimeout(timer);
+  }, [flat]);
   const scope = validScope(ds, pr.scope);
   // nothing ticked shows the same as everything ticked (owner 2026-11-24): the boxes stay clear, the numbers are all.
   // Kept from draw to draw: App draws again on every status message of the script and every Sheets log line, and a new
@@ -127,7 +143,7 @@ export function App() {
     // the page is exactly one screen tall (owner 2026-11-23: the footer must always be visible): the navbar on top, the
     // footer in the bottom gutter, and only the part between them scrolls
     <div className="flex h-dvh flex-col font-sans">
-      <div className="shrink-0 px-4 pt-4 lg:px-6 lg:pt-6">
+      <div className={`nav-squash shrink-0 px-4 pt-4 lg:px-6 lg:pt-6 ${flat ? 'flat' : ''} ${clip ? 'clip' : ''}`} inert={flat} data-navbar={flat ? 'folded' : 'open'}><div>
           {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
           {/* the navbar, the tabs panel and the cards share one inset (24 px, the card padding) and one corner (1rem), so the logo,
@@ -177,7 +193,7 @@ export function App() {
           {/* the 🔔 popups lie over the right end of the navbar (ui/Notices.tsx) */}
           <Notices />
           </div>
-      </div>
+      </div></div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
             <div onKeyDown={onSettingsKey}>
@@ -191,8 +207,18 @@ export function App() {
           {/* it lives in the scrolling part, under the open ⚙️ Settings (owner 2026-11-27: "settings menu should appeared above
               tabs panel, not below"), and sticks to its top with the gutter above it, so the tabs never scroll away */}
           {ds && (
-            <div className="sticky top-0 z-20 bg-slate-100 pt-4 dark:bg-slate-950 lg:pt-6" data-tabs-wrap>
-            <nav className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900" data-tabs-panel>
+            <div className={`sticky top-0 z-20 bg-slate-100 dark:bg-slate-950 lg:pt-6 ${flat ? 'pt-2' : 'pt-4'}`} data-tabs-wrap>
+            {flat && (
+              <div className="flex flex-col" data-tab-stripes>
+                {MAIN_TABS.map((tab) => (
+                  <button key={tab} type="button" className="block w-full py-1.5" title={tabName(tab)} aria-label={tabName(tab)} aria-current={pr.tab === tab ? 'page' : undefined} data-tab-stripe={tab}
+                    onClick={() => (pr.tab === tab ? setHeld(true) : setPrefs({ tab }))}>
+                    <span className={`block h-1.5 rounded-full ${pr.tab === tab ? 'bg-[var(--brand)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <nav className={`flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900 ${flat ? 'hidden' : 'flex'}`} data-tabs-panel>
               {/* the merge switch stands before the word Positions (owner 2026-11-27; it followed the tab since 2026-11-25),
                   outside the tablist in the code: a tablist holds only tabs and its arrow keys move between them (the tablist
                   leaves no box, so the three lie in one row and `order` places them); it is always drawn (dimmed with one
@@ -228,7 +254,7 @@ export function App() {
             {/* the cards start one gutter below the tabs panel (or below the open settings) */}
             <main id={TAB_PANEL} role="tabpanel" aria-labelledby={`tab-${pr.tab}`} className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
               <ErrorBoundary resetKey={`${ds.builtAt}|${pr.tab}`}>
-                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : <Positions ds={ds} accounts={accounts} />}
+                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : <Positions ds={ds} accounts={accounts} onAsk={onAsk} layout={flat} />}
               </ErrorBoundary>
             </main>
           </div>
