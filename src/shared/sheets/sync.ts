@@ -16,6 +16,13 @@ import { ACCOUNTS, BALANCES, BETAS, POSITIONS, TRANSACTIONS, TXN_SYNCED, UPDATES
 
 export type DataSet = 'summary' | 'positions' | 'transactions' | 'betas';
 export const DATA_SETS: readonly DataSet[] = ['summary', 'positions', 'transactions', 'betas'];
+/** the tabs each set writes: a set whose tab is gone from the spreadsheet is written again whatever its print says */
+export const SET_TABS: Record<DataSet, string[]> = {
+  summary: [ACCOUNTS.name, BALANCES.name],
+  positions: [POSITIONS.name, WIDE_TAB],
+  transactions: [TRANSACTIONS.name, TXN_SYNCED.name],
+  betas: [BETAS.name],
+};
 
 /** the signal the Fidelity tab leaves after a write: when, and which sets the sheet has new */
 export interface SheetsSignal { at: number; sets: DataSet[] }

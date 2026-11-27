@@ -119,7 +119,21 @@ describe('fidelity_transactions in parts, prints kept per spreadsheet (writeKept
     const chunks = kept.get()!.chunks;
     a.calls.length = 0;
     expect(await writeKept(['transactions', 'summary'], { ds: null, store: s1 }, g, a.fetch, kept)).toEqual([]);
-    expect(a.calls).toHaveLength(0);
+    // nothing is written: the one request is the list of tabs, which says the set's tabs are still there
+    expect(a.calls.map((c) => c.method)).toEqual(['GET']);
     expect(kept.get()!.chunks).toEqual(chunks!);
+  });
+
+  test('a tab deleted in the spreadsheet is written again from the same data, whole', async () => {
+    const a = fakeSheets();
+    const kept = memory();
+    const s1 = storeOf(rows(100));
+    await writeKept(['transactions'], { ds: null, store: s1 }, g, a.fetch, kept);
+    const before = content(a);
+    delete a.tabs.fidelity_transactions;
+    expect(await writeKept(['transactions'], { ds: null, store: s1 }, g, a.fetch, kept)).toEqual(['transactions']);
+    expect(content(a)).toEqual(before);
+    // and with every tab back, the same data is skipped again
+    expect(await writeKept(['transactions'], { ds: null, store: s1 }, g, a.fetch, kept)).toEqual([]);
   });
 });
