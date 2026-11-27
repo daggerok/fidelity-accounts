@@ -93,7 +93,7 @@ prefs.subscribe(() => {
 export const setPrefs = (p: Partial<Prefs>): void => prefs.set({ ...prefs.get(), ...p });
 
 // what "Reset view" clears: the look and the remembered choices, never the setup (owner 2026-11-23)
-export const VIEW_KEYS = [KEY, 'fidelity-accounts.strip-scroll', 'fidelity-accounts-theme', 'fidelity-accounts-palette', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-badge-minimized'];
+export const VIEW_KEYS = [KEY, 'fidelity-accounts.strip-scroll', 'fidelity-accounts-theme', 'fidelity-accounts-palette', 'fidelity-accounts.lang', 'fidelity-accounts-panel-settings', 'fidelity-accounts-settings-sections', 'fidelity-accounts-badge-minimized'];
 
 /** Reset view: account, tab, sort, columns, theme, language and open panels back to their defaults; the page reloads */
 export function resetView(storage: Pick<Storage, 'removeItem'> | undefined = globalThis.localStorage, reload: () => void = () => location.reload()): void {

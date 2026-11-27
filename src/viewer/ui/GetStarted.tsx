@@ -35,6 +35,12 @@ export const saidLater = (): boolean => { try { return sessionStorage.getItem(LA
 
 /** the required steps (the Fidelity login is optional) */
 export const setupDone = (s: SetupState): boolean => s.clientId && s.spreadsheet && s.script && s.data;
+/**
+ * Something is set up here already (owner 2026-11-27: "we should not do expand if we have some settings at all"): a
+ * phone that only shows the sheet never has the script, so it never is "done", and its settings must not slide down
+ * and unfold by themselves on every visit. Only a browser with nothing set gets that
+ */
+export const setupStarted = (s: SetupState): boolean => s.clientId || s.spreadsheet || s.data;
 
 // a disabled button says which step it waits for (owner 2026-11-23: pale buttons with no reason looked broken)
 const Needs = ({ when, text }: { when: boolean; text: string }) => (when ? <span className="text-xs text-amber-700 dark:text-amber-400" data-needs>{text}</span> : null);

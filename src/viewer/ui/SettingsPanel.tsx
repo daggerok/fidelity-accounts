@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { t } from '../app/i18n';
 import { resetView } from '../app/prefs';
 import { fullReset } from '../app/reset';
+import { readSections, saveSection, sectionOpen } from '../app/sections';
 import type { ThemeMode } from '../../shared/theme';
 import { GetStarted } from './GetStarted';
 import { ThemeLanguageSetting, WatchSetting } from './LookSettings';
@@ -10,24 +11,30 @@ import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
 import { SettingsTransfer } from './SettingsTransfer';
 
+const storage = (): Storage | undefined => { try { return globalThis.localStorage; } catch { return undefined; } };
+
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
 // (owner 2026-11-23), its header slides it open and shut; the two resets live in the panel's header (SettingsResets)
-export function SettingsPanel({ userscript, done, expand, theme }: { userscript: string | null; done: boolean; expand: number; theme: { mode: ThemeMode; systemDark: boolean; cycle: () => void } }) {
+export function SettingsPanel({ userscript, done, fresh, expand, theme }: { userscript: string | null; done: boolean; fresh: boolean; expand: number; theme: { mode: ThemeMode; systemDark: boolean; cycle: () => void } }) {
   // Get started on top: expanded while something needs setup, squashed once done; its header toggles it (owner 2026-11-23)
-  const [setupOpen, setSetupOpen] = useState(!done);
-  useEffect(() => { setSetupOpen(!done); }, [done]);
+  // folded or not is the owner's choice, kept in this browser (app/sections.ts). Untouched, Get started is open only
+  // in a browser with nothing set up yet (`fresh`) and folds once all is done; 🚀 opens it for this visit
+  const [choices, setChoices] = useState(() => readSections(storage()));
+  const [setupOpen, setSetupOpen] = useState(() => sectionOpen(choices, 'get-started', fresh));
+  useEffect(() => { if (done && !('get-started' in choices)) setSetupOpen(false); }, [done]);
   useEffect(() => { if (expand) setSetupOpen(true); }, [expand]);
-  const [prefsOpen, setPrefsOpen] = useState(true);
+  const [prefsOpen, setPrefsOpen] = useState(() => sectionOpen(choices, 'preferences', true));
+  const fold = (id: string, open: boolean, set: (v: boolean) => void) => { set(open); setChoices(saveSection(storage(), id, open)); };
 
   return (
     <div className="flex flex-col gap-6 text-sm">
-    <Section id="get-started" title={`🚀 ${t('Get started')}`} note={done ? t('all set') : t('needs setup')} open={setupOpen} onToggle={() => setSetupOpen((v) => !v)}>
+    <Section id="get-started" title={`🚀 ${t('Get started')}`} note={done ? t('all set') : t('needs setup')} open={setupOpen} onToggle={() => fold('get-started', !setupOpen, setSetupOpen)}>
       <GetStarted userscript={userscript} all={done} />
     </Section>
     {/* one section for everything a person sets to taste (owner 2026-11-25: "all these must be merged in 1 section called
         User preferences"): the theme and the language, the color palette of the whole app (owner 2026-11-24, like gex's
         Settings -> Color palette), 👀 and 🔔; the switches are the navbar's own buttons (ui/IconButtons.tsx) */}
-    <Section id="preferences" title={`🎛️ ${t('User preferences')}`} open={prefsOpen} onToggle={() => setPrefsOpen((v) => !v)}>
+    <Section id="preferences" title={`🎛️ ${t('User preferences')}`} open={prefsOpen} onToggle={() => fold('preferences', !prefsOpen, setPrefsOpen)}>
       <div className="flex flex-col gap-4">
         <ThemeLanguageSetting theme={theme} />
         <PalettePicker />

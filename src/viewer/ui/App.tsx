@@ -14,7 +14,7 @@ import { AccountTabs } from './AccountTabs';
 import { LangButton, MergeButton, ThemeButton, WatchButton } from './IconButtons';
 import { Banner } from './Banner';
 import { ErrorBoundary } from './ErrorBoundary';
-import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
+import { laterThisSession, saidLater, setupDone, setupStarted, setupState } from './GetStarted';
 import { Logo } from './Logo';
 import { MenuToggle, Slot, Traveler } from './MobileMenu';
 import { Notices } from './Notices';
@@ -88,7 +88,9 @@ export function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setSettled(true);
-      if (!setupDone(setupState(userscriptVersion(document.documentElement))) && !saidLater()) { autoOpened.current = true; setShowSettings(true); }
+      // by themselves the settings slide down only where nothing is set up yet: a phone that shows the sheet has no script
+      // and is never "done" (owner 2026-11-27: "we should not do expand if we have some settings at all")
+      if (!setupStarted(setupState(userscriptVersion(document.documentElement))) && !saidLater()) { autoOpened.current = true; setShowSettings(true); }
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -179,7 +181,7 @@ export function App() {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
             <div onKeyDown={onSettingsKey}>
-              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} theme={theme} />
+              <SettingsPanel userscript={userscript} done={done} fresh={!setupStarted(setupState(userscript))} expand={expandSetup} theme={theme} />
             </div>
           </SlidePanel>
           {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
