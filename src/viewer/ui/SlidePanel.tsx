@@ -17,7 +17,7 @@ export function SlidePanel({ open, title, onClose, id, children, tools }: { open
               <h2 className="text-sm font-semibold">{title}</h2>
               {tools}
             </div>
-            <button type="button" className="tb" title={t('Close')} aria-label={t('Close')} onClick={onClose}>✕</button>
+            <button type="button" className="tb self-start" title={t('Close')} aria-label={t('Close')} onClick={onClose}>✕</button>
           </div>
           <div className="p-4">{children}</div>
         </section>
