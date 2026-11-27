@@ -351,7 +351,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
         {/* head-scroll: clipped with a mouse, a sideways swipe scrolls it on a touch screen (index.css) */}
-        <div ref={headBox} className="head-scroll flex-none bg-[#f8fafc] [scrollbar-gutter:stable] dark:bg-[#1e293b]" data-positions-head>
+        <div ref={headBox} className="head-scroll flex-none bg-white [scrollbar-gutter:stable] dark:bg-[#0f172a]" data-positions-head>
           <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
