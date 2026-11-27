@@ -21,7 +21,7 @@ import { READS_KEY, accountsHere, markRead, oldestRead, readsOf, type ReadKind }
 import { TRIP_KEY, backNow, freshTrip, pageName, tripFrom } from './trip';
 import { NOTICE_KEY, NOTICE_OK_MS, NOTIFY_KEY, VIEWER_BEAT_MS, VIEWER_KEY, makeNotice, viewerOnScreen, type NoticeLevel } from '../shared/notice';
 import { readAsOf, readSidebar } from './read';
-import { GOOGLE_KEY, gmFetch, handoffSheet, usableHandoff, writeKept, type KeptPrints } from './sheets-gm';
+import { GOOGLE_KEY, gmFetch, handoffSheet, usableHandoff, setsAfterRead, writeKept, type KeptPrints } from './sheets-gm';
 import { NO_POSITIONS, NO_READER, SHEETS_WAITING, balancesRead, betasFailed, betasRead, fidelityChanged, jobFailed, positionsRead, say, sheetWaitsAllow, sheetsFailed, transactionsFailed, transactionsRead, type Word } from '../shared/notice-words';
 import { PIN_KEY, allowPin, declinePin, idTail, pinStep, readPin, type PinStep } from './pin';
 import { DATA_SETS, type DataSet } from '../shared/sheets/sync';
@@ -373,9 +373,7 @@ function onPortfolio(): void {
       // a sync, ⬇ or the first read of a page is a job worth a notice; the reads of 👀 between them (every 30 s) are not
       const told = wasAsked || first;
       void (async () => {
-        // a sync that was asked for (the viewer, ⬇) offers every set: the ones with nothing new are skipped by their print,
-        // and a tab deleted in the sheet is written again from the script's own copy
-        const saved = write ? await saveSets(wasAsked ? ['summary', 'positions', 'transactions', 'betas'] : ['summary', 'positions']) : false;
+        const saved = write ? await saveSets(setsAfterRead(told)) : false;
         if (broken.length) announce('error', fidelityChanged(brokenProblems(r.findings)));
         else if (told) announce('ok', positionsRead(ds.accounts.length, ds.positions.length, saved));
         readDone = true;

@@ -5,7 +5,7 @@ import { describe, expect, test } from 'bun:test';
 import { fakeSheets, type FakeCall } from '../shared/sheets/fake-sheets';
 import { TRANSACTIONS } from '../shared/sheets/tabs';
 import type { Txn, TxnStore } from '../shared/transactions';
-import { gmFetch, handoffSheet, usableHandoff, writeKept, writeSets, type KeptPrints } from './sheets-gm';
+import { gmFetch, handoffSheet, setsAfterRead, usableHandoff, writeKept, writeSets, type KeptPrints } from './sheets-gm';
 
 test('gmFetch turns GM_xmlhttpRequest into a Response', async () => {
   const seen: Array<{ method: string; url: string; headers?: Record<string, string>; data?: string }> = [];
@@ -136,4 +136,9 @@ describe('fidelity_transactions in parts, prints kept per spreadsheet (writeKept
     // and with every tab back, the same data is skipped again
     expect(await writeKept(['transactions'], { ds: null, store: s1 }, g, a.fetch, kept)).toEqual([]);
   });
+});
+
+test('a read that is a job offers every set to the sheet, a quiet read of the watch only what it read', () => {
+  expect(setsAfterRead(true)).toEqual(['summary', 'positions', 'transactions', 'betas']);
+  expect(setsAfterRead(false)).toEqual(['summary', 'positions']);
 });
