@@ -208,10 +208,12 @@ export function App() {
               tabs panel, not below"), and sticks to its top with the gutter above it, so the tabs never scroll away */}
           {ds && (
             <div className={`sticky top-0 z-20 bg-slate-100 dark:bg-slate-950 lg:pt-6 ${flat ? 'pt-2' : 'pt-4'}`} data-tabs-wrap>
+            {/* squashed: ONE line cut in pieces, a piece a page (owner 2026-11-27: "one line with separations ... squashed
+                panel with pages tabs in form of lines"): Summary left, Positions right, the lit piece is the open page */}
             {flat && (
-              <div className="flex flex-col" data-tab-stripes>
+              <div className="flex gap-2" data-tab-stripes>
                 {MAIN_TABS.map((tab) => (
-                  <button key={tab} type="button" className="block w-full py-1.5" title={tabName(tab)} aria-label={tabName(tab)} aria-current={pr.tab === tab ? 'page' : undefined} data-tab-stripe={tab}
+                  <button key={tab} type="button" className="block min-w-0 flex-1 py-2" title={tabName(tab)} aria-label={tabName(tab)} aria-current={pr.tab === tab ? 'page' : undefined} data-tab-stripe={tab}
                     onClick={() => (pr.tab === tab ? setHeld(true) : setPrefs({ tab }))}>
                     <span className={`block h-1.5 rounded-full ${pr.tab === tab ? 'bg-[var(--brand)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
                   </button>
