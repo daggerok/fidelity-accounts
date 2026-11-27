@@ -10,6 +10,8 @@ import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedH
 import { lang, t } from '../app/i18n';
 import { DEFAULT_PREFS, prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
+import { PHONE_QUERY, useMedia } from './useMedia';
+import { PHONE_EDGE, PHONE_SYMBOL_W, phoneColumnWidth } from '../app/fit';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
 import { CellScroll } from './CellScroll';
@@ -147,25 +149,31 @@ const nameWidth = (text: string): number => {
   return ruler.measureText(text).width;
 };
 const HEAD_ROOM = 16 + 4 + 32 + 14; // padding, gap, badge, arrow
-const width = (c: { key: string; label: string }): number => Math.max(WIDE[c.key] ?? 128, Math.ceil(nameWidth(c.label) + HEAD_ROOM));
+// `phone` is the width of a plain column on a phone (app/fit.ts phoneColumnWidth), 0 elsewhere: there the names wrap
+// and the type badges are hidden (index.css .pos-table.compact), so a column needs no room for them; a wide one keeps
+// its share
+const width = (c: { key: string; label: string }, phone = 0): number => (phone
+  ? (WIDE[c.key] ? Math.round(WIDE[c.key]! * 0.62) : phone)
+  : Math.max(WIDE[c.key] ?? 128, Math.ceil(nameWidth(c.label) + HEAD_ROOM)));
 const SYMBOL = 'symbol';
 // the first and the last cell sit one card padding (24 px) from the box edge, like the logo, Summary and the card titles
 // (owner 2026-11-25: "we need to fix spacing here as well"); a cell has 8 px of its own, the edge columns get the rest
 const EDGE = 16;
-const colWidth = (cols: { key: string; label: string }[], i: number): number => width(cols[i]!) + (i === cols.length - 1 ? EDGE : 0);
+const colWidth = (cols: { key: string; label: string }[], i: number, phone = 0): number => width(cols[i]!, phone) + (i === cols.length - 1 ? (phone ? PHONE_EDGE : EDGE) : 0);
+const symbolWidth = (phone: number): number => (phone ? PHONE_SYMBOL_W + PHONE_EDGE : SYMBOL_W + EDGE);
 /** the column widths both tables share: Symbol, then every chosen column (memo: the widths measure the names in a canvas) */
-const Cols = memo(function Cols({ cols }: { cols: { key: string; label: string }[] }) {
-  return <colgroup><col style={{ width: SYMBOL_W + EDGE }} />{cols.map((c, i) => <col key={c.key} style={{ width: colWidth(cols, i) }} />)}</colgroup>;
+const Cols = memo(function Cols({ cols, phone }: { cols: { key: string; label: string }[]; phone: number }) {
+  return <colgroup><col style={{ width: symbolWidth(phone) }} />{cols.map((c, i) => <col key={c.key} style={{ width: colWidth(cols, i, phone) }} />)}</colgroup>;
 });
 
 // The header table, a child of its own so a scroll of the rows does not draw it again: its props stay the same until the
 // columns (new with the language too), the sort, the filters or the counts change
-const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
+const PositionsHead = memo(function PositionsHead({ cols, control, tableWidth, phone, shown, total, on, showCols, colsButton, onCols }: { cols: Col[]; control: TableControl; tableWidth: number; phone: number; shown: number; total: number; on: number; showCols: boolean; colsButton: React.RefObject<HTMLButtonElement | null>; onCols: (open: boolean) => void }) {
   const head: HeadColumn[] = [{ key: SYMBOL, label: t('Symbol'), wrap: true }];
   cols.forEach((c) => head.push({ key: c.key, label: c.label, hint: c.hint }));
   return (
-    <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-      <Cols cols={cols} />
+    <table className={`pos-table border-separate border-spacing-0 text-sm ${phone ? 'compact' : ''}`} style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+      <Cols cols={cols} phone={phone} />
       {/* the Symbol filter is the search by symbol or name (owner 2026-11-24), the number of positions sits inside it on
           the right and follows the filters; the columns icon stands before the Symbol name (Clear Filters floats above the
           table, it belongs to every column) */}
@@ -253,7 +261,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       const secs = shown.filter((p) => p.account === a.number);
       // an account with no row left by the filters is not shown
       if (filtered && !secs.length) return;
-      out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></td> });
+      out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}>{/* the name stays in view while the row scrolls sideways */}<span className="acct-name"><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></span></td> });
       block(a.number, own, secs);
       if (!filtered) out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
     });
@@ -314,12 +322,17 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
   // height is the room between its top and the footer, measured again on a resize
   const [fill, setFill] = useState<number | null>(null);
+  // a phone gets the compact table: a narrow Symbol column and four columns across the box (app/fit.ts)
+  const isPhone = useMedia(PHONE_QUERY);
+  const [boxWidth, setBoxWidth] = useState(0);
+  const phone = isPhone ? phoneColumnWidth(boxWidth || 340) : 0;
   useEffect(() => {
     const el = wrap.current;
     if (!el) return undefined;
     const measure = () => {
       const foot = document.querySelector('footer')?.getBoundingClientRect().top ?? window.innerHeight;
       setFill(Math.max(240, Math.floor(foot - el.getBoundingClientRect().top)));
+      setBoxWidth(el.clientWidth);
     };
     measure();
     window.addEventListener('resize', measure);
@@ -331,7 +344,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   const last = Math.min(lines.length, win.end);
   const total = useMemo(() => securities(rows).length, [rows]);
   const on = activeFilters(filters);
-  const tableWidth = useMemo(() => SYMBOL_W + EDGE + cols.reduce((sum, _c, i) => sum + colWidth(cols, i), 0), [cols]);
+  const tableWidth = useMemo(() => symbolWidth(phone) + cols.reduce((sum, _c, i) => sum + colWidth(cols, i, phone), 0), [cols, phone]);
 
   return (
     <div className="relative flex min-h-0 flex-col gap-3" data-positions>
@@ -352,11 +365,11 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       <div ref={wrap} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700" style={{ height: fill ?? '70vh' }} data-positions-box>
         {/* head-scroll: clipped with a mouse, a sideways swipe scrolls it on a touch screen (index.css) */}
         <div ref={headBox} className="head-scroll flex-none bg-white [scrollbar-gutter:stable] dark:bg-[#0f172a]" data-positions-head>
-          <PositionsHead cols={cols} control={control} tableWidth={tableWidth} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />
+          <PositionsHead cols={cols} control={control} tableWidth={tableWidth} phone={phone} shown={shown.length} total={total} on={on} showCols={showCols} colsButton={colsButton} onCols={setShowCols} />
         </div>
       <div ref={box} className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]" data-rows={lines.length} data-drawn={last - first}>
-        <table className="pos-table border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
-          <Cols cols={cols} />
+        <table className={`pos-table border-separate border-spacing-0 text-sm ${phone ? 'compact' : ''}`} style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+          <Cols cols={cols} phone={phone} />
           <tbody>
             {first > 0 && <tr aria-hidden="true" className="pos-spacer" style={{ height: first * ROW }}><td colSpan={cols.length + 1} /></tr>}
             {lines.slice(first, last).map((l) => <tr key={l.key} className={l.cls} style={{ height: ROW }}>{l.cells()}</tr>)}

@@ -132,6 +132,23 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .pos-table tr>th:first-child,.pos-table tr>td:first-child{padding-left:1.5rem}
 .pos-table tr>th:last-child,.pos-table tr>td:last-child{padding-right:1.5rem}
 .pos-table tr.pos-spacer td{padding:0;border:0}
+/* an account's name stays at the left edge while its row scrolls sideways (the cell spans the whole table) */
+.pos-table .acct-name{position:sticky;left:1.5rem;display:inline-block}
+/* a clipping cell would be the box the name sticks in: this one must not clip */
+.pos-table tr.acct-row td{overflow:visible}
+/* a phone (owner 2026-11-27: little fitted the screen): smaller type, tighter cells, the edge cells 12 px from the
+   box, names in the head may wrap and carry no type badge, so the Symbol column and four columns fill the screen
+   (the widths: app/fit.ts phoneColumnWidth). The filter inputs keep 16 px: a smaller one makes iOS zoom the page */
+.pos-table.compact td{font-size:.6875rem;padding:.4rem .1875rem}
+.pos-table.compact th{font-size:.625rem;padding:.375rem .1875rem .25rem;white-space:normal}
+.pos-table.compact tr[data-filter-row] th{padding:0 .125rem .375rem}
+.pos-table.compact tr>th:first-child,.pos-table.compact tr>td:first-child{padding-left:.75rem}
+.pos-table.compact tr>th:last-child,.pos-table.compact tr>td:last-child{padding-right:.4375rem}
+.pos-table.compact [data-type-badge]{display:none}
+.pos-table.compact td:first-child .font-semibold{font-size:.75rem}
+.pos-table.compact td:first-child .text-xs{font-size:.625rem}
+.pos-table.compact .acct-name{left:.75rem}
+.pos-table.compact tr[data-filter-row] input{padding-left:.25rem}
 .cell-scroll{overflow-x:auto;white-space:nowrap;scrollbar-width:none;overscroll-behavior-x:contain}
 .cell-scroll::-webkit-scrollbar{display:none}
 .cell-scroll.more{mask-image:linear-gradient(to right,#000 calc(100% - 1.5rem),transparent);-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 1.5rem),transparent)}
@@ -143,7 +160,9 @@ details.setup[open] > summary .chev{transform:rotate(90deg)}
 .dark .pos-table td{border-color:#1e293b}
 .dark .pos-table tr{background:#0f172a}
 .dark .pos-table tr.acct-row{background:#1e293b}
-.dark .pos-table tr.cash-row{background:rgba(234,179,8,.08)}
+/* a solid color (the old 8% yellow over the row color): the pinned first cell must hide the numbers that scroll under
+   it, as on every other row (owner 2026-11-27) */
+.dark .pos-table tr.cash-row{background:#212427}
 .dark .pos-table tr.total-row{background:#172033}
 
 /* accounts bar folds (owner 2026-11-24: slide left into the group and right out of it, no jumps): the width goes
