@@ -363,6 +363,7 @@ export class SheetsClient {
 }
 
 function dedupe<T>(spec: TabSpec<T>, records: T[]): T[] {
+  if (spec.repeats) return records;
   const last = new Map<string, number>();
   records.forEach((r, i) => last.set(spec.idOf(r), i));
   return records.filter((r, i) => last.get(spec.idOf(r)) === i);
