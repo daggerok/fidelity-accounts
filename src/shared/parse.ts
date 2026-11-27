@@ -4,6 +4,7 @@
 // - grid rows: the raw objects of the positions grid (rowType ACCOUNT, POSITION, POSITION_CORE, PENDING,
 //   ACCOUNT_TOTAL, SPACER, GRAND_TOTAL). Values come as { val, disp }: percents are in percent units (4.06 = 4.06%),
 //   money in dollars, dates as epoch seconds with disp "Dec-12-2026" (the disp is used, so no time zone shift)
+import { snakeCase } from './snake';
 import { DATASET_VERSION, type Account, type Dataset, type Position, type PositionKind } from './model';
 
 export interface SidebarAccount {
@@ -51,12 +52,12 @@ function cellValue(c: Record<string, unknown>): string | number | boolean | unde
 // keys that are page actions or presentation only, not data
 const SKIP = new Set(['tradActns', 'acctActns', 'occUrl', 'contractRangeVisual', 'rowId']);
 
-/** Every field of a grid row as flat snake-free keys: fifTwo.low -> fifTwo_low, sym.desc -> sym_desc, meta.* -> meta_* */
+/** Every field of a grid row as flat snake_case keys: fifTwo.low -> fif_two_low, sym.desc -> sym_desc, todGLPct -> tod_gl_pct */
 export function flatten(row: GridRow, prefix = '', out: Record<string, string | number | boolean> = {}, depth = 0): Record<string, string | number | boolean> {
   Object.keys(row).forEach((k) => {
     if (SKIP.has(k)) return;
     const v = row[k];
-    const key = prefix ? `${prefix}_${k}` : k;
+    const key = prefix ? `${prefix}_${snakeCase(k)}` : snakeCase(k);
     if (v === null || v === undefined) return;
     if (Array.isArray(v)) { if (v.length) out[key] = JSON.stringify(v).slice(0, 2000); return; }
     if (isObj(v)) {
@@ -96,35 +97,35 @@ export function positionOf(row: GridRow): Position | null {
     account,
     kind,
     symbol,
-    description: str(f, 'sym_desc') ?? str(f, 'meta_headerDescription') ?? '',
+    description: str(f, 'sym_desc') ?? str(f, 'meta_header_description') ?? '',
     cusip: str(f, 'sym_cusip'),
-    securityType: str(f, 'meta_securityType'),
-    securitySubType: str(f, 'meta_securitySubType'),
+    securityType: str(f, 'meta_security_type'),
+    securitySubType: str(f, 'meta_security_sub_type'),
     quantity: num(f, 'qty'),
-    lastPrice: num(f, 'lstPrc'),
-    lastPriceChange: num(f, 'lstPrChg'),
-    lastPriceChangePct: num(f, 'lstPrChgPct'),
-    currentValue: num(f, 'curVal'),
-    todayGl: num(f, 'todGL'),
-    todayGlPct: num(f, 'todGLPct'),
-    totalGl: num(f, 'totGL'),
-    totalGlPct: num(f, 'totGLPct'),
-    costBasisTotal: num(f, 'cstBasTot'),
-    costBasisPerShare: num(f, 'cstBasShr'),
-    percentOfAccount: num(f, 'actPer'),
-    distRate: num(f, 'distYld'),
-    secYield: num(f, 'secYld'),
-    estAnnualIncome: num(f, 'estAnuInc'),
-    dividendAmount: num(f, 'dvAmt'),
-    paymentFrequency: str(f, 'dividendFrequency'),
-    exDate: isoDate(str(f, 'exDvDte')) ?? (/^\d{4}-\d\d-\d\d$/.test(str(f, 'exDvDte') ?? '') ? str(f, 'exDvDte') : undefined),
-    payDate: /^\d{4}-\d\d-\d\d$/.test(str(f, 'pyDte') ?? '') ? str(f, 'pyDte') : undefined,
-    marketCap: num(f, 'marketCap'),
-    marketCapText: str(f, 'marketCap_text'),
+    lastPrice: num(f, 'lst_prc'),
+    lastPriceChange: num(f, 'lst_pr_chg'),
+    lastPriceChangePct: num(f, 'lst_pr_chg_pct'),
+    currentValue: num(f, 'cur_val'),
+    todayGl: num(f, 'tod_gl'),
+    todayGlPct: num(f, 'tod_gl_pct'),
+    totalGl: num(f, 'tot_gl'),
+    totalGlPct: num(f, 'tot_gl_pct'),
+    costBasisTotal: num(f, 'cst_bas_tot'),
+    costBasisPerShare: num(f, 'cst_bas_shr'),
+    percentOfAccount: num(f, 'act_per'),
+    distRate: num(f, 'dist_yld'),
+    secYield: num(f, 'sec_yld'),
+    estAnnualIncome: num(f, 'est_anu_inc'),
+    dividendAmount: num(f, 'dv_amt'),
+    paymentFrequency: str(f, 'dividend_frequency'),
+    exDate: isoDate(str(f, 'ex_dv_dte')) ?? (/^\d{4}-\d\d-\d\d$/.test(str(f, 'ex_dv_dte') ?? '') ? str(f, 'ex_dv_dte') : undefined),
+    payDate: /^\d{4}-\d\d-\d\d$/.test(str(f, 'py_dte') ?? '') ? str(f, 'py_dte') : undefined,
+    marketCap: num(f, 'market_cap'),
+    marketCapText: str(f, 'market_cap_text'),
     sector: str(f, 'sector'),
     industry: str(f, 'industry'),
-    low52: num(f, 'fifTwo_low'),
-    high52: num(f, 'fifTwo_high'),
+    low52: num(f, 'fif_two_low'),
+    high52: num(f, 'fif_two_high'),
     fields: f,
   };
 }
@@ -151,13 +152,13 @@ export function buildDataset(input: { rows: GridRow[]; sidebar: SidebarAccount[]
       const a = accounts.get(number) ?? { number, name: String(row.actNam ?? number), group: 'Other', asOf: input.builtAt };
       accounts.set(number, {
         ...a,
-        balance: num(f, 'curVal') ?? a.balance,
-        todayGl: num(f, 'todGL') ?? a.todayGl,
-        todayGlPct: num(f, 'todGLPct') ?? a.todayGlPct,
-        totalGl: num(f, 'totGL'),
-        totalGlPct: num(f, 'totGLPct'),
-        costBasis: num(f, 'cstBasTot'),
-        estAnnualIncome: num(f, 'estAnuInc'),
+        balance: num(f, 'cur_val') ?? a.balance,
+        todayGl: num(f, 'tod_gl') ?? a.todayGl,
+        todayGlPct: num(f, 'tod_gl_pct') ?? a.todayGlPct,
+        totalGl: num(f, 'tot_gl'),
+        totalGlPct: num(f, 'tot_gl_pct'),
+        costBasis: num(f, 'cst_bas_tot'),
+        estAnnualIncome: num(f, 'est_anu_inc'),
       });
     } else {
       const p = positionOf(row);

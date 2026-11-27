@@ -16,14 +16,14 @@ const pos = (account: string, symbol: string, extra: Partial<Position> = {}): Po
 
 const XYZ = [
   pos('T0000001', 'XYZ', { quantity: 10, lastPrice: 100, currentValue: 1000, todayGl: 20, todayGlPct: 2.04, totalGl: 200, totalGlPct: 25, costBasisTotal: 800, costBasisPerShare: 80, percentOfAccount: 10, estAnnualIncome: 30, distRate: 3,
-    fields: { qty: 10, curVal: 1000, todGL: 20, cstBasShr: 80, actPer: 10, meta_acctType: 'Brokerage', meta_cstbasType: 'FIFO', meta_holdingType: 'Cash', volume: 1000, actNum: 'T0000001', note: 'same' } }),
+    fields: { qty: 10, cur_val: 1000, tod_gl: 20, cst_bas_shr: 80, act_per: 10, meta_acct_type: 'Brokerage', meta_cstbas_type: 'FIFO', meta_holding_type: 'Cash', volume: 1000, act_num: 'T0000001', note: 'same' } }),
   pos('T0000002', 'XYZ', { quantity: 20, lastPrice: 100.5, currentValue: 2000, todayGl: 40, totalGl: -200, costBasisTotal: 2200, percentOfAccount: 10, estAnnualIncome: 60, sector: 'Energy', distRate: 3.1,
-    fields: { qty: 20, curVal: 2000, todGL: 40, cstBasShr: 110, actPer: 10, meta_acctType: 'ROTH IRA', meta_cstbasType: 'FIFO', meta_holdingType: 'Margin', volume: 1001, actNum: 'T0000002', note: 'same' } }),
+    fields: { qty: 20, cur_val: 2000, tod_gl: 40, cst_bas_shr: 110, act_per: 10, meta_acct_type: 'ROTH IRA', meta_cstbas_type: 'FIFO', meta_holding_type: 'Margin', volume: 1001, act_num: 'T0000002', note: 'same' } }),
   // no today's $ in this account (as Fidelity shows -- for it)
   pos('T0000003', 'XYZ', { quantity: 5, lastPrice: 100, currentValue: 500, totalGl: 100, costBasisTotal: 400, percentOfAccount: 5, estAnnualIncome: 15, sector: 'Utilities',
-    fields: { qty: 5, curVal: 500, cstBasShr: 80, actPer: 5, meta_acctType: 'Brokerage', meta_cstbasType: 'FIFO', meta_holdingType: 'Cash', actNum: 'T0000003', note: 'same' } }),
+    fields: { qty: 5, cur_val: 500, cst_bas_shr: 80, act_per: 5, meta_acct_type: 'Brokerage', meta_cstbas_type: 'FIFO', meta_holding_type: 'Cash', act_num: 'T0000003', note: 'same' } }),
 ];
-const ONE = pos('T0000002', 'ONE', { quantity: 4, lastPrice: 500, currentValue: 2000, todayGl: 30, todayGlPct: 1.52, totalGl: 400, totalGlPct: 25, costBasisTotal: 1600, costBasisPerShare: 400, percentOfAccount: 10, fields: { qty: 4, curVal: 2000, actPer: 10 } });
+const ONE = pos('T0000002', 'ONE', { quantity: 4, lastPrice: 500, currentValue: 2000, todayGl: 30, todayGlPct: 1.52, totalGl: 400, totalGlPct: 25, costBasisTotal: 1600, costBasisPerShare: 400, percentOfAccount: 10, fields: { qty: 4, cur_val: 2000, act_per: 10 } });
 const CASH = [pos('T0000001', 'SPAXX', { kind: 'core', currentValue: 300, secYield: 3.5 }), pos('T0000002', 'SPAXX', { kind: 'core', currentValue: 700, secYield: 3.5 })];
 const PENDING = [pos('T0000001', 'Pending activity', { kind: 'pending', currentValue: -16 }), pos('T0000003', 'Pending activity', { kind: 'pending', currentValue: -4 })];
 const ZERO = [pos('T0000001', 'ZERO', { quantity: 1, currentValue: 50, totalGl: 50, costBasisTotal: 0 }), pos('T0000003', 'ZERO', { quantity: 1, currentValue: 50, costBasisTotal: 0 })];
@@ -61,9 +61,9 @@ test('static fields take the first value given, also when the accounts differ', 
 
 test('the fields JSON: raw sums and percents follow the merged values, static first, agree or nothing, blank goes', () => {
   const f = line('XYZ').fields;
-  expect([f.qty, f.curVal, f.todGL, f.cstBasShr, f.actPer]).toEqual([35, 3500, 60, 97.142857, 8.75]);
+  expect([f.qty, f.cur_val, f.tod_gl, f.cst_bas_shr, f.act_per]).toEqual([35, 3500, 60, 97.142857, 8.75]);
   expect(f.volume).toBe(1000); // static: the first
-  expect(f.meta_cstbasType).toBe('FIFO'); // agree: all FIFO
+  expect(f.meta_cstbas_type).toBe('FIFO'); // agree: all FIFO
   expect('meta_holdingType' in f).toBe(false); // agree: Cash and Margin differ
   expect('meta_acctType' in f).toBe(false); // blank
   expect('actNum' in f).toBe(false); // a field no column shows: only when every account agrees
@@ -77,7 +77,7 @@ test('the fields JSON: raw sums and percents follow the merged values, static fi
 test('a ticker of one account keeps its row; only % of account is worked out over all the shown accounts', () => {
   const o = line('ONE');
   const { percentOfAccount, fields, ...rest } = ONE;
-  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, actPer: 5 }, accounts: ['T0000002'], drip: null, dripAdjUsd: null });
+  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, act_per: 5 }, accounts: ['T0000002'], drip: null, dripAdjUsd: null });
   expect(o.todayGlPct).toBe(1.52); // Fidelity's own, not worked out again
 });
 
@@ -141,18 +141,18 @@ test('Adj. DRIP $ of a merged line: the order of each account is brought up to o
 });
 
 test('shares on loan: yes when on loan in any account (owner: "loaned should show yes if loaned in any account")', () => {
-  const l = (account: string, isLoaned?: boolean) => pos(account, 'LND', { quantity: 1, fields: isLoaned === undefined ? {} : { isLoaned } });
+  const l = (account: string, isLoaned?: boolean) => pos(account, 'LND', { quantity: 1, fields: isLoaned === undefined ? {} : { is_loaned: isLoaned } });
   const merge = (...ps: Position[]) => mergePositions(ps, ACCOUNTS)[0]!;
   const loaned = (p: Position) => positionColumn('loaned').text(p);
   expect(loaned(merge(l('T0000001', false), l('T0000002', true), l('T0000003', false)))).toBe('✓');
   // none on loan: as one account shows it
   const none = merge(l('T0000001', false), l('T0000002', false), l('T0000003', false));
-  expect(none.fields.isLoaned).toBe(false);
+  expect(none.fields.is_loaned).toBe(false);
   expect(loaned(none)).toBe(loaned(l('T0000001', false)));
   // a missing value in one account does not turn a yes into empty
   expect(loaned(merge(l('T0000001'), l('T0000002', true)))).toBe('✓');
-  expect('isLoaned' in merge(l('T0000001'), l('T0000002')).fields).toBe(false);
-  expect(fieldMerge('isLoaned')).toBe('any');
+  expect('is_loaned' in merge(l('T0000001'), l('T0000002')).fields).toBe(false);
+  expect(fieldMerge('is_loaned')).toBe('any');
 });
 
 test('every model field and every Fidelity column has a merge kind, and the raw fields agree with their properties', () => {
@@ -166,7 +166,7 @@ test('every model field and every Fidelity column has a merge kind, and the raw 
     if (c.merge === 'recomputed') expect(RAW_OF[c.field]).toBeDefined();
     if (RAW_OF[c.field]) expect(c.merge).toBe(PROPERTY_MERGE[RAW_OF[c.field]!]);
   });
-  expect(FIELD_MERGE.dayRange_low).toBe('static');
+  expect(FIELD_MERGE.day_range_low).toBe('static');
   expect(fieldMerge('somethingNew')).toBe('agree');
 });
 

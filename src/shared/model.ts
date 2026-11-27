@@ -3,6 +3,7 @@
 // the account list on the left (groups, names, balances) and the rows of its positions grid (ag-grid), whose raw
 // objects carry about 100 fields each, mostly as { val, disp }. Nothing is computed by Fidelity for us twice:
 // money stays in dollars as numbers (the site gives them so), dates as ISO text
+import { snakeCase, snakeKeys } from './snake';
 import { cleanBetas, type Betas } from './beta';
 import { mergeHistory, type History } from './history';
 
@@ -82,13 +83,17 @@ export interface Dataset {
 
 export const emptyDataset = (builtAt: string): Dataset => ({ version: DATASET_VERSION, builtAt, asOf: null, accounts: [], positions: [], warnings: [] });
 
+// every field name in snake_case: a copy stored or written to the sheet before that naming (todGLPct, fifTwo_low) reads
+// like a new one, so nothing has to be read again from Fidelity for the columns to show
+const snakeFields = (p: Position): Position => (p && p.fields && typeof p.fields === 'object' && Object.keys(p.fields).some((k) => k !== snakeCase(k)) ? { ...p, fields: snakeKeys(p.fields) } : p);
+
 // a stored or received copy; anything else (older layout, junk) is refused
 export function parseDataset(json: string): Dataset | null {
   try {
     const d = JSON.parse(json) as Partial<Dataset>;
     if (!d || d.version !== DATASET_VERSION || typeof d.builtAt !== 'string') return null;
     const history = d.history && typeof d.history === 'object' && !Array.isArray(d.history) ? d.history : undefined;
-    return { version: d.version, builtAt: d.builtAt, asOf: d.asOf ?? null, accounts: Array.isArray(d.accounts) ? d.accounts : [], positions: Array.isArray(d.positions) ? d.positions : [], warnings: Array.isArray(d.warnings) ? d.warnings : [], history, historyAt: typeof d.historyAt === 'string' ? d.historyAt : undefined, betas: cleanBetas(d.betas), betasAt: typeof d.betasAt === 'string' ? d.betasAt : undefined };
+    return { version: d.version, builtAt: d.builtAt, asOf: d.asOf ?? null, accounts: Array.isArray(d.accounts) ? d.accounts : [], positions: Array.isArray(d.positions) ? d.positions.map(snakeFields) : [], warnings: Array.isArray(d.warnings) ? d.warnings : [], history, historyAt: typeof d.historyAt === 'string' ? d.historyAt : undefined, betas: cleanBetas(d.betas), betasAt: typeof d.betasAt === 'string' ? d.betasAt : undefined };
   } catch {
     return null;
   }
