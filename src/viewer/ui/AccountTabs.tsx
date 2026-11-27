@@ -95,7 +95,7 @@ export function AccountTabs({ ds, scope, collapsed, className, onScope, onFold, 
           onScope(scopeOf(ds, inGroup === g.accounts.length ? others : others.concat(g.accounts.map((a) => a.number))));
         };
         return (
-          <div key={g.name} className={`flex flex-none items-center border-l border-slate-200 pl-1.5 dark:border-slate-700 ${overGroup === g.name ? 'rounded-lg outline-2 outline-dashed outline-[var(--brand)]' : ''} ${draggedGroup === g.name ? 'opacity-50' : ''}`}
+          <div key={g.name} className={`flex flex-none items-center pl-1.5 ${overGroup === g.name ? 'rounded-lg outline-2 outline-dashed outline-[var(--brand)]' : ''} ${draggedGroup === g.name ? 'opacity-50' : ''}`}
             onDragOver={(e) => { if (draggedGroup && draggedGroup !== g.name) { e.preventDefault(); setOverGroup(g.name); } }}
             onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverGroup((o) => (o === g.name ? null : o)); }}
             onDrop={(e) => { if (draggedGroup && draggedGroup !== g.name) { e.preventDefault(); onMoveGroup(draggedGroup, g.name); } setDraggedGroup(null); setOverGroup(null); }}>
