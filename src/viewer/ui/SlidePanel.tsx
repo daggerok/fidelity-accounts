@@ -11,7 +11,8 @@ export function SlidePanel({ open, title, onClose, id, children, tools }: { open
     <div id={id} className={`slide-wrap shrink-0 ${open ? 'open' : ''}`} inert={!open}>
       <div className="slide-inner">
         <div className="pt-4 lg:pt-6">
-        <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        {/* the look of the navbar and the tabs panel it sits between (owner 2026-11-27): the same background, border and corner */}
+        <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           <div className="panel-head">
             <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
               <h2 className="text-sm font-semibold">{title}</h2>
@@ -19,7 +20,7 @@ export function SlidePanel({ open, title, onClose, id, children, tools }: { open
             </div>
             <button type="button" className="tb self-start" title={t('Close')} aria-label={t('Close')} onClick={onClose}>✕</button>
           </div>
-          <div className="p-4">{children}</div>
+          <div className="px-6 py-4">{children}</div>
         </section>
         </div>
       </div>
