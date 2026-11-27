@@ -4,7 +4,7 @@
 // - grid rows: the raw objects of the positions grid (rowType ACCOUNT, POSITION, POSITION_CORE, PENDING,
 //   ACCOUNT_TOTAL, SPACER, GRAND_TOTAL). Values come as { val, disp }: percents are in percent units (4.06 = 4.06%),
 //   money in dollars, dates as epoch seconds with disp "Dec-12-2026" (the disp is used, so no time zone shift)
-import { snakeCase } from './snake';
+import { readableKeys, snakeCase } from './snake';
 import { DATASET_VERSION, type Account, type Dataset, type Position, type PositionKind } from './model';
 
 export interface SidebarAccount {
@@ -52,8 +52,8 @@ function cellValue(c: Record<string, unknown>): string | number | boolean | unde
 // keys that are page actions or presentation only, not data
 const SKIP = new Set(['tradActns', 'acctActns', 'occUrl', 'contractRangeVisual', 'rowId']);
 
-/** Every field of a grid row as flat snake_case keys: fifTwo.low -> fif_two_low, sym.desc -> sym_desc, todGLPct -> tod_gl_pct */
-export function flatten(row: GridRow, prefix = '', out: Record<string, string | number | boolean> = {}, depth = 0): Record<string, string | number | boolean> {
+// every field of a grid row as flat keys in Fidelity's own words, snake_case: fifTwo.low -> fif_two_low
+function flattenRaw(row: GridRow, prefix = '', out: Record<string, string | number | boolean> = {}, depth = 0): Record<string, string | number | boolean> {
   Object.keys(row).forEach((k) => {
     if (SKIP.has(k)) return;
     const v = row[k];
@@ -73,7 +73,7 @@ export function flatten(row: GridRow, prefix = '', out: Record<string, string | 
         }
         return;
       }
-      if (depth < 3) flatten(v, key, out, depth + 1);
+      if (depth < 3) flattenRaw(v, key, out, depth + 1);
       return;
     }
     if (typeof v === 'string') { if (!EMPTY.has(v.trim())) out[key] = v.trim(); return; }
@@ -81,6 +81,9 @@ export function flatten(row: GridRow, prefix = '', out: Record<string, string | 
   });
   return out;
 }
+
+/** Every field of a grid row under its readable name (shared/snake.ts): lstPrc -> last_price, fifTwo.low -> week_52_low */
+export const flatten = (row: GridRow): Record<string, string | number | boolean> => readableKeys(flattenRaw(row));
 
 const num = (f: Record<string, unknown>, k: string): number | undefined => (typeof f[k] === 'number' ? (f[k] as number) : money(f[k]));
 const str = (f: Record<string, unknown>, k: string): string | undefined => (f[k] === undefined ? undefined : String(f[k]));
@@ -92,40 +95,40 @@ export function positionOf(row: GridRow): Position | null {
   const account = typeof row.actNum === 'string' ? row.actNum : '';
   if (!kind || !account) return null;
   const f = flatten(row);
-  const symbol = (str(f, 'sym_name') ?? (kind === 'pending' ? 'Pending activity' : '')).replace(/\*+$/, '');
+  const symbol = (str(f, 'symbol_name') ?? (kind === 'pending' ? 'Pending activity' : '')).replace(/\*+$/, '');
   return {
     account,
     kind,
     symbol,
-    description: str(f, 'sym_desc') ?? str(f, 'meta_header_description') ?? '',
-    cusip: str(f, 'sym_cusip'),
+    description: str(f, 'symbol_description') ?? str(f, 'meta_header_description') ?? '',
+    cusip: str(f, 'symbol_cusip'),
     securityType: str(f, 'meta_security_type'),
     securitySubType: str(f, 'meta_security_sub_type'),
-    quantity: num(f, 'qty'),
-    lastPrice: num(f, 'lst_prc'),
-    lastPriceChange: num(f, 'lst_pr_chg'),
-    lastPriceChangePct: num(f, 'lst_pr_chg_pct'),
-    currentValue: num(f, 'cur_val'),
-    todayGl: num(f, 'tod_gl'),
-    todayGlPct: num(f, 'tod_gl_pct'),
-    totalGl: num(f, 'tot_gl'),
-    totalGlPct: num(f, 'tot_gl_pct'),
-    costBasisTotal: num(f, 'cst_bas_tot'),
-    costBasisPerShare: num(f, 'cst_bas_shr'),
-    percentOfAccount: num(f, 'act_per'),
-    distRate: num(f, 'dist_yld'),
-    secYield: num(f, 'sec_yld'),
-    estAnnualIncome: num(f, 'est_anu_inc'),
-    dividendAmount: num(f, 'dv_amt'),
+    quantity: num(f, 'quantity'),
+    lastPrice: num(f, 'last_price'),
+    lastPriceChange: num(f, 'last_price_change'),
+    lastPriceChangePct: num(f, 'last_price_change_pct'),
+    currentValue: num(f, 'current_value'),
+    todayGl: num(f, 'today_gl'),
+    todayGlPct: num(f, 'today_gl_pct'),
+    totalGl: num(f, 'total_gl'),
+    totalGlPct: num(f, 'total_gl_pct'),
+    costBasisTotal: num(f, 'cost_basis_total'),
+    costBasisPerShare: num(f, 'cost_basis_per_share'),
+    percentOfAccount: num(f, 'percent_of_account'),
+    distRate: num(f, 'distribution_yield'),
+    secYield: num(f, 'sec_yield'),
+    estAnnualIncome: num(f, 'est_annual_income'),
+    dividendAmount: num(f, 'dividend_amount'),
     paymentFrequency: str(f, 'dividend_frequency'),
-    exDate: isoDate(str(f, 'ex_dv_dte')) ?? (/^\d{4}-\d\d-\d\d$/.test(str(f, 'ex_dv_dte') ?? '') ? str(f, 'ex_dv_dte') : undefined),
-    payDate: /^\d{4}-\d\d-\d\d$/.test(str(f, 'py_dte') ?? '') ? str(f, 'py_dte') : undefined,
+    exDate: isoDate(str(f, 'ex_date')) ?? (/^\d{4}-\d\d-\d\d$/.test(str(f, 'ex_date') ?? '') ? str(f, 'ex_date') : undefined),
+    payDate: /^\d{4}-\d\d-\d\d$/.test(str(f, 'pay_date') ?? '') ? str(f, 'pay_date') : undefined,
     marketCap: num(f, 'market_cap'),
     marketCapText: str(f, 'market_cap_text'),
     sector: str(f, 'sector'),
     industry: str(f, 'industry'),
-    low52: num(f, 'fif_two_low'),
-    high52: num(f, 'fif_two_high'),
+    low52: num(f, 'week_52_low'),
+    high52: num(f, 'week_52_high'),
     fields: f,
   };
 }
@@ -152,13 +155,13 @@ export function buildDataset(input: { rows: GridRow[]; sidebar: SidebarAccount[]
       const a = accounts.get(number) ?? { number, name: String(row.actNam ?? number), group: 'Other', asOf: input.builtAt };
       accounts.set(number, {
         ...a,
-        balance: num(f, 'cur_val') ?? a.balance,
-        todayGl: num(f, 'tod_gl') ?? a.todayGl,
-        todayGlPct: num(f, 'tod_gl_pct') ?? a.todayGlPct,
-        totalGl: num(f, 'tot_gl'),
-        totalGlPct: num(f, 'tot_gl_pct'),
-        costBasis: num(f, 'cst_bas_tot'),
-        estAnnualIncome: num(f, 'est_anu_inc'),
+        balance: num(f, 'current_value') ?? a.balance,
+        todayGl: num(f, 'today_gl') ?? a.todayGl,
+        todayGlPct: num(f, 'today_gl_pct') ?? a.todayGlPct,
+        totalGl: num(f, 'total_gl'),
+        totalGlPct: num(f, 'total_gl_pct'),
+        costBasis: num(f, 'cost_basis_total'),
+        estAnnualIncome: num(f, 'est_annual_income'),
       });
     } else {
       const p = positionOf(row);

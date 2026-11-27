@@ -44,8 +44,8 @@ export const PROPERTY_MERGE: { [K in Prop]-?: MergeKind } = {
 
 /** the raw grid fields behind the summed and recomputed properties (shared/parse.ts) */
 export const RAW_OF: Record<string, Prop> = {
-  qty: 'quantity', cur_val: 'currentValue', tod_gl: 'todayGl', tod_gl_pct: 'todayGlPct', tot_gl: 'totalGl', tot_gl_pct: 'totalGlPct',
-  cst_bas_tot: 'costBasisTotal', cst_bas_shr: 'costBasisPerShare', act_per: 'percentOfAccount', est_anu_inc: 'estAnnualIncome',
+  quantity: 'quantity', current_value: 'currentValue', today_gl: 'todayGl', today_gl_pct: 'todayGlPct', total_gl: 'totalGl', total_gl_pct: 'totalGlPct',
+  cost_basis_total: 'costBasisTotal', cost_basis_per_share: 'costBasisPerShare', percent_of_account: 'percentOfAccount', est_annual_income: 'estAnnualIncome',
 };
 // fields the Positions cells read besides the columns' own (position-columns.ts): the day's range and the news headline
 const HELPER_FIELDS: Record<string, MergeKind> = { day_range_low: 'static', day_range_high: 'static', text: 'static' };
@@ -101,7 +101,7 @@ function mergeGroup(rows: Position[], base: number): MergedPosition {
     const p = rows[0]!;
     const pct = percentOfAccount(p.currentValue);
     const fields = { ...p.fields };
-    if (pct === undefined) delete fields.act_per; else if ('act_per' in fields) fields.act_per = pct;
+    if (pct === undefined) delete fields.percent_of_account; else if ('percent_of_account' in fields) fields.percent_of_account = pct;
     const d = dripGap(p);
     const own: MergedPosition = { ...p, percentOfAccount: pct, fields, accounts, drip: d, dripAdjUsd: d ? adjustedBuy(d.usd) : null };
     if (pct === undefined) delete own.percentOfAccount;

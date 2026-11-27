@@ -17,16 +17,16 @@ test('dates and money as the site shows them', () => {
 
 test('flatten keeps every field: dates as ISO, numbers as numbers, words for codes, numbers with words twice', () => {
   const f = flatten(ROWS[2]!);
-  expect(f.ex_dv_dte).toBe('2026-12-12');
-  expect(f.qty).toBe(2.5);
+  expect(f.ex_date).toBe('2026-12-12');
+  expect(f.quantity).toBe(2.5);
   expect(f.dividend_frequency).toBe('Quarterly');
   expect(f.market_cap).toBe(234930000000);
   expect(f.market_cap_text).toBe('Large cap ($234.93B)');
-  expect(f.fif_two_low).toBe(300);
-  expect(f.sym_desc).toBe('ALPHA DEMO CORP');
+  expect(f.week_52_low).toBe(300);
+  expect(f.symbol_description).toBe('ALPHA DEMO CORP');
   expect(f.meta_security_type).toBe('Equity');
-  expect(f.sec_yld).toBeUndefined(); // "--"
-  expect(f.mstar_rate).toBeUndefined();
+  expect(f.sec_yield).toBeUndefined(); // "--"
+  expect(f.morningstar_rate).toBeUndefined();
   expect(f.display_icons).toBe('[{"type":"E"}]');
   expect(Object.keys(f).some((k) => k.startsWith('tradActns'))).toBe(false);
 });

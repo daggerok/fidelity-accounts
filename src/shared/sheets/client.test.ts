@@ -195,14 +195,14 @@ describe('growing header (fidelity_positions_all)', () => {
   test('a new tab gets the first columns then the sorted keys; a later read appends new keys, never reorders', async () => {
     const fake = fakeSheets();
     const c = new SheetsClient({ fetch: fake.fetch, getToken: async () => 'tok', spreadsheetId: 'sheet' });
-    const h1 = await c.growTabHeader('fidelity_positions_all', ['as_of', 'qty', 'act_num', 'lst_prc'], growHeader);
-    expect(h1).toEqual(['as_of', 'act_num', 'act_nam', 'row_type', 'sym_name', 'sym_desc', 'lst_prc', 'qty']);
-    await c.writeAll(wideSpec(h1), [{ as_of: 't', act_num: 'X1', row_type: 'POSITION', sym_name: 'AAA', qty: 2, lst_prc: 10 }]);
+    const h1 = await c.growTabHeader('fidelity_positions_all', ['as_of', 'quantity', 'account_number', 'last_price'], growHeader);
+    expect(h1).toEqual(['as_of', 'account_number', 'account_name', 'row_type', 'symbol_name', 'symbol_description', 'last_price', 'quantity']);
+    await c.writeAll(wideSpec(h1), [{ as_of: 't', account_number: 'X1', row_type: 'POSITION', symbol_name: 'AAA', quantity: 2, last_price: 10 }]);
     expect(fake.tabs.fidelity_positions_all.values[1]).toEqual(['t', 'X1', '', 'POSITION', 'AAA', '', 10, 2]);
-    const h2 = await c.growTabHeader('fidelity_positions_all', ['qty', 'beta', 'alpha'], growHeader);
+    const h2 = await c.growTabHeader('fidelity_positions_all', ['quantity', 'beta', 'alpha'], growHeader);
     expect(h2).toEqual(h1.concat(['alpha', 'beta']));
     expect(fake.tabs.fidelity_positions_all.values[0]).toEqual(h2);
-    await c.writeAll(wideSpec(h2), [{ act_num: 'X1', sym_name: 'AAA', alpha: 'a' }]);
+    await c.writeAll(wideSpec(h2), [{ account_number: 'X1', symbol_name: 'AAA', alpha: 'a' }]);
     expect(fake.tabs.fidelity_positions_all.values[1]![8]).toBe('a');
     expect(columnLetter(h2.length)).toBe('J');
   });
