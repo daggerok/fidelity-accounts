@@ -27,7 +27,7 @@ export function MenuButton({ label, title, items, active, onPick, name }: { labe
   return (
     <div ref={box} className="relative" onKeyDown={onKey} data-menu={name}>
       <button type="button" className={`btn sm ${active || open ? 'active' : ''}`} aria-haspopup="menu" aria-expanded={open} title={title} onClick={() => setOpen((v) => !v)}>
-        {label} <span className="text-[10px] opacity-70" aria-hidden="true">▾</span>
+        {label}
       </button>
       {open && (
         <div role="menu" className="absolute left-0 top-full z-30 mt-1 min-w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-600 dark:bg-slate-800">
