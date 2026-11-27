@@ -66,20 +66,24 @@ export function NotifyButton({ userscript }: { userscript: string | null }) {
 }
 
 /**
- * Merge next to the Positions tab (owner 2026-11-25: "near [Positions tab] we need to add a logo/ icon for merge"): the
- * Positions of several accounts as one line per ticker (app/merge.ts). Always there, so the tabs panel never moves; off
- * and dimmed while one account is shown. A click on Summary also opens Positions, where the result shows
+ * Merge before the word Positions (owner 2026-11-25: "near [Positions tab] we need to add a logo/ icon for merge";
+ * 2026-11-27: "merge logo before Positions word"): the Positions of several accounts as one line per ticker
+ * (app/merge.ts). Always there, so the tabs panel never moves; off and dimmed while one account is shown; dimmed on
+ * another tab, where a click opens Positions merged
  */
-export function MergeButton({ accounts }: { accounts: number }) {
+export function MergeButton({ accounts, className = '' }: { accounts: number; className?: string }) {
   const pr = useStore(prefs);
   useStore(lang);
   const several = accounts > 1;
   const on = mergeOn(pr.merge, accounts);
-  const text = !several ? t('Merge positions: choose more than one account first') : on
+  // it belongs to the Positions tab (owner 2026-11-27): on another tab it looks off, dimmed and never lit, yet a click
+  // there opens Positions merged
+  const here = pr.tab === 'positions';
+  const text = !several ? t('Merge positions: choose more than one account first') : !here ? t('Open Positions merged: one line per ticker over the shown accounts') : on
     ? t('Merged: one line per ticker over the shown accounts. Click to show each account apart')
     : t('Merge positions: one line per ticker over the shown accounts');
   return (
-    <button type="button" className={`tb ${on ? 'accent' : ''}`} data-merge={on ? 'on' : 'off'} disabled={!several} title={text} aria-label={text} aria-pressed={on} onClick={() => setPrefs(toggleMerge(prefs.get()))}>
+    <button type="button" className={`tb ${className} ${on && here ? 'accent' : ''} ${several && !here ? 'opacity-40' : ''}`} data-merge={on ? 'on' : 'off'} data-merge-here={here ? 'yes' : 'no'} disabled={!several} title={text} aria-label={text} aria-pressed={on && here} onClick={() => setPrefs(toggleMerge(prefs.get()))}>
       <MergeIcon />
     </button>
   );

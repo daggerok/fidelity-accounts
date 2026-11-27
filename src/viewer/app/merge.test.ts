@@ -176,6 +176,10 @@ test('merge applies with more than one account only; the switch opens Positions;
   expect(mergeOn(false, 3)).toBe(false);
   expect(toggleMerge({ merge: false })).toEqual({ merge: true, tab: 'positions' });
   expect(toggleMerge({ merge: true })).toEqual({ merge: false, tab: 'positions' });
+  // from another tab: Positions opens merged, whatever the choice was
+  expect(toggleMerge({ merge: false, tab: 'summary' })).toEqual({ merge: true, tab: 'positions' });
+  expect(toggleMerge({ merge: true, tab: 'summary' })).toEqual({ merge: true, tab: 'positions' });
+  expect(toggleMerge({ merge: true, tab: 'positions' })).toEqual({ merge: false, tab: 'positions' });
   expect(DEFAULT_PREFS.merge).toBe(false);
   expect(loadPrefs({ getItem: () => '{"merge":true}' }).merge).toBe(true);
   expect(loadPrefs({ getItem: () => '{"merge":"yes"}' }).merge).toBe(false);
