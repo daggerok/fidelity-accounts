@@ -197,7 +197,7 @@ export function App() {
                   outside the tablist in the code: a tablist holds only tabs and its arrow keys move between them (the tablist
                   leaves no box, so the three lie in one row and `order` places them); it is always drawn (dimmed with one
                   account or on another tab), so the panel never moves */}
-              <div className="flex items-center gap-x-6">
+              <div className="flex items-center gap-x-4 lg:gap-x-6">
                 {/* WAI-ARIA tabs: only the chosen tab is in the Tab order, Left and Right (Home, End) choose the next one */}
                 <div className="contents text-sm leading-none lg:text-base" role="tablist" aria-label={t('Pages')} onKeyDown={onTabKey}>
                   {MAIN_TABS.map((tab) => (
@@ -205,8 +205,10 @@ export function App() {
                       className={`main-tab flex h-9 items-center ${tab === 'positions' ? 'order-3' : 'order-1'} ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
                   ))}
                 </div>
-                {/* drawn between Summary and Positions, 6 px before the word it belongs to */}
-                <MergeButton accounts={accounts.length} className="order-2 -mr-[18px]" />
+                {/* drawn between Summary and Positions (owner 2026-11-27): the gap from Summary to the icon is the page
+                    gutter (16 px, 24 px from lg), as between the tabs; the icon sits 4 px before the word it belongs to.
+                    Its box is slim (26 px around the 18 px icon), so the margins place the icon itself */}
+                <MergeButton accounts={accounts.length} className="order-2 !w-[26px] -ml-1 -mr-4 lg:-mr-6" />
               </div>
               <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: readTime(ds.builtAt, language) })}</span>
             </nav>
