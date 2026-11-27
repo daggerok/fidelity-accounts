@@ -19,3 +19,12 @@ export const FIT_SELF_MS = 300;
 export function fitRestarts(byPage: boolean, msSinceOwnChange: number): boolean {
   return byPage || msSinceOwnChange > FIT_SELF_MS;
 }
+
+/**
+ * The phone's Positions table (owner 2026-11-27: the ticker column was too wide, "we must fit the 4 first columns ...
+ * on the mobile view screen"): the width of a plain column, so the Symbol column and four of them fill the table's box
+ * exactly; never so narrow that +12.34% is cut, never wider than a readable gap
+ */
+export const PHONE_SYMBOL_W = 76;
+export const PHONE_EDGE = 4;
+export const phoneColumnWidth = (boxWidth: number): number => Math.max(60, Math.min(84, Math.floor((boxWidth - PHONE_SYMBOL_W - PHONE_EDGE) / 4)));
