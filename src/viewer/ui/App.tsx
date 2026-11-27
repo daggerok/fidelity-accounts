@@ -16,6 +16,7 @@ import { Banner } from './Banner';
 import { ErrorBoundary } from './ErrorBoundary';
 import { laterThisSession, saidLater, setupDone, setupState } from './GetStarted';
 import { Logo } from './Logo';
+import { MenuToggle, Slot, Traveler } from './MobileMenu';
 import { Notices } from './Notices';
 import { Positions } from './Positions';
 import { SettingsPanel, SettingsTools } from './SettingsPanel';
@@ -25,6 +26,7 @@ import { animate } from './animate';
 import { readTime } from './format';
 import { useStore } from './useStore';
 import { useTheme } from './useTheme';
+import { PHONE_QUERY, useMedia } from './useMedia';
 
 const tabName = (tab: MainTab): string => ({ summary: t('Summary'), positions: t('Positions') })[tab];
 const TAB_PANEL = 'main-tabpanel';
@@ -60,6 +62,11 @@ export function App() {
   // ⚙️ Settings hold Get started on top (owner 2026-11-23). They slide down by themselves while a required step is missing
   // (not after ✕ in this session) and slide up by themselves once all is done, or on Enter in a setup field; the script
   // mark may arrive a moment after load, so the first look waits 1.5 s
+  // the phone navbar: its icon buttons are folded until ☰ (ui/MobileMenu.tsx); the theme button travels between two slots
+  const phone = useMedia(PHONE_QUERY);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const themeHome = useRef<HTMLSpanElement>(null);
+  const themeAway = useRef<HTMLSpanElement>(null);
   const [showSettings, setShowSettings] = useState(panelOpen);
   const autoOpened = useRef(false);
   const [expandSetup, setExpandSetup] = useState(0); // 🚀: open settings with Get started expanded
@@ -124,13 +131,18 @@ export function App() {
           {/* the navbar, the tabs panel and the cards share one inset (24 px, the card padding) and one corner (1rem), so the logo,
               the tabs and the card titles start on one line and the buttons, As of and ⤢ end on one (owner 2026-11-25) */}
           <div className="relative">
-          <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900">
-            <h1 className="m-0 flex w-full justify-center leading-none sm:w-auto">
+          {/* a phone: ☰, the logo and the theme button must share one row at 375 px, so the side padding and the gap are
+              smaller there; its rows bring their own gap above (a folded row would still take the navbar's row gap) */}
+          <header className="flex flex-wrap items-center gap-x-1 gap-y-0 rounded-2xl border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900 sm:gap-x-5 sm:gap-y-2 sm:px-6">
+            {/* a phone (owner 2026-11-27): ☰, the logo, the theme button; the icon buttons wait folded under them */}
+            <MenuToggle open={menuOpen} onToggle={() => setMenuOpen((v) => !v)} label={menuOpen ? t('Hide the buttons') : t('Show the buttons')} />
+            <h1 className="m-0 flex flex-1 justify-center leading-none sm:flex-none">
               <button type="button" className="block rounded-lg py-1" title={t('Back to the summary of all accounts')} onClick={() => setPrefs({ scope: 'all', tab: 'summary' })} data-home><Logo /></button>
             </h1>
+            {phone && <Slot slot={themeHome} />}
             {/* the accounts strip lives in the navbar between the logo and the buttons (owner 2026-11-24); below lg it takes
                 its own full row under them */}
-            {ds && <AccountTabs ds={ds} scope={scope} collapsed={pr.collapsed} className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:basis-0"
+            {ds && <AccountTabs ds={ds} scope={scope} collapsed={pr.collapsed} className="order-last w-full max-sm:mt-2 lg:order-none lg:w-auto lg:flex-1 lg:basis-0"
               onScope={(s) => animate(() => setPrefs({ scope: s }))} onFold={(name) => setPrefs({ collapsed: toggleFold(prefs.get().collapsed, name) })}
               onMove={(moved, target) => animate(() => setPrefs({ accountOrder: moveAccount(ds.accounts, moved, target) }))}
               onMoveGroup={(moved, target) => animate(() => setPrefs({ groupOrder: moveGroup(groupsOf(ds).map((g) => g.name), moved, target) }))} />}
@@ -138,6 +150,7 @@ export function App() {
             {/* one gap everywhere (owner 2026-11-24: consistent): 20 px of air between the logo, the accounts strip, the script
                 update pill and each icon. A .tb box is 36 px around an 18 px icon (9 px each side), so icons sit 2 px apart
                 and the group starts 9 px early when its first item is an icon */}
+            <div id="nav-buttons" className={`slide-wrap nav-fold ${menuOpen ? 'open' : ''}`} inert={phone && !menuOpen}><div className="slide-inner">
             <div className={`flex w-full items-center justify-evenly gap-0.5 sm:w-auto sm:justify-end ${isOlder(userscript, APP_VERSION) ? '' : 'sm:-ml-[9px]'}`}>
               {isOlder(userscript, APP_VERSION) && (
                 <a href="./fidelity-accounts-sync.user.js" data-update-hint className="mr-[9px] rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300"
@@ -154,9 +167,11 @@ export function App() {
               {/* order (owner 2026-11-23): settings, language, then the theme last on the right */}
               <button type="button" className={`tb ${showSettings ? 'on' : ''}`} title={t('Settings')} aria-label={t('Settings')} aria-expanded={showSettings} aria-controls="settings-wrap" data-panel-button="settings" onClick={toggleSettings}>⚙️</button>
               <LangButton />
-              <ThemeButton theme={theme} />
+              {phone ? <Slot slot={themeAway} /> : <ThemeButton theme={theme} />}
             </div>
+            </div></div>
           </header>
+          {phone && <Traveler away={menuOpen} home={themeHome} target={themeAway}><ThemeButton theme={theme} /></Traveler>}
           {/* the 🔔 popups lie over the right end of the navbar (ui/Notices.tsx) */}
           <Notices />
           </div>

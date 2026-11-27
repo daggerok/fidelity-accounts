@@ -496,4 +496,7 @@ export const RU: Record<string, string> = {
   'Copied. Paste it on the other device: ⚙️ Settings, Import, Paste from the clipboard': 'Скопировано. Вставь на другом устройстве: ⚙️ Настройки, Импорт, Вставить из буфера',
   'The browser did not let us copy. Copy this text yourself:': 'Браузер не дал скопировать. Скопируй этот текст сам:',
   'This is not the text made by Export': 'Это не текст, сделанный экспортом',
+  // ☰ of the phone navbar (ui/MobileMenu.tsx)
+  'Show the buttons': 'Показать кнопки',
+  'Hide the buttons': 'Скрыть кнопки',
 };

@@ -49,6 +49,26 @@ html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --bran
 .slide-wrap.open{grid-template-rows:1fr;opacity:1}
 .slide-inner{overflow:hidden;min-height:0}
 @media (prefers-reduced-motion:reduce){.slide-wrap{transition:none}}
+/* the phone navbar (ui/MobileMenu.tsx): the row of icon buttons folds under the logo; from sm up it is always there and
+   its two wrappers leave no box, so the buttons lie in the navbar's own row as before */
+.nav-fold{width:100%}
+.nav-fold>.slide-inner>div{padding-top:.5rem}
+@media (min-width:640px){.nav-fold,.nav-fold>.slide-inner{display:contents}.nav-fold>.slide-inner>div{padding-top:0}}
+/* .tb sets its own display, which a utility class cannot undo: ☰ is hidden from sm up here */
+@media (min-width:640px){.tb.burger{display:none}}
+/* ☰ -> ✕ */
+.burger-box{position:relative;display:block;width:1.125rem;height:.875rem}
+.burger-box>i{position:absolute;left:0;width:100%;height:2px;border-radius:1px;background:currentColor;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .2s ease-out,top .35s cubic-bezier(.4,0,.2,1)}
+.burger-box>i:nth-child(1){top:0}
+.burger-box>i:nth-child(2){top:calc(50% - 1px)}
+.burger-box>i:nth-child(3){top:calc(100% - 2px)}
+.burger.open .burger-box>i:nth-child(1){top:calc(50% - 1px);transform:rotate(45deg)}
+.burger.open .burger-box>i:nth-child(2){opacity:0;transform:scaleX(0)}
+.burger.open .burger-box>i:nth-child(3){top:calc(50% - 1px);transform:rotate(-45deg)}
+/* the theme button on its way between the logo and the row: as slow as the row slides */
+.traveler{position:absolute;left:0;top:0;z-index:5}
+.traveler.glide{transition:transform .35s cubic-bezier(.4,0,.2,1)}
+@media (prefers-reduced-motion:reduce){.burger-box>i,.traveler.glide{transition:none}}
 .panel-head{border-radius:1rem 1rem 0 0;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.75rem 1.5rem;border-bottom:1px solid #e2e8f0;background:linear-gradient(to right,#f8fafc,rgba(241,245,249,.5))}
 .dark .panel-head{border-color:rgba(71,85,105,.5);background:linear-gradient(to right,rgba(15,23,42,.3),rgba(15,23,42,.1))}
 
