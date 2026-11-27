@@ -4,7 +4,8 @@
 import { describe, expect, test } from 'bun:test';
 import { CHUNK_CHARS, SheetsClient, chunkPrintsOf, type ChunkPrint } from './client';
 import { fakeSheets, type FakeCall } from './fake-sheets';
-import { columnLetter, defineTab, growHeader, wideSpec } from './tabs';
+import { TRANSACTIONS as FIDELITY_TRANSACTIONS, columnLetter, defineTab, growHeader, wideSpec } from './tabs';
+import type { Txn } from '../transactions';
 
 // a record shape of 11 columns (A..K) for the generic client tests (the client knows nothing about fidelity data)
 interface Transaction { id: string; activityDate: string; payCheckDate?: string; fund: string; source?: string; type: string; rawType: string; units?: number; price?: number; amount: number; origin: string }
@@ -179,6 +180,15 @@ describe('SheetsClient', () => {
     const c = new SheetsClient({ fetch: f, getToken: async () => 't', spreadsheetId: 'book' });
     expect((await c.listTabs()).tabs).toEqual([]);
   });
+});
+
+test('fidelity_transactions keeps transactions that are the same in every column (live 2026-11-26: 1,500 were dropped)', async () => {
+  const fake = fakeSheets();
+  const { c } = client(fake);
+  const buy: Txn = { account: 'X1', date: '2026-11-20', mnemonic: 'BOT', cat: 'TR', sub: 'BY', dir: 'W', symbol: 'ETFA', qty: 0.01, net: -1, desc: 'YOU BOUGHT', cancelled: false };
+  const r = await c.writeAll(FIDELITY_TRANSACTIONS, [buy, { ...buy }, { ...buy, symbol: 'ETFB' }]);
+  expect(r.written).toBe(3);
+  expect((await c.readRows(FIDELITY_TRANSACTIONS)).map((t) => t.symbol)).toEqual(['ETFA', 'ETFA', 'ETFB']);
 });
 
 describe('growing header (fidelity_positions_all)', () => {

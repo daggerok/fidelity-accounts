@@ -29,6 +29,8 @@ export interface TabSpec<T> {
   idOf: (r: T) => string;
   toRow: (r: T) => Cell[];
   fromRow: (row: unknown[]) => T | null;
+  // rows are a list, not a set by id: records with the same id are all written (fidelity_transactions)
+  repeats?: boolean;
 }
 
 // the tabs carry the app name (pattern google-sheets-in-browser): fidelity_ for this app
@@ -253,6 +255,10 @@ export const TRANSACTIONS = defineTab<Txn>('fidelity_transactions', [
   { key: 'desc', kind: 'text', optional: true },
   { key: 'cancelled', kind: 'bool', optional: true },
 ], (r) => key(r.account, r.date, r.mnemonic, r.symbol, String(r.net)));
+// Two transactions may be the same in every column (two buys for the same amount on one day): both are real and both
+// are written. Seen live 2026-11-26: 18,372 transactions read, 16,833 rows in the tab, about 1,500 dropped as "the
+// same id". The store holds no accidental doubles: its read windows never share a day (monthWindows, replaceWindow)
+TRANSACTIONS.repeats = true;
 
 // how far each account's transactions were read (TxnStore.synced) and when, one row per account
 export interface TxnSyncedRow { account: string; synced: string; at: string }
