@@ -282,6 +282,14 @@ export class SheetsClient {
     // the stored parts are trusted only while the grid still reaches their last row (a shrunk tab writes everything)
     const lastPrev = prev && prev.length ? prev[prev.length - 1]! : null;
     let skipping = !!lastPrev && tab.rows >= lastPrev.start + lastPrev.count - 1;
+    // A PUT grows the grid only when it starts inside it: a later part that starts past the last grid row is a 400
+    // "exceeds grid limits" (seen live 2026-11-26: fidelity_transactions, part 2 at row 7037 of a 7036 row grid, its
+    // unchanged part 1 not sent). So the grid gets the missing rows first
+    if (rows.length + 1 > tab.rows && tab.sheetId >= 0) {
+      await this.call('POST', this.base + ':batchUpdate', {
+        requests: [{ appendDimension: { sheetId: tab.sheetId, dimension: 'ROWS', length: rows.length + 1 - tab.rows } }],
+      }, 'add rows to ' + spec.name);
+    }
     // big tabs go in parts (fidelity: ~1,100 positions with every field are a few MB), each PUT under about 1 MB
     let start = 0;
     let part = 0;

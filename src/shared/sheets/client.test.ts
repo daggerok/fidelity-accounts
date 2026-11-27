@@ -331,6 +331,18 @@ describe('chunk prints: unchanged parts of a big tab are not sent again (fidelit
     expect(prev.map((c) => [c.start, c.count])).toEqual([[2, 23], [25, 23], [48, 17]]);
   });
 
+  test('a part that starts past the last grid row: the grid gets its rows first (live 2026-11-26: 400 exceeds grid limits)', async () => {
+    // the grid ends exactly at the end of part 1; part 1 is unchanged and not sent, part 2 starts one row past the grid
+    const f = fakeSheets({ gridRows: 24 });
+    const first = await client(f).c.writeAll(TABS.fund, many(23), []);
+    expect(f.tabs.fidelity_fund!.rows).toBe(24);
+    f.calls.length = 0;
+    await client(f).c.writeAll(TABS.fund, many(40), first.chunks);
+    expect(rowRanges(f.calls)).toEqual(['fidelity_fund!A25:A41']);
+    expect(f.tabs.fidelity_fund!.rows).toBe(41);
+    expect(await client(f).c.readRows(TABS.fund)).toHaveLength(40);
+  });
+
   test('enough rows appended for a new part: the last part and the new one go out', async () => {
     const { sent } = await withAndWithout([many(60), many(80)]);
     expect(sent[1]).toEqual(['fidelity_fund!A48:A70', 'fidelity_fund!A71:A81']);

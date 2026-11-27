@@ -47,6 +47,11 @@ export function fakeSheets(opts: { expiredTokens?: string[]; gridRows?: number }
     }
     if (method === 'POST' && url.endsWith(':batchUpdate')) {
       const req = (body as { requests: Record<string, { properties: { title?: string; sheetId?: number; gridProperties?: { frozenRowCount?: number } } }>[] }).requests[0]!;
+      const grow = (req as unknown as { appendDimension?: { sheetId: number; dimension: string; length: number } }).appendDimension;
+      if (grow) {
+        Object.keys(tabs).forEach((t) => { if (tabs[t]!.sheetId === grow.sheetId) tabs[t]!.rows += grow.length; });
+        return json(200, { replies: [{}] });
+      }
       if (req.addSheet) {
         const title = req.addSheet.properties.title || '';
         if (tabs[title]) return json(400, { error: { message: 'A sheet with the name "' + title + '" already exists.' } });
@@ -65,6 +70,8 @@ export function fakeSheets(opts: { expiredTokens?: string[]; gridRows?: number }
       if (!tab) return json(400, { error: { message: 'Unable to parse range: ' + r.tab } });
       if (method === 'PUT') {
         const values = (body as { values: unknown[][] }).values;
+        // like the real API: a range that starts inside the grid grows it, one that starts past its last row is refused
+        if (r.r1 > tab.rows) return json(400, { error: { message: `Range (${r.tab}!A${r.r1}) exceeds grid limits. Max rows: ${tab.rows}` } });
         // like the real API: only the cells of the range change, cells to the right of it stay (ranges start at A)
         values.forEach((row, i) => { const next = (tab.values[r.r1 - 1 + i] || []).slice(); row.forEach((v, j) => { next[j] = v; }); tab.values[r.r1 - 1 + i] = next; });
         tab.rows = Math.max(tab.rows, r.r1 - 1 + values.length);
