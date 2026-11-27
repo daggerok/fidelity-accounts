@@ -29,7 +29,7 @@ test('rows of the fidelity_* tabs round-trip and keep account numbers as text', 
   expect(POSITIONS.columns).toContain('cost_basis_total');
   const b = balanceRows(ds);
   expect(b.map((r) => BALANCES.idOf(r))).toEqual(['2026-11-20|X10000001', '2026-11-20|200000002']);
-  expect(wideRows(ds)[1]).toMatchObject({ as_of: '2026-11-21T02:00:00.000Z', act_num: 'X10000001', sym_name: 'AAAA', qty: 2.5 });
+  expect(wideRows(ds)[1]).toMatchObject({ as_of: '2026-11-21T02:00:00.000Z', account_number: 'X10000001', symbol_name: 'AAAA', quantity: 2.5 });
 });
 
 const store: TxnStore = { version: 1, at: '2026-11-24T17:00:00.000Z', synced: { X10000001: '2026-11-24', '200000002': '2026-11-23' }, rows: [

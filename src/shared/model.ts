@@ -3,7 +3,7 @@
 // the account list on the left (groups, names, balances) and the rows of its positions grid (ag-grid), whose raw
 // objects carry about 100 fields each, mostly as { val, disp }. Nothing is computed by Fidelity for us twice:
 // money stays in dollars as numbers (the site gives them so), dates as ISO text
-import { snakeCase, snakeKeys } from './snake';
+import { fieldNames } from './snake';
 import { cleanBetas, type Betas } from './beta';
 import { mergeHistory, type History } from './history';
 
@@ -83,9 +83,9 @@ export interface Dataset {
 
 export const emptyDataset = (builtAt: string): Dataset => ({ version: DATASET_VERSION, builtAt, asOf: null, accounts: [], positions: [], warnings: [] });
 
-// every field name in snake_case: a copy stored or written to the sheet before that naming (todGLPct, fifTwo_low) reads
-// like a new one, so nothing has to be read again from Fidelity for the columns to show
-const snakeFields = (p: Position): Position => (p && p.fields && typeof p.fields === 'object' && Object.keys(p.fields).some((k) => k !== snakeCase(k)) ? { ...p, fields: snakeKeys(p.fields) } : p);
+// the readable field names (shared/snake.ts): a copy stored or written to the sheet before that naming (todGLPct,
+// tod_gl_pct) reads like a new one, so nothing has to be read again from Fidelity for the columns to show
+const snakeFields = (p: Position): Position => { const f = p && p.fields && typeof p.fields === 'object' ? fieldNames(p.fields) : p?.fields; return f === p?.fields ? p : { ...p, fields: f }; };
 
 // a stored or received copy; anything else (older layout, junk) is refused
 export function parseDataset(json: string): Dataset | null {

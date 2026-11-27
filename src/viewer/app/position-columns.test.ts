@@ -77,14 +77,14 @@ test('the rest of the Fidelity columns: one field each, shown in its format, sor
   const col = (key: string) => FIELD_COLUMNS.find((c) => c.key === key)!;
   expect(new Set(FIELD_COLUMNS.map((c) => c.key)).size).toBe(FIELD_COLUMNS.length);
   expect(fieldText(p({ bid_price: 12.5 }), col('bid'))).toBe('$12.50');
-  expect(fieldText(p({ one_yr: 12.345 }), col('return1y'))).toBe('+12.35%');
-  expect(fieldText(p({ ex_rt_nt: 0.09 }), col('expenseNet'))).toBe('0.09%');
+  expect(fieldText(p({ one_year: 12.345 }), col('return1y'))).toBe('+12.35%');
+  expect(fieldText(p({ expense_ratio_net: 0.09 }), col('expenseNet'))).toBe('0.09%');
   expect(fieldText(p({ volume: 1234567 }), col('volume'))).toBe('1,234,567');
   expect(fieldText(p({ shares_outstanding: 2.5e9 }), col('sharesOut'))).toBe('2.50B');
   expect(fieldText(p({ year_high_date: '2026-03-05' }), col('high52Date'))).toBe('Mar-05-2026');
-  expect(fieldText(p({ is_htb: true }), col('hardToBorrow'))).toBe('✓');
-  expect(fieldText(p({ is_htb: false }), col('hardToBorrow'))).toBe('');
-  expect(fieldText(p({ mstar_rate: 4 }), col('morningstar'))).toBe('★★★★');
+  expect(fieldText(p({ is_hard_to_borrow: true }), col('hardToBorrow'))).toBe('✓');
+  expect(fieldText(p({ is_hard_to_borrow: false }), col('hardToBorrow'))).toBe('');
+  expect(fieldText(p({ morningstar_rate: 4 }), col('morningstar'))).toBe('★★★★');
   expect(fieldText(p({}), col('bid'))).toBe('');
   // the analyst rating reads as words and sorts by its score
   expect(fieldValue(p({ equity_summary_rating: 'Bullish', equity_summary_score: 7.5 }), col('analystRating'))).toBe(7.5);
