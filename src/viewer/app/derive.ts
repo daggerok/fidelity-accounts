@@ -4,6 +4,7 @@ import type { Account, Dataset, Position } from '../../shared/model';
 import { incomeReceived, type TxnStore } from '../../shared/transactions';
 import type { Scope } from './prefs';
 import { addDays, addMonths } from '../../shared/dates';
+import { perYear } from '../../shared/typed-columns';
 
 export { addMonths };
 
@@ -258,6 +259,19 @@ export function windowEnd(today: string, w: DivWindow): string {
   if (w === '1Q') return addMonths(today, 3);
   const b = periodBounds(today);
   return w === 'MTD' ? b.month[1] : b.quarter[1];
+}
+
+/**
+ * What a dividend row says after its ticker (owner 2026-11-27: "TICKER % / payments a year, for example AU 5.59% / 4"):
+ * the yield a year and how many times a year it pays. The yield is Fidelity's distribution rate; without it, the
+ * dividend per share times the payments a year over the last price. A part that is not known is left out
+ */
+export function yieldNote(p: Pick<Position, 'distRate' | 'dividendAmount' | 'lastPrice' | 'paymentFrequency'>): string {
+  const times = perYear(p.paymentFrequency ?? '');
+  const known = Number.isFinite(times);
+  const worked = known && p.dividendAmount !== undefined && p.lastPrice ? (p.dividendAmount * times * 100) / p.lastPrice : undefined;
+  const rate = typeof p.distRate === 'number' && Number.isFinite(p.distRate) ? p.distRate : worked;
+  return [rate !== undefined && Number.isFinite(rate) ? `${rate.toFixed(2)}%` : '', known ? String(times) : ''].filter(Boolean).join(' / ');
 }
 
 /** the sum of the payouts of a list of upcoming dividends */

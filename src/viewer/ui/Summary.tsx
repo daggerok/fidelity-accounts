@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
 import type { Account, Dataset } from '../../shared/model';
-import { ACCOUNT_SORTS, movers, ofKind, payoutTotal, sortAccounts, DIV_WINDOWS, type AccountSort } from '../app/derive';
+import { ACCOUNT_SORTS, movers, ofKind, payoutTotal, sortAccounts, yieldNote, DIV_WINDOWS, type AccountSort } from '../app/derive';
 import { MOVERS_MAX, accountBetas, dividendsView, incomeView, summaryBase } from '../app/summary';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { animate } from './animate';
@@ -140,8 +140,9 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
             </div>
             {divs.slice(0, divsN).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" data-fit-row>
-                {/* the ticker alone, both dates on the line under it (owner 2026-11-24) */}
-                <div className="min-w-0"><div className="font-semibold">{p.symbol}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('ex date: {ex} pay date: {pay}', { ex: siteDate(p.exDate), pay: siteDate(p.payDate) })}</div></div>
+                {/* the ticker with its yield a year and payments a year (owner 2026-11-27: "AU 5.59% / 4"), both dates on the line
+                    under it (owner 2026-11-24) */}
+                <div className="min-w-0"><div><span className="font-semibold">{p.symbol}</span>{yieldNote(p) && <span className="num ml-2 text-xs text-slate-500 dark:text-slate-400" title={t('Yield a year / payments a year')} data-yield-note>{yieldNote(p)}</span>}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('ex date: {ex} pay date: {pay}', { ex: siteDate(p.exDate), pay: siteDate(p.payDate) })}</div></div>
                 <div className="text-right">
                   <div className="num font-medium">{p.payout !== undefined ? usd(p.payout) : p.paymentFrequency ?? ''}</div>
                   {p.dividendAmount !== undefined && <div className="num text-xs text-slate-500 dark:text-slate-400">{t('{shares} × {amount}', { amount: usd(p.dividendAmount), shares: qty(p.shares) })}</div>}
