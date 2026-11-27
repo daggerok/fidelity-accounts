@@ -230,8 +230,11 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
   const lines = useMemo(() => {
     const out: Line[] = [];
     // the cash, security and pending rows of one block: an account's, or the merged lines of all of them (`at` keys them)
+    // while a filter is on only the rows it found are shown (owner 2026-11-27: "here we should not see cash", "we also
+    // should not see cash and grand total"): the cash, the pending line and the totals describe the whole account, not
+    // the rows found, so they wait until the filters are cleared
     const block = (at: string, own: Position[], secs: Position[]) => {
-      own.filter((p) => p.kind === 'core').forEach((p) => out.push({ key: `${at}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
+      if (!filtered) own.filter((p) => p.kind === 'core').forEach((p) => out.push({ key: `${at}-c-${p.symbol}`, cls: 'cash-row', cells: () => <>
         {/* a cash line reads like any position (owner 2026-11-25: "SPAXX" on top, "CASH HELD IN MONEY MARKET" under it): the
             ticker in bold, then the word Cash with Fidelity's description; cash with no ticker keeps the word on top */}
         <td><div className="font-semibold">{p.symbol || t('Cash')}</div><CellScroll className="text-xs uppercase text-slate-500 dark:text-slate-400">{p.symbol ? `${t('Cash')} ${p.description}`.trim() : p.description}</CellScroll></td>
@@ -241,7 +244,7 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
         <td><div className="font-semibold">{p.symbol}</div><CellScroll className="text-xs text-slate-500 dark:text-slate-400">{p.description}</CellScroll></td>
         {cols.map((c) => <td key={c.key}>{c.cell(p)}</td>)}
       </> }));
-      own.filter((p) => p.kind === 'pending').forEach((p) => out.push({ key: `${at}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
+      if (!filtered) own.filter((p) => p.kind === 'pending').forEach((p) => out.push({ key: `${at}-p`, cls: '', cells: () => <><td>{t('Pending activity')}</td>{cols.map((c) => <td key={c.key}>{c.key === 'currentValue' ? signedUsd(p.currentValue) : ''}</td>)}</> }));
     };
     // merged: no account headers and no account totals, the cash on top as in an account's block; nothing when the
     // filters leave no row, like an account
@@ -252,10 +255,10 @@ export const Positions = memo(function Positions({ ds, accounts }: { ds: Dataset
       if (filtered && !secs.length) return;
       out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></td> });
       block(a.number, own, secs);
-      out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
+      if (!filtered) out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
     });
     if (filtered && !shown.length) out.push({ key: 'none', cls: '', cells: () => <NoMatch span={cols.length + 1} /> });
-    if (several) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(rows, accounts) : ''}</td>)}</> });
+    if (several && !filtered) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(rows, accounts) : ''}</td>)}</> });
     return out;
     // cols follow colKeys; the rest are the inputs of the rows (no lint in this repo)
   }, [all, rows, shown, accounts, filtered, colKeys, several, merging]);

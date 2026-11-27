@@ -69,3 +69,32 @@ test('merged: one line per ticker, no account headers or totals, one total; one 
   await act(async () => { root.unmount(); });
   setPrefs({ merge: false });
 });
+
+test('a filter shows only the rows it found: no cash, no account total, no grand total, per account and merged', async () => {
+  const { act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Positions } = await import('./Positions');
+  const { setPrefs } = await import('../app/prefs');
+  setPrefs({ merge: false, search: 'aaa', filters: {} });
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => { root.render(<Positions ds={DS} accounts={ACCOUNTS} />); });
+  const rows = () => Number(document.querySelector('[data-rows]')!.getAttribute('data-rows'));
+  // per account: header and the one security found; twice
+  expect(rows()).toBe(4);
+  expect(document.querySelector('.cash-row')).toBeNull();
+  expect(document.querySelector('.total-row')).toBeNull();
+  expect(document.querySelectorAll('.acct-row').length).toBe(2);
+  await act(async () => { setPrefs({ merge: true }); });
+  // merged: the one line of the ticker
+  expect(rows()).toBe(1);
+  expect(document.querySelector('.cash-row')).toBeNull();
+  expect(document.querySelector('.total-row')).toBeNull();
+  // the filter cleared: the cash and the total are back
+  await act(async () => { setPrefs({ search: '' }); });
+  expect(rows()).toBe(5);
+  expect(document.querySelectorAll('.cash-row').length).toBe(1);
+  expect(document.querySelectorAll('.total-row').length).toBe(1);
+  await act(async () => { root.unmount(); });
+  setPrefs({ merge: false, search: '' });
+});
