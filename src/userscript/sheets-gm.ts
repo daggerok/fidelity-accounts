@@ -103,6 +103,15 @@ export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | 
   return { done, prints: next, chunks };
 }
 
+/**
+ * the sets offered to the sheet after a read of the positions. A read that is a job (a sync of the viewer, the panel
+ * button, the first read of a page, which is also how a round trip from another page arrives) offers every set: the
+ * ones with nothing new are skipped by their print, and a tab deleted in the sheet is written again from the script's
+ * own copy. The quiet reads of 👀 between them offer only what they read. Seen live 2026-11-27: the round trip was not
+ * counted as a job, so the transactions tab was never offered
+ */
+export const setsAfterRead = (job: boolean): DataSet[] => (job ? ['summary', 'positions', 'transactions', 'betas'] : ['summary', 'positions']);
+
 /** what the script keeps in Tampermonkey storage about its writes (main.ts PRINTS_KEY), for one spreadsheet */
 export interface KeptPrints { id?: string; prints?: Prints; chunks?: TabChunks }
 
