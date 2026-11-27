@@ -8,6 +8,7 @@ import { ThemeLanguageSetting, WatchSetting } from './LookSettings';
 import { NotifySetting } from './NotifySetting';
 import { PalettePicker } from './PalettePicker';
 import { Section } from './Section';
+import { SettingsTransfer } from './SettingsTransfer';
 
 // ⚙️ Settings (slide down under the navbar): Get started on top, the core setup with Google Sheets and the data in it
 // (owner 2026-11-23), its header slides it open and shut; the two resets live in the panel's header (SettingsResets)
@@ -36,6 +37,11 @@ export function SettingsPanel({ userscript, done, expand, theme }: { userscript:
     </Section>
     </div>
   );
+}
+
+// everything in the header of ⚙️ Settings after its title: Export and Import, then the resets
+export function SettingsTools() {
+  return <><SettingsTransfer /><SettingsResets /></>;
 }
 
 // Reset view and Full reset, right after "⚙️ Settings" in the panel's header (owner 2026-11-24; they were at the very
