@@ -1,5 +1,5 @@
 /// <reference lib="esnext" />
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
 import { autoWatch, dataset, loginSaved, sheetPin, watchChosen, watching } from '../app/data';
@@ -8,7 +8,7 @@ import { lang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
 import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { rovingIndex } from '../app/focus';
-import { squashed } from '../app/squash';
+import { squashAsk, squashed } from '../app/squash';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
@@ -69,9 +69,10 @@ export function App() {
   const themeHome = useRef<HTMLSpanElement>(null);
   const themeAway = useRef<HTMLSpanElement>(null);
   const [showSettings, setShowSettings] = useState(panelOpen);
-  // a phone on Positions (owner 2026-11-27, after Fidelity's own app): once the rows are scrolled the navbar folds away
-  // and the tabs panel is squashed into two stripes, so the table has the screen; the lit stripe is the open page. A
-  // tap on the other stripe opens Summary, a tap on the lit one (or the rows back at their top) brings everything back
+  // a phone (owner 2026-11-27, after Fidelity's own app): once the page is scrolled (the Positions rows, the Summary
+  // cards) the navbar folds away and the tabs panel is squashed into one line cut in pieces, so the page has the screen;
+  // the lit piece is the open page. A tap on another piece opens that page, a tap on the lit one (or the scroll back
+  // at its top) brings everything back
   const [asked, setAsked] = useState(false);
   const [held, setHeld] = useState(false);
   const onAsk = useCallback((ask: 'squash' | 'open') => { setAsked(ask === 'squash'); if (ask === 'squash') setHeld(false); }, []);
@@ -110,8 +111,23 @@ export function App() {
     if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLElement).closest('[data-get-started]')) closeSettings();
   };
 
-  useEffect(() => { if (pr.tab !== 'positions') { setAsked(false); setHeld(false); } }, [pr.tab]);
-  const flat = squashed({ phone, positions: pr.tab === 'positions', settings: showSettings, asked, held });
+  // another page starts open
+  useEffect(() => { setAsked(false); setHeld(false); }, [pr.tab]);
+  const flat = squashed({ phone, settings: showSettings, asked, held });
+  // Summary scrolls the page itself, Positions its rows (they ask through the table): the same rule for both
+  const pageScroll = useRef<HTMLDivElement>(null);
+  const quiet = useRef(0);
+  useEffect(() => {
+    const el = pageScroll.current;
+    if (!el || !phone || pr.tab === 'positions') return undefined;
+    let before = el.scrollTop;
+    // folding and unfolding move the page under the finger by themselves (the navbar and the tabs panel change their
+    // height): those moves are not the owner's scroll, so the page asks nothing for a moment after each
+    const on = () => { const ask = performance.now() < quiet.current ? null : squashAsk(el.scrollTop, before); before = el.scrollTop; if (ask) onAsk(ask); };
+    el.addEventListener('scroll', on, { passive: true });
+    return () => el.removeEventListener('scroll', on);
+  }, [phone, pr.tab, onAsk]);
+  useLayoutEffect(() => { quiet.current = performance.now() + 600; }, [flat]);
   // the navbar is clipped while it is folded and while it grows back (350 ms), never when it is open: its popups hang out
   const [clip, setClip] = useState(false);
   useEffect(() => {
@@ -194,7 +210,7 @@ export function App() {
           <Notices />
           </div>
       </div></div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
+      <div ref={pageScroll} className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
             <div onKeyDown={onSettingsKey}>
               <SettingsPanel userscript={userscript} done={done} fresh={!setupStarted(setupState(userscript))} expand={expandSetup} theme={theme} />
