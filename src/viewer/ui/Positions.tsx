@@ -83,7 +83,7 @@ const fieldCols = (): Col[] => {
     return c.format === 'signedPct' || c.format === 'signedUsd' ? glCell(fieldValue(p, c), text) : text;
   } }));
 };
-const lowHigh = (p: Position): string => { const lo = p.fields.dayRange_low; const hi = p.fields.dayRange_high; return typeof lo === 'number' && typeof hi === 'number' ? `${usd(lo)} - ${usd(hi)}` : DASH; };
+const lowHigh = (p: Position): string => { const lo = p.fields.day_range_low; const hi = p.fields.day_range_high; return typeof lo === 'number' && typeof hi === 'number' ? `${usd(lo)} - ${usd(hi)}` : DASH; };
 
 // The merge kind of each column (owner 2026-11-25, merge): "Today's $ should have sum of all Today's $ for all accounts.
 // same for total. cost bases, value, quantity, also should be sum across accounts", "Today's % should be aggregated", "%

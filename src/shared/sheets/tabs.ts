@@ -3,6 +3,7 @@
 // shared/sheets/tabs.ts). Row 1 is the header in snake_case, cells go out as RAW (numbers as numbers, ISO dates and
 // account numbers as text), rows come back as UNFORMATTED_VALUE and text is parsed too (a hand-edited cell must not
 // break a read)
+import { snakeCase } from '../snake';
 import { BETA_SOURCES, type BetaSource } from '../beta';
 import type { Account, Position } from '../model';
 import type { Txn } from '../transactions';
@@ -106,7 +107,7 @@ function decode<T>(col: Col<T>, v: unknown): unknown {
  * A tab from its columns. With `idKey` the record carries its own id (column A holds it and fromRow puts it
  * back), otherwise `idOf` builds the key from fields and column A is only for upserts.
  */
-export const snakeCase = (k: string): string => k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z])([A-Z][a-z])/g, '$1_$2').toLowerCase();
+export { snakeCase } from '../snake';
 
 export function defineTab<T>(name: string, cols: Col<T>[], idOf: (r: T) => string, idKey?: Extract<keyof T, string>): TabSpec<T> {
   // an "id" column only where the record has a real id (transactions, scenarios). Other tabs are matched by their
@@ -214,14 +215,14 @@ export const BALANCES = defineTab<BalanceRow>('fidelity_balances_daily', [
 // every field of every position as its own column (fidelity_positions_all): the header grows when the site adds a
 // field and is never reordered; the tab is rewritten as a whole on every read
 export const WIDE_TAB = 'fidelity_positions_all';
-export const WIDE_FIRST = ['as_of', 'actNum', 'actNam', 'rowType', 'sym_name', 'sym_desc'];
+export const WIDE_FIRST = ['as_of', 'act_num', 'act_nam', 'row_type', 'sym_name', 'sym_desc'];
 
 export function wideSpec(header: string[]): TabSpec<Record<string, unknown>> {
   return {
     name: WIDE_TAB,
     columns: header.slice(),
     lastCol: columnLetter(Math.max(1, header.length)),
-    idOf: (r) => key(String(r.actNum ?? ''), String(r.rowType ?? ''), String(r.sym_name ?? '')),
+    idOf: (r) => key(String(r.act_num ?? ''), String(r.row_type ?? ''), String(r.sym_name ?? '')),
     toRow: (r) => header.map((h) => {
       const v = r[h];
       if (v === undefined || v === null) return '';
@@ -235,7 +236,10 @@ export function wideSpec(header: string[]): TabSpec<Record<string, unknown>> {
 export function growHeader(stored: string[], keys: string[]): string[] {
   const head = stored.map((s) => s.trim());
   while (head.length && !head[head.length - 1]) head.pop();
-  const base = head.length ? head : WIDE_FIRST.slice();
+  // a header from before the snake_case naming (actNum, todGLPct): the tab is rewritten whole on every write, so it
+  // simply starts again with the new names
+  const old = head.some((h) => h !== snakeCase(h));
+  const base = head.length && !old ? head : WIDE_FIRST.slice();
   const have = new Set(base);
   const extra = keys.filter((k) => !have.has(k)).sort();
   return base.concat(extra);
