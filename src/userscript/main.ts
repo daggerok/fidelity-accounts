@@ -373,7 +373,9 @@ function onPortfolio(): void {
       // a sync, ⬇ or the first read of a page is a job worth a notice; the reads of 👀 between them (every 30 s) are not
       const told = wasAsked || first;
       void (async () => {
-        const saved = write ? await saveSets(['summary', 'positions']) : false;
+        // a sync that was asked for (the viewer, ⬇) offers every set: the ones with nothing new are skipped by their print,
+        // and a tab deleted in the sheet is written again from the script's own copy
+        const saved = write ? await saveSets(wasAsked ? ['summary', 'positions', 'transactions', 'betas'] : ['summary', 'positions']) : false;
         if (broken.length) announce('error', fidelityChanged(brokenProblems(r.findings)));
         else if (told) announce('ok', positionsRead(ds.accounts.length, ds.positions.length, saved));
         readDone = true;

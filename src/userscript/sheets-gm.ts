@@ -4,7 +4,7 @@
 // every silent renew; requests to sheets.googleapis.com go through GM_xmlhttpRequest (page CSP and CORS do not apply)
 import type { Dataset } from '../shared/model';
 import { SheetsClient, chunkPrintsOf, type ChunkPrint, type FetchLike } from '../shared/sheets/client';
-import { fingerprint, markUpdated, pushBetas, pushPositions, pushSummary, pushTransactions, type DataSet } from '../shared/sheets/sync';
+import { SET_TABS, fingerprint, markUpdated, pushBetas, pushPositions, pushSummary, pushTransactions, type DataSet } from '../shared/sheets/sync';
 import { TRANSACTIONS } from '../shared/sheets/tabs';
 import type { TxnStore } from '../shared/transactions';
 
@@ -78,9 +78,18 @@ export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | 
   const done: DataSet[] = [];
   const next: Prints = { ...prints };
   const chunks: TabChunks = { ...(more.chunks ?? {}) };
+  // A set with the same content as its last write is skipped only while its tabs are still in the spreadsheet (owner
+  // 2026-11-26: "why if I removed the data we wont do full reread?"): a tab deleted by hand comes back with the next
+  // write. The tabs are listed once a run, and only when a set would be skipped
+  let tabs: Set<string> | null = null;
+  const tabsThere = async (set: DataSet): Promise<boolean> => {
+    if (!tabs) tabs = new Set((await client.listTabs()).tabs.map((t) => t.title));
+    return SET_TABS[set].every((name) => tabs!.has(name));
+  };
   for (const set of sets) {
     const print = fingerprint(set, data);
-    if (!print || print === prints[set]) continue;
+    if (!print) continue;
+    if (print === prints[set] && (await tabsThere(set))) continue;
     if (more.starting) more.starting(set);
     if (set === 'summary') await pushSummary(client, data.ds!, log);
     if (set === 'positions') await pushPositions(client, data.ds!, log);
@@ -88,6 +97,7 @@ export async function writeSets(sets: readonly DataSet[], data: { ds: Dataset | 
     if (set === 'betas') await pushBetas(client, data.ds!, log);
     next[set] = print;
     done.push(set);
+    tabs = null; // the write may have added tabs
   }
   if (done.length) await markUpdated(client, done, new Date().toISOString());
   return { done, prints: next, chunks };
