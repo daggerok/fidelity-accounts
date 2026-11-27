@@ -160,12 +160,22 @@ export function App() {
           {/* the 🔔 popups lie over the right end of the navbar (ui/Notices.tsx) */}
           <Notices />
           </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
+          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
+            <div onKeyDown={onSettingsKey}>
+              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} theme={theme} />
+            </div>
+          </SlidePanel>
           {/* the page tabs get a panel of their own under the navbar, in its look (owner 2026-11-24: "lets add same panel as
               our navbar, but it will contains only tabs"): the tabs on the left, our read time on the right ("As of": Fidelity's
               own keeps the page load time after Refresh Positions); the gap above is the gutter, like between the cards, and it is
               as tall as the navbar (owner 2026-11-25): the tabs are as tall as the navbar buttons (.tb, 2.25rem) */}
+          {/* it lives in the scrolling part, under the open ⚙️ Settings (owner 2026-11-27: "settings menu should appeared above
+              tabs panel, not below"), and sticks to its top with the gutter above it, so the tabs never scroll away */}
           {ds && (
-            <nav className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900 lg:mt-6" data-tabs-panel>
+            <div className="sticky top-0 z-20 bg-slate-100 pt-4 dark:bg-slate-950 lg:pt-6" data-tabs-wrap>
+            <nav className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900" data-tabs-panel>
               {/* the merge switch follows the Positions tab (owner 2026-11-25), outside the tablist: a tablist holds only tabs and
                   its arrow keys move between them; it is always drawn (dimmed with one account), so the panel never moves */}
               <div className="flex items-center gap-x-1.5">
@@ -180,14 +190,8 @@ export function App() {
               </div>
               <span className="text-xs leading-none text-slate-500 dark:text-slate-400" data-scope-title>{t('As of {at}', { at: readTime(ds.builtAt, language) })}</span>
             </nav>
-          )}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
-          <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
-            <div onKeyDown={onSettingsKey}>
-              <SettingsPanel userscript={userscript} done={done} expand={expandSetup} theme={theme} />
             </div>
-          </SlidePanel>
+          )}
 
         {/* what is wrong with the data and with Google (a lost sign-in says "press ☁️", and ☁️ is back in the navbar) */}
         {[error, g.error].filter((m): m is string => !!m).map((m, i) => <Banner key={i}>{m}</Banner>)}

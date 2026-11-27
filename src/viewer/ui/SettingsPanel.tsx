@@ -44,20 +44,23 @@ export function SettingsTools() {
   return <><SettingsTransfer /><SettingsResets /></>;
 }
 
-// Reset view and Full reset, right after "⚙️ Settings" in the panel's header (owner 2026-11-24; they were at the very
-// bottom). Full reset is off by default and needs its own switch first (owner 2026-11-23); Reset view always works
+// One reset control right after Export and Import in the panel's header (owner 2026-11-27: "rename Reset view -> Reset,
+// inside button after Reset add checkbox and Full ... Color for Reset orange, for Full - red"): no border, the word
+// Reset is the button, the box beside it says how far it goes. Not ticked: the view only, the setup stays (resetView).
+// Ticked: everything this app keeps in this browser (fullReset), so the full one still takes two clicks
 export function SettingsResets() {
-  const [fullOn, setFullOn] = useState(false);
+  const [full, setFull] = useState(false);
   return (
-    <div className="flex flex-wrap items-center gap-2" data-resets>
-      <button type="button" className="btn sm" onClick={() => resetView()} title={t('Selected account, tab, sort, columns, theme, palette and language back to their defaults; the setup stays')}>{t('Reset view')}</button>
-      <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-        <input type="checkbox" checked={fullOn} onChange={(e) => setFullOn(e.target.checked)} data-full-reset-switch />{t('Enable full reset')}
+    <div className="flex items-center rounded-lg text-xs font-medium" data-resets>
+      <button type="button" data-reset={full ? 'full' : 'view'} onClick={() => (full ? void fullReset() : resetView())}
+        className="rounded-lg px-2.5 py-1.5 text-amber-700 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-400/10"
+        title={full
+          ? t('Everything this app keeps in this browser: the Google setup, the cached data and the view; the script forgets its data and Google token')
+          : t('Selected account, tab, sort, columns, theme, palette and language back to their defaults; the setup stays')}>{t('Reset')}</button>
+      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-rose-700 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-400/10"
+        title={t('Ticked: Reset also forgets the Google setup and the cached data')}>
+        <input type="checkbox" className="accent-rose-600" checked={full} onChange={(e) => setFull(e.target.checked)} data-full-reset-switch />{t('Full')}
       </label>
-      <button type="button" className="btn sm danger" disabled={!fullOn} data-full-reset onClick={() => void fullReset()}
-        title={t('Everything this app keeps in this browser: the Google setup, the cached data and the view; the script forgets its data and Google token')}>
-        {t('Full reset')}
-      </button>
     </div>
   );
 }

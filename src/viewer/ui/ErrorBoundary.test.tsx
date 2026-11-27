@@ -30,7 +30,8 @@ test('a throwing child renders the fallback with both resets; a new resetKey dra
     const fallback = document.querySelector('[data-error-boundary]');
     expect(fallback?.textContent).toContain('bad row');
     expect(document.querySelector('[data-resets]')).not.toBeNull();
-    expect(document.querySelector('[data-full-reset]')).not.toBeNull();
+    expect(document.querySelector('[data-reset="view"]')).not.toBeNull();
+    expect(document.querySelector('[data-full-reset-switch]')).not.toBeNull();
     expect(document.querySelector('[data-screen]')).toBeNull();
     broken = false;
     await act(async () => root.render(<ErrorBoundary resetKey="a"><Screen /></ErrorBoundary>));
