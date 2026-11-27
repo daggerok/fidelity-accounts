@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
       <Banner>
         <div className="flex flex-col gap-2" data-error-boundary>
           <span>{t('This screen could not be drawn: {error}', { error: error.message })}</span>
-          <span className="text-xs">{t('Reset view usually helps; Full reset also forgets the cached data and the Google setup.')}</span>
+          <span className="text-xs">{t('Reset usually helps; with Full ticked it also forgets the cached data and the Google setup.')}</span>
           <SettingsResets />
         </div>
       </Banner>

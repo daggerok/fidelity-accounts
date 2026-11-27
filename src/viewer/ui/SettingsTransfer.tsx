@@ -103,7 +103,6 @@ export function SettingsTransfer() {
             { key: 'file', label: `📄 ${t('Choose a file')}`, hint: t('The file saved by Export') },
           ]} />
         <input ref={picker} type="file" accept=".json,application/json" className="hidden" data-import-file onChange={(e) => { void picked(e.target.files?.[0]); e.target.value = ''; }} />
-        <span className="ml-1 h-5 w-px bg-slate-200 dark:bg-slate-600" aria-hidden="true" />
       </div>
       {mode && (
         <form ref={form} className="order-last flex basis-full flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/40" onSubmit={(e) => { void submit(e); }} data-transfer-form={`${mode.kind}-${mode.via}`}>
