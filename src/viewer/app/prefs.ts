@@ -5,7 +5,7 @@
 import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
 import { cleanFilters, cleanTypes, type ColumnType } from '../../shared/typed-columns';
-import { NEW_COLUMNS_BY_V, NEW_COLUMN_KEYS } from './position-columns';
+import { DEFAULT_HIDDEN, NEW_COLUMNS_BY_V } from './position-columns';
 import { ACCOUNT_SORTS, DEFAULT_DIV_SORTS, asDivSorts, asDivWindow, asKind, type AccountSort, type DivSort, type DivWindow, type Kind } from './derive';
 
 export const MAIN_TABS = ['summary', 'positions'] as const;
@@ -39,7 +39,7 @@ export interface Prefs {
   merge: boolean; // Positions of several accounts as one line per ticker (app/merge.ts)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: DEFAULT_HIDDEN.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -56,7 +56,8 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       tab: (MAIN_TABS as readonly string[]).indexOf(String(p.tab)) >= 0 ? (p.tab as MainTab) : 'summary',
       // the columns added later start hidden once, for a choice saved before them (owner 2026-11-24: all of Fidelity's
       // columns, the table keeps the owner's view)
-      hidden: withNewColumns(Array.isArray(p.hidden) ? p.hidden.filter((x): x is string => typeof x === 'string') : [], p.columnsV),
+      // no choice saved at all: the defaults of a new browser
+      hidden: Array.isArray(p.hidden) ? withNewColumns(p.hidden.filter((x): x is string => typeof x === 'string'), p.columnsV) : DEFAULT_HIDDEN.slice(),
       columnsV: COLUMNS_V,
       columns: Array.isArray(p.columns) ? p.columns.filter((x): x is string => typeof x === 'string') : [],
       period: (ALL_PERIODS as readonly string[]).indexOf(periodAlias(String(p.period))) >= 0 ? (periodAlias(String(p.period)) as Period) : '1Y',

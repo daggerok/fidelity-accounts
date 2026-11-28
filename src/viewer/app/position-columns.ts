@@ -99,6 +99,12 @@ export const NEW_COLUMNS_BY_V: Record<number, string[]> = {
   7: ['dripMinAdj'],
 };
 export const NEW_COLUMN_KEYS: string[] = Object.keys(NEW_COLUMNS_BY_V).map(Number).sort((a, b) => a - b).reduce<string[]>((all, v) => all.concat(NEW_COLUMNS_BY_V[v]!), []);
+/**
+ * What a new browser hides (owner 2026-11-27: "Adj will be used for regular columns ... Non-adj ... which we won't be
+ * adding by default"): every later column but the regular DRIP pair (the adjusted order), and the two plain DRIP
+ * calculations that used to show
+ */
+export const DEFAULT_HIDDEN: string[] = NEW_COLUMN_KEYS.filter((k) => k !== 'dripAdj' && k !== 'dripAdjUsd').concat(['drip', 'dripUsd']);
 
 const num0 = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 /** the number behind a field column (its own field, or the one it sorts by) */

@@ -42,7 +42,11 @@ test('column filters and types: only filled strings and known types stay', () =>
 
 test('the columns added later start hidden once: by default and for a choice saved before them, never again after', () => {
   expect(NEW_COLUMN_KEYS.length).toBeGreaterThan(40);
-  expect(DEFAULT_PREFS.hidden).toEqual(NEW_COLUMN_KEYS);
+  // a new browser: every later column is hidden but the regular DRIP pair (the adjusted order), and so are the two
+  // plain DRIP calculations
+  expect(DEFAULT_PREFS.hidden).toEqual(NEW_COLUMN_KEYS.filter((k) => k !== 'dripAdj' && k !== 'dripAdjUsd').concat(['drip', 'dripUsd']));
+  expect(DEFAULT_PREFS.hidden).not.toContain('dripAdj');
+  expect(DEFAULT_PREFS.hidden).toContain('dripMinAdj');
   const old = load(JSON.stringify({ hidden: ['sector'] }));
   expect(old.hidden).toEqual(['sector'].concat(NEW_COLUMN_KEYS));
   expect(old.columnsV).toBe(COLUMNS_V);
