@@ -8,8 +8,9 @@ import { Zoom } from './Zoom';
 // pack into columns (owner 2026-11-23: plates sized by their content, a shorter page on desktop)
 // `expand`: the card's full view, opened big over the page by ⤢ (owner 2026-11-23: maximize for every plate where it
 // makes sense, more rows and details there)
-// `lead` sits right after the title, `tools` at the top right corner
-export function Card({ id, title, titleHint, children, tools, lead, expand }: { id: string; title: string; titleHint?: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode }) {
+// `lead` sits right after the title, `tools` at the top right corner; `bigTools` only in the full view, before the
+// tools: what the card itself shows in its body and the full view has no room for there (the Upcoming dividends order)
+export function Card({ id, title, titleHint, children, tools, lead, expand, bigTools }: { id: string; title: string; titleHint?: string; children: React.ReactNode; tools?: React.ReactNode; lead?: React.ReactNode; expand?: React.ReactNode; bigTools?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLElement>(null);
   return (
@@ -23,7 +24,7 @@ export function Card({ id, title, titleHint, children, tools, lead, expand }: { 
       </div>
       {children}
       {/* always mounted: a list that empties under an open window (a pill switched) must not drop the window; it shows the card's own view then */}
-      <Zoom open={open} title={title} tools={lead || tools ? <>{lead}{tools}</> : undefined} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
+      <Zoom open={open} title={title} tools={lead || tools || bigTools ? <>{lead}{bigTools}{tools}</> : undefined} origin={box} onClose={() => setOpen(false)}>{expand ?? children}</Zoom>
     </section>
   );
 }
