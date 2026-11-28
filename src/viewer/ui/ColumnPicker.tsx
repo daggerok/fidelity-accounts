@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
 import { useState } from 'react';
-import { filterColumns, orderAfterDrag, shownKeys, toggleKeys } from '../app/columns';
+import { filterColumns, orderAfterDrag, shownKeys, toggleKeys, turnOnFirst } from '../app/columns';
 import { t } from '../app/i18n';
 import { LIST_ROW, SortableList } from './SortableList';
 
@@ -24,14 +24,23 @@ function GroupCheck({ keys, hidden, onHidden, label }: { keys: string[]; hidden:
   );
 }
 
-export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange }: { cols: PickColumn[]; order: string[]; hidden: string[]; defaultHidden: readonly string[]; onChange: (p: { columns?: string[]; hidden?: string[] }) => void }) {
+// `first`: the keys of the app's own columns; one of them switched on goes to the front of the table (app/columns.ts turnOnFirst)
+export function ColumnPicker({ cols, order, hidden, defaultHidden, onChange, first = [] }: { cols: PickColumn[]; order: string[]; hidden: string[]; defaultHidden: readonly string[]; onChange: (p: { columns?: string[]; hidden?: string[] }) => void; first?: readonly string[] }) {
   const [q, setQ] = useState('');
   const all = cols.map((c) => c.key);
   const byKey = new Map(cols.map((c) => [c.key, c]));
   const shown = shownKeys(all, order, hidden);
   const found = filterColumns(cols, q);
   const groups = Array.from(new Set(cols.map((c) => c.group))).map((g) => ({ name: g, cols: found.filter((c) => c.group === g) })).filter((g) => g.cols.length);
-  const setHidden = (h: string[]) => onChange({ hidden: h });
+  const setHidden = (h: string[]) => {
+    // the own columns this change switches on, in their default order, each to the front
+    const on = all.filter((k) => first.indexOf(k) >= 0 && hidden.indexOf(k) >= 0 && h.indexOf(k) < 0);
+    if (!on.length) { onChange({ hidden: h }); return; }
+    let next = order;
+    let still = hidden;
+    on.forEach((k) => { next = turnOnFirst(all, next, still, k, first); still = still.filter((x) => x !== k); });
+    onChange({ hidden: h, columns: next });
+  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2" data-column-picker>
