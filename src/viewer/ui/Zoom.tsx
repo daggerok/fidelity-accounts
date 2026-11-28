@@ -89,10 +89,10 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
         {/* the tools sit on the right next to ✕, as on the card next to ⤢ (owner 2026-11-24: "move all buttons to the right") */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }}>{title}</h2>
-          <span className="-my-1 ml-auto flex items-center gap-2">
-            {tools}
-            <button ref={closeButton} type="button" className={CORNER_BUTTON} title={t('Close')} aria-label={t('Close')} onClick={onClose}><CloseIcon /></button>
-          </span>
+          {/* a phone (owner 2026-11-27): ✕ stays on the title's line, at its right end, and the chips go to the next line;
+              from sm up they sit before ✕ on one line. `order` places them, the Tab order stays tools then ✕ */}
+          {tools && <span className="order-3 -my-1 flex w-full flex-wrap items-center justify-end gap-2 sm:order-2 sm:ml-auto sm:w-auto" data-zoom-tools>{tools}</span>}
+          <button ref={closeButton} type="button" className={`${CORNER_BUTTON} order-2 !ml-auto ${tools ? 'sm:order-3 sm:!-ml-1' : ''}`} title={t('Close')} aria-label={t('Close')} onClick={onClose}><CloseIcon /></button>
         </div>
         {children}
       </div>

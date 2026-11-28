@@ -237,7 +237,9 @@ export function localToday(now: Date = new Date()): string {
  */
 export type Upcoming = Position & { shares: number; payout?: number };
 export function upcomingDividends(ps: Position[], today: string, last = addDays(today, 30)): Upcoming[] {
-  const due = securities(ps).filter((p) => p.exDate && p.exDate >= today && p.exDate <= last);
+  // only ex dates still ahead (owner 2026-11-27: "if ex.dividends or payment date is today, this info is useless
+  // because we should be buying before today, so show only if ... in future"): today's ex date can no longer be bought
+  const due = securities(ps).filter((p) => p.exDate && p.exDate > today && p.exDate <= last);
   const bySymbol = new Map<string, Upcoming>();
   due.forEach((p) => {
     const cur = bySymbol.get(p.symbol);
@@ -291,24 +293,35 @@ export function yieldNote(p: Pick<Position, 'distRate' | 'dividendAmount' | 'las
 export const DIV_SORTS = ['payDate', 'exDate', 'frequency', 'yield', 'payout'] as const;
 export type DivSort = typeof DIV_SORTS[number];
 export const DEFAULT_DIV_SORTS: DivSort[] = ['payout'];
+// dollars and percent are two views of one thing, the size of the dividend: only one of them is ever chosen
+const SIZE_SORTS: readonly DivSort[] = ['payout', 'yield'];
+const isSize = (k: DivSort): boolean => SIZE_SORTS.indexOf(k) >= 0;
 export function asDivSorts(v: unknown): DivSort[] {
   const out: DivSort[] = [];
-  if (Array.isArray(v)) v.forEach((k) => { if ((DIV_SORTS as readonly unknown[]).indexOf(k) >= 0 && out.indexOf(k as DivSort) < 0) out.push(k as DivSort); });
+  if (Array.isArray(v)) v.forEach((k) => {
+    const known = (DIV_SORTS as readonly unknown[]).indexOf(k) >= 0 && out.indexOf(k as DivSort) < 0;
+    // a saved list with both sizes (made before they excluded each other) keeps the first of them
+    if (known && !(SIZE_SORTS.indexOf(k as DivSort) >= 0 && out.some((o) => SIZE_SORTS.indexOf(o) >= 0))) out.push(k as DivSort);
+  });
   return out.length ? out : DEFAULT_DIV_SORTS.slice();
 }
-/** a click on a pill: adds it after the chosen ones, or takes it out; with none left the default is back */
+/**
+ * A click on a pill (owner 2026-11-27): a chosen one is taken out; a new one goes after the chosen ones, except that
+ * Dividends $ and Dividends % take each other's place (never both). The frequency and the dates may come before or
+ * after the size, in the order they were clicked. With none left the default is back
+ */
 export function toggleDivSort(sorts: DivSort[], key: DivSort): DivSort[] {
-  const next = sorts.indexOf(key) >= 0 ? sorts.filter((k) => k !== key) : sorts.concat(key);
-  return next.length ? next : DEFAULT_DIV_SORTS.slice();
+  if (sorts.indexOf(key) >= 0) { const left = sorts.filter((k) => k !== key); return left.length ? left : DEFAULT_DIV_SORTS.slice(); }
+  return isSize(key) && sorts.some(isSize) ? sorts.map((k) => (isSize(k) ? key : k)) : sorts.concat(key);
 }
 // bigger first; a row without the number goes last
 const bigFirst = (a: number | undefined, b: number | undefined): number => {
   const x = a !== undefined && Number.isFinite(a), y = b !== undefined && Number.isFinite(b);
   return x && y ? b! - a! : x ? -1 : y ? 1 : 0;
 };
-// the nearest date from today on first ("today or later, not past"); a past or missing date goes last
+// the nearest date after today first, then the later ones; today, a past or a missing date goes last
 const soonFirst = (a: string | undefined, b: string | undefined, today: string): number => {
-  const x = !!a && a >= today, y = !!b && b >= today;
+  const x = !!a && a > today, y = !!b && b > today;
   return x && y ? (a! < b! ? -1 : a! > b! ? 1 : 0) : x ? -1 : y ? 1 : 0;
 };
 const DIV_ORDER: Record<DivSort, (a: Upcoming, b: Upcoming, today: string) => number> = {
