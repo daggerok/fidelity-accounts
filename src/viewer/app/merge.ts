@@ -98,6 +98,18 @@ export function mergePositions(positions: Position[], accounts: Account[]): Merg
   return out;
 }
 
+/**
+ * Some positions added up as one line: the total of the rows a filter found (owner 2026-11-28: "where we use filters,
+ * we want to also see totals for our searches"). The same sums and percents as a merged line; `accounts` give the base
+ * of % of account. Only the dollars and the percents of it mean anything across different tickers: the table shows
+ * those and leaves the shares, the prices and the texts empty
+ */
+export function totalPosition(positions: Position[], accounts: Account[]): MergedPosition | null {
+  if (!positions.length) return null;
+  const balances = accounts.reduce((s, a) => s + (isNum(a.balance) ? a.balance : 0), 0);
+  return mergeGroup(positions, balances > 0 ? balances : positions.reduce((s, p) => s + (isNum(p.currentValue) ? p.currentValue : 0), 0));
+}
+
 function mergeGroup(rows: Position[], base: number): MergedPosition {
   const accounts = rows.map((p) => p.account).filter((a, i, all) => all.indexOf(a) === i);
   const percentOfAccount = (value: number | undefined) => (value === undefined ? undefined : ratio(value, base, 100));

@@ -6,7 +6,7 @@ import { expect, test } from 'bun:test';
 import type { Account, Position } from '../../shared/model';
 import { dripGap, dripMin } from './derive';
 import { FIELD_COLUMNS, positionColumn } from './position-columns';
-import { FIELD_MERGE, MERGE_KINDS, PROPERTY_MERGE, RAW_OF, fieldMerge, mergeOn, mergePositions, toggleMerge, type MergedPosition } from './merge';
+import { FIELD_MERGE, MERGE_KINDS, PROPERTY_MERGE, RAW_OF, fieldMerge, mergeOn, mergePositions, toggleMerge, totalPosition, type MergedPosition } from './merge';
 import { DEFAULT_PREFS, loadPrefs } from './prefs';
 
 const acct = (number: string, balance: number): Account => ({ number, name: number, group: 'G', balance, asOf: '' });
@@ -186,4 +186,22 @@ test('merge applies with more than one account only; the switch opens Positions;
   expect(DEFAULT_PREFS.merge).toBe(false);
   expect(loadPrefs({ getItem: () => '{"merge":true}' }).merge).toBe(true);
   expect(loadPrefs({ getItem: () => '{"merge":"yes"}' }).merge).toBe(false);
+});
+
+test('the rows a filter found add up to one total: dollars summed, percents worked out from the sums', () => {
+  const a = pos('T0000001', 'AAA', { currentValue: 110, todayGl: 10, costBasisTotal: 80, totalGl: 30, estAnnualIncome: 4 });
+  const b = pos('T0000002', 'BBB', { currentValue: 90, todayGl: -10, costBasisTotal: 120, totalGl: -30, estAnnualIncome: 2 });
+  const t = totalPosition([a, b], ACCOUNTS)!;
+  expect(t.currentValue).toBe(200);
+  expect(t.todayGl).toBe(0);
+  expect(t.todayGlPct).toBe(0); // 0 over the 200 it was worth before today
+  expect(t.costBasisTotal).toBe(200);
+  expect(t.totalGl).toBe(0);
+  expect(t.totalGlPct).toBe(0);
+  expect(t.estAnnualIncome).toBe(6);
+  // 200 of everything the shown accounts hold
+  expect(t.percentOfAccount).toBeCloseTo((200 / ACCOUNTS.reduce((x, acc) => x + (acc.balance ?? 0), 0)) * 100, 6);
+  expect(totalPosition([], ACCOUNTS)).toBeNull();
+  // one row found: the total is that row
+  expect(totalPosition([a], ACCOUNTS)!.currentValue).toBe(110);
 });
