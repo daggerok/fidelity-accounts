@@ -58,14 +58,13 @@ export function focusQuietly(el: HTMLElement | null | undefined, byPointer: bool
 }
 /** how the last thing on the page was done: true after a press of a pointer, false after Tab, Enter or Space */
 let pointerLast = false;
-// the window being watched: a new one (each test file brings its own) is watched afresh
-let watched: unknown = null;
-export function lastWasPointer(): boolean {
-  if (typeof window !== 'undefined' && watched !== window) {
-    watched = window;
-    pointerLast = false;
-    window.addEventListener('pointerdown', () => { pointerLast = true; }, true);
-    window.addEventListener('keydown', (e) => { if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') pointerLast = false; }, true);
-  }
-  return pointerLast;
+export const lastWasPointer = (): boolean => pointerLast;
+/** watch how things are done while something needs to know (a mounted window); returns what stops the watch */
+export function watchInput(): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const down = () => { pointerLast = true; };
+  const key = (e: KeyboardEvent) => { if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') pointerLast = false; };
+  window.addEventListener('pointerdown', down, true);
+  window.addEventListener('keydown', key, true);
+  return () => { window.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key, true); };
 }

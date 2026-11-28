@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { focusQuietly, lastWasPointer, trapIndex } from '../app/focus';
+import { focusQuietly, lastWasPointer, trapIndex, watchInput } from '../app/focus';
 import { t } from '../app/i18n';
 import { CORNER_BUTTON, CloseIcon } from './icons';
 
@@ -57,7 +57,7 @@ export function Zoom({ open, title, onClose, children, tools, origin, narrow }: 
   const opener = useRef<HTMLElement | null>(null);
   // opened with a pointer: the focus moves without its ring, on ✕ and back on what opened the window (app/focus.ts)
   const byPointer = useRef(false);
-  useEffect(() => { lastWasPointer(); }, []); // start watching how things are done
+  useEffect(() => watchInput(), []); // know how things are done while this window lives
   useEffect(() => {
     if (open) {
       const active = document.activeElement;
