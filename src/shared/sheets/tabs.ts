@@ -14,6 +14,10 @@ export type Kind = 'text' | 'cents' | 'num' | 'bool' | 'json';
 
 export interface Col<T> {
   key: Extract<keyof T, string>;
+  // the column's name in the sheet when it is not the key in snake_case: one thing has one name in every tab (owner
+  // 2026-11-27: "be consistent with columns names ... so we won't need to fix it later again"), and the names are those
+  // of fidelity_positions_all, Fidelity's own fields made readable: account_number, symbol_name, week_52_low, ...
+  as?: string;
   kind: Kind;
   optional?: boolean;
   // allowed values of a text column (an unknown value reads as the first one, or as nothing when optional)
@@ -32,6 +36,9 @@ export interface TabSpec<T> {
   fromRow: (row: unknown[]) => T | null;
   // rows are a list, not a set by id: records with the same id are all written (fidelity_transactions)
   repeats?: boolean;
+  // headers this tab had before, the same columns in the same places under other names: a tab found with one of them
+  // is ours and only its header row is rewritten (rows are read by place, so an old header reads the same)
+  earlier?: string[][];
 }
 
 // the tabs carry the app name (pattern google-sheets-in-browser): fidelity_ for this app
@@ -114,12 +121,15 @@ export function defineTab<T>(name: string, cols: Col<T>[], idOf: (r: T) => strin
   // own key columns (from|to|scope|key, date|fund, ...): a glued key in column A only repeated them (owner
   // 2026-11-22: "why we haven't split it into many columns")
   const hasId = !!idKey;
-  const data = cols.map((c) => snakeCase(c.key));
+  const data = cols.map((c) => c.as ?? snakeCase(c.key));
   const columns = hasId ? ['id'].concat(data) : data;
   const offset = hasId ? 1 : 0;
+  // the names before `as`: every key in snake_case
+  const plain = (hasId ? ['id'] : []).concat(cols.map((c) => snakeCase(c.key)));
   return {
     name,
     columns,
+    earlier: plain.join('|') === columns.join('|') ? [] : [plain],
     lastCol: columnLetter(columns.length),
     idOf,
     toRow: (r) => {
@@ -144,10 +154,10 @@ const key = (...parts: (string | undefined)[]): string => parts.map((p) => p || 
 
 // the accounts as the site lists them, one row per account, rewritten on every read
 export const ACCOUNTS = defineTab<Account>('fidelity_accounts', [
-  { key: 'number', kind: 'text' },
-  { key: 'name', kind: 'text' },
-  { key: 'group', kind: 'text' },
-  { key: 'type', kind: 'text', optional: true },
+  { key: 'number', as: 'account_number', kind: 'text' },
+  { key: 'name', as: 'account_name', kind: 'text' },
+  { key: 'group', as: 'account_group', kind: 'text' },
+  { key: 'type', as: 'account_type', kind: 'text', optional: true },
   { key: 'balance', kind: 'num', optional: true },
   { key: 'todayGl', kind: 'num', optional: true },
   { key: 'todayGlPct', kind: 'num', optional: true },
@@ -163,13 +173,13 @@ export const ACCOUNTS = defineTab<Account>('fidelity_accounts', [
 // the positions now (a sold position leaves the tab): the common columns plus every field of the site in "fields"
 export type PositionRow = Position & { asOf: string };
 export const POSITIONS = defineTab<PositionRow>('fidelity_positions', [
-  { key: 'account', kind: 'text' },
-  { key: 'kind', kind: 'text', values: ['position', 'core', 'pending'] },
-  { key: 'symbol', kind: 'text' },
-  { key: 'description', kind: 'text' },
-  { key: 'cusip', kind: 'text', optional: true },
-  { key: 'securityType', kind: 'text', optional: true },
-  { key: 'securitySubType', kind: 'text', optional: true },
+  { key: 'account', as: 'account_number', kind: 'text' },
+  { key: 'kind', as: 'position_kind', kind: 'text', values: ['position', 'core', 'pending'] },
+  { key: 'symbol', as: 'symbol_name', kind: 'text' },
+  { key: 'description', as: 'symbol_description', kind: 'text' },
+  { key: 'cusip', as: 'symbol_cusip', kind: 'text', optional: true },
+  { key: 'securityType', as: 'meta_security_type', kind: 'text', optional: true },
+  { key: 'securitySubType', as: 'meta_security_sub_type', kind: 'text', optional: true },
   { key: 'quantity', kind: 'num', optional: true },
   { key: 'lastPrice', kind: 'num', optional: true },
   { key: 'lastPriceChange', kind: 'num', optional: true },
@@ -182,19 +192,19 @@ export const POSITIONS = defineTab<PositionRow>('fidelity_positions', [
   { key: 'costBasisTotal', kind: 'num', optional: true },
   { key: 'costBasisPerShare', kind: 'num', optional: true },
   { key: 'percentOfAccount', kind: 'num', optional: true },
-  { key: 'distRate', kind: 'num', optional: true },
+  { key: 'distRate', as: 'distribution_yield', kind: 'num', optional: true },
   { key: 'secYield', kind: 'num', optional: true },
   { key: 'estAnnualIncome', kind: 'num', optional: true },
   { key: 'dividendAmount', kind: 'num', optional: true },
-  { key: 'paymentFrequency', kind: 'text', optional: true },
+  { key: 'paymentFrequency', as: 'dividend_frequency', kind: 'text', optional: true },
   { key: 'exDate', kind: 'text', optional: true },
   { key: 'payDate', kind: 'text', optional: true },
   { key: 'marketCap', kind: 'num', optional: true },
   { key: 'marketCapText', kind: 'text', optional: true },
   { key: 'sector', kind: 'text', optional: true },
   { key: 'industry', kind: 'text', optional: true },
-  { key: 'low52', kind: 'num', optional: true },
-  { key: 'high52', kind: 'num', optional: true },
+  { key: 'low52', as: 'week_52_low', kind: 'num', optional: true },
+  { key: 'high52', as: 'week_52_high', kind: 'num', optional: true },
   { key: 'asOf', kind: 'text' },
   { key: 'fields', kind: 'json', empty: '{}' },
 ], (r) => key(r.account, r.kind, r.symbol));
@@ -203,8 +213,8 @@ export const POSITIONS = defineTab<PositionRow>('fidelity_positions', [
 export interface BalanceRow { date: string; account: string; name: string; balance?: number; todayGl?: number; totalGl?: number; costBasis?: number; cash?: number }
 export const BALANCES = defineTab<BalanceRow>('fidelity_balances_daily', [
   { key: 'date', kind: 'text' },
-  { key: 'account', kind: 'text' },
-  { key: 'name', kind: 'text' },
+  { key: 'account', as: 'account_number', kind: 'text' },
+  { key: 'name', as: 'account_name', kind: 'text' },
   { key: 'balance', kind: 'num', optional: true },
   { key: 'todayGl', kind: 'num', optional: true },
   { key: 'totalGl', kind: 'num', optional: true },
@@ -247,16 +257,16 @@ export function growHeader(stored: string[], keys: string[]): string[] {
 
 // the transactions history (shared/transactions), rewritten as a whole after each daily read of it
 export const TRANSACTIONS = defineTab<Txn>('fidelity_transactions', [
-  { key: 'account', kind: 'text' },
+  { key: 'account', as: 'account_number', kind: 'text' },
   { key: 'date', kind: 'text' },
   { key: 'mnemonic', kind: 'text', optional: true },
-  { key: 'cat', kind: 'text', optional: true },
-  { key: 'sub', kind: 'text', optional: true },
-  { key: 'dir', kind: 'text', optional: true },
-  { key: 'symbol', kind: 'text', optional: true },
-  { key: 'qty', kind: 'num', optional: true },
-  { key: 'net', kind: 'num', optional: true },
-  { key: 'desc', kind: 'text', optional: true },
+  { key: 'cat', as: 'category', kind: 'text', optional: true },
+  { key: 'sub', as: 'subcategory', kind: 'text', optional: true },
+  { key: 'dir', as: 'direction', kind: 'text', optional: true },
+  { key: 'symbol', as: 'symbol_name', kind: 'text', optional: true },
+  { key: 'qty', as: 'quantity', kind: 'num', optional: true },
+  { key: 'net', as: 'net_amount', kind: 'num', optional: true },
+  { key: 'desc', as: 'description', kind: 'text', optional: true },
   { key: 'cancelled', kind: 'bool', optional: true },
 ], (r) => key(r.account, r.date, r.mnemonic, r.symbol, String(r.net)));
 // Two transactions may be the same in every column (two buys for the same amount on one day): both are real and both
@@ -267,15 +277,15 @@ TRANSACTIONS.repeats = true;
 // how far each account's transactions were read (TxnStore.synced) and when, one row per account
 export interface TxnSyncedRow { account: string; synced: string; at: string }
 export const TXN_SYNCED = defineTab<TxnSyncedRow>('fidelity_transactions_synced', [
-  { key: 'account', kind: 'text' },
-  { key: 'synced', kind: 'text' },
-  { key: 'at', kind: 'text' },
+  { key: 'account', as: 'account_number', kind: 'text' },
+  { key: 'synced', as: 'synced_through', kind: 'text' },
+  { key: 'at', as: 'updated_at', kind: 'text' },
 ], (r) => r.account);
 
 // the beta of each held symbol (shared/beta.ts) and where it came from, rewritten after the daily beta run
 export interface BetaRow { symbol: string; beta: number; source: BetaSource; months?: number; asOf: string }
 export const BETAS = defineTab<BetaRow>('fidelity_betas', [
-  { key: 'symbol', kind: 'text' },
+  { key: 'symbol', as: 'symbol_name', kind: 'text' },
   { key: 'beta', kind: 'num' },
   { key: 'source', kind: 'text', values: BETA_SOURCES },
   { key: 'months', kind: 'num', optional: true },
@@ -286,8 +296,8 @@ export const BETAS = defineTab<BetaRow>('fidelity_betas', [
 // small tab and reads back only the sets that changed
 export interface UpdateRow { set: string; at: string }
 export const UPDATES = defineTab<UpdateRow>('fidelity_updates', [
-  { key: 'set', kind: 'text' },
-  { key: 'at', kind: 'text' },
+  { key: 'set', as: 'data_set', kind: 'text' },
+  { key: 'at', as: 'updated_at', kind: 'text' },
 ], (r) => r.set);
 
 export const TAB_NAMES = [ACCOUNTS.name, POSITIONS.name, BALANCES.name, WIDE_TAB, TRANSACTIONS.name, TXN_SYNCED.name, BETAS.name, UPDATES.name];

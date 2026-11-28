@@ -215,7 +215,9 @@ export class SheetsClient {
     const current = stored.map((v) => v.trim());
     const ours = current.slice(0, spec.columns.length);
     const empty = ours.every((v) => v === '');
-    if (!empty && ours.join('\u0001') !== spec.columns.join('\u0001')) {
+    // a header this tab had before (the same columns in the same places, renamed since) is ours: it gets the new names below
+    const earlier = (spec.earlier ?? []).some((h) => h.join('\u0001') === ours.join('\u0001'));
+    if (!empty && !earlier && ours.join('\u0001') !== spec.columns.join('\u0001')) {
       throw new SheetsError(`${spec.name}: its header differs from this version (${ours.slice(0, 4).join(', ')}…): update the script and the page to the same version, or rename the tab to start it fresh`, 409);
     }
     // the PUT would write exactly what is there: skipped only when the stored cells equal this version's columns

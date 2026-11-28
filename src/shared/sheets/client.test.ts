@@ -63,6 +63,26 @@ describe('SheetsClient', () => {
     expect(fake.calls.filter((x) => x.method === 'PUT')).toHaveLength(1);
   });
 
+  test('a tab with a header it had before is ours: the names are rewritten, the rows are kept', async () => {
+    // the column "rothPct" is called roth_percent in the sheet now; the tab was written when it was roth_pct
+    const RENAMED = defineTab<{ date: string; rothPct: number; preTaxPct: number }>('fidelity_rate', [
+      { key: 'date', kind: 'text' },
+      { key: 'rothPct', as: 'roth_percent', kind: 'num' },
+      { key: 'preTaxPct', kind: 'num' },
+    ], (r) => r.date);
+    expect(RENAMED.columns).toEqual(['date', 'roth_percent', 'pre_tax_pct']);
+    expect(RENAMED.earlier).toEqual([['date', 'roth_pct', 'pre_tax_pct']]);
+    const fake = fakeSheets();
+    fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [['date', 'roth_pct', 'pre_tax_pct'], ['2026-01-01', 4, 0]] };
+    const { c } = client(fake);
+    // the old header reads as before: rows go by their place
+    expect(await c.readRows(RENAMED)).toEqual([{ date: '2026-01-01', rothPct: 4, preTaxPct: 0 }]);
+    await c.upsertById(RENAMED, [{ date: '2026-02-01', rothPct: 6, preTaxPct: 0 }]);
+    expect(fake.tabs.fidelity_rate.values[0]).toEqual(['date', 'roth_percent', 'pre_tax_pct']);
+    expect(fake.tabs.fidelity_rate.values[1]).toEqual(['2026-01-01', 4, 0]);
+    expect(fake.tabs.fidelity_rate.values[2]).toEqual(['2026-02-01', 6, 0]);
+  });
+
   test('a tab with another header is never cleared: writing stops with a clear error', async () => {
     const fake = fakeSheets();
     fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [['id', 'date', 'roth_pct', 'pre_tax_pct'], ['2026-01-01', '2026-01-01', 4, 0]] };

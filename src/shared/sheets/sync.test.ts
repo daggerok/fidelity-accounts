@@ -25,7 +25,7 @@ test('rows of the fidelity_* tabs round-trip and keep account numbers as text', 
   const back = POSITIONS.fromRow(POSITIONS.toRow(rows[1]!))!;
   expect(back).toMatchObject({ account: 'X10000001', symbol: 'AAAA', quantity: 2.5, exDate: '2026-12-12' });
   expect(back.fields.market_cap_text).toBe('Large cap ($234.93B)');
-  expect(POSITIONS.columns[0]).toBe('account');
+  expect(POSITIONS.columns[0]).toBe('account_number');
   expect(POSITIONS.columns).toContain('cost_basis_total');
   const b = balanceRows(ds);
   expect(b.map((r) => BALANCES.idOf(r))).toEqual(['2026-11-20|X10000001', '2026-11-20|200000002']);
@@ -92,7 +92,7 @@ test('a tab not created yet reads as empty, other errors still fail the read', a
 test('betas round-trip through fidelity_betas, go into the shown dataset and print without their day', () => {
   const betas = { AAAA: { beta: 1.25, source: 'stock5y' as const, asOf: '2026-11-25T10:00:00.000Z' }, BBBB: { beta: 0.8, source: 'calcMonthly' as const, months: 36, asOf: '2026-11-25T10:00:00.000Z' } };
   const rows = betaRows(betas).map((r) => BETAS.fromRow(BETAS.toRow(r))!);
-  expect(BETAS.columns).toEqual(['symbol', 'beta', 'source', 'months', 'as_of']);
+  expect(BETAS.columns).toEqual(['symbol_name', 'beta', 'source', 'months', 'as_of']);
   expect(betasFromRows(rows)).toEqual(betas);
   const shown = datasetFromTabs(ds, { betas: rows })!;
   expect(shown.betas).toEqual(betas);
@@ -110,4 +110,20 @@ test('betas round-trip through fidelity_betas, go into the shown dataset and pri
 test('a beta tab not created yet reads as empty', async () => {
   const fake = { readRows: async <T,>(spec: { name: string }): Promise<T[]> => { throw new SheetsError(`Google Sheets 400 on read ${spec.name}`, 400); } };
   expect(await readSets(fake, ['betas'])).toEqual({ betas: [] });
+});
+
+test('one thing has one name in every tab, the names of fidelity_positions_all', () => {
+  const { ACCOUNTS: A, POSITIONS: P, BALANCES: B, TRANSACTIONS: T, TXN_SYNCED: S, BETAS: BT, UPDATES: U, WIDE_FIRST: W } = require('./tabs') as typeof import('./tabs');
+  // the account and the symbol are named alike wherever they stand
+  [A, P, B, T, S].forEach((tab) => expect(tab.columns).toContain('account_number'));
+  [A, B].forEach((tab) => expect(tab.columns).toContain('account_name'));
+  [P, T, BT].forEach((tab) => expect(tab.columns).toContain('symbol_name'));
+  ['account_number', 'account_name', 'symbol_name', 'symbol_description'].forEach((n) => expect(W).toContain(n));
+  // no short or second name is left
+  const all = [A, P, B, T, S, BT, U].reduce<string[]>((x, tab) => x.concat(tab.columns), []);
+  ['account', 'number', 'name', 'symbol', 'desc', 'qty', 'cat', 'sub', 'dir', 'net', 'low52', 'high52', 'dist_rate', 'payment_frequency', 'at', 'set', 'kind'].forEach((n) => expect(all).not.toContain(n));
+  expect(T.columns).toEqual(['account_number', 'date', 'mnemonic', 'category', 'subcategory', 'direction', 'symbol_name', 'quantity', 'net_amount', 'description', 'cancelled']);
+  // every renamed tab remembers the header it had, the same columns in the same places
+  [A, P, B, T, S, BT, U].forEach((tab) => { expect(tab.earlier).toHaveLength(1); expect(tab.earlier![0]).toHaveLength(tab.columns.length); });
+  expect(T.earlier![0]).toEqual(['account', 'date', 'mnemonic', 'cat', 'sub', 'dir', 'symbol', 'qty', 'net', 'desc', 'cancelled']);
 });

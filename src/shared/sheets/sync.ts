@@ -144,8 +144,11 @@ export function fingerprint(set: DataSet, data: { ds: Dataset | null; store: Txn
   }
   let h = 5381;
   for (let i = 0; i < json.length; i++) h = ((h * 33) ^ json.charCodeAt(i)) >>> 0;
-  return `${json.length}:${h.toString(36)}`;
+  // NAMES: the version of the column names in the sheet. A new one makes every print differ from the stored one, so each
+  // set is written once more and its tabs get their new header (0.1.38: one name for one thing in every tab)
+  return `${NAMES}:${json.length}:${h.toString(36)}`;
 }
+const NAMES = 'n2';
 
 /** after the sets are written: their time in fidelity_updates (the viewer watches it) */
 export async function markUpdated(client: SheetsClient, sets: readonly DataSet[], at: string): Promise<void> {
