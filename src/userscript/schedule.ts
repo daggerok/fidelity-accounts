@@ -51,10 +51,14 @@ export const historyDue = (historyAt: string | undefined, now: Date): boolean =>
 
 /**
  * the transactions: `full` (10 days again) after 20:00 and after the open when not read since; `recent` (yesterday and
- * today) every 10 minutes of the session while 👀 is on; else nothing
+ * today) every 10 minutes of the session while 👀 is on; `full` also on a sync the owner asked for; else nothing
  */
-export function txnsPlan(lastAt: string | undefined, now: Date, watching: boolean): 'full' | 'recent' | null {
+export function txnsPlan(lastAt: string | undefined, now: Date, watching: boolean, asked = false): 'full' | 'recent' | null {
   if (due(lastAt, now, [OPEN_MIN, POSTED_MIN])) return 'full';
-  if (watching && marketOpen(now) && now.getTime() - Date.parse(lastAt!) >= TXNS_GAP_MS) return 'recent';
-  return null;
+  const waited = now.getTime() - Date.parse(lastAt!) >= TXNS_GAP_MS;
+  if (watching && marketOpen(now) && waited) return 'recent';
+  // a sync the owner asked for (a reload of the viewer, ⬇ on the panel) reads at any hour and on any day (owner
+  // 2026-11-28: a pending dividend showed on Fidelity on a Saturday, "I did refresh" and nothing came), though not more
+  // often than the 👀 reads. The full ten days: on a Sunday the news is of Friday, two days back
+  return asked && waited ? 'full' : null;
 }

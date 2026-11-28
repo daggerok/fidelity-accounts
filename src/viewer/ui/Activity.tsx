@@ -22,7 +22,7 @@ import { useTypedTable } from './useTypedTable';
 // lines of today are bold, older ones plain. Sorted and filtered like every table; the totals follow the filters
 type Row = PayLine & { accountName: string };
 const accountText = (r: Row): string => `${r.accountName} ${maskAccount(r.account)}`.trim();
-const kindText = (r: Row): string => (r.kind === 'interest' ? t('Interest') : t('Dividend'));
+const kindText = (r: Row): string => (r.pending ? t('Pending dividend') : r.kind === 'interest' ? t('Interest') : t('Dividend'));
 // Symbol first (owner 2026-11-28: "symbol I want to see first"; the default order is still by date, the newest first).
 // Account and Type can be picked from a list by their names: the values are the ones the lines hold
 const COLS = (rows: Row[]): (TypedColumn<Row> & HeadColumn)[] => [
@@ -90,13 +90,13 @@ export const Activity = memo(function Activity({ ds, accounts, store, today }: {
               <TypedHead cols={cols} control={table.control} className={`${ZOOM_HEAD} sticky top-0 z-[1]`} th="px-2 pt-2 pb-1 align-bottom font-medium" filterTh="min-w-[6.5rem] px-2 pb-2 font-normal" />
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {table.rows.slice(0, drawn).map((r) => (
-                  // paid today: bold, so the new ones stand out (owner 2026-11-28)
-                  <tr key={r.id} className={r.date === today ? 'font-semibold' : ''} data-today={r.date === today ? 'yes' : undefined}>
+                  // new ones stand out in bold, as on Fidelity (owner 2026-11-28): paid today, or announced and not paid yet
+                  <tr key={r.id} className={r.date === today || r.pending ? 'font-semibold' : ''} data-today={r.date === today ? 'yes' : undefined} data-pending={r.pending ? 'yes' : undefined}>
                     {/* a phone shows the ticker alone: the long name made every row four lines tall there */}
                     <td className={`${cell('symbol')} max-sm:whitespace-nowrap`}><span>{r.symbol}</span> <span className="text-xs font-normal text-slate-500 dark:text-slate-400 max-sm:hidden">{r.name}</span></td>
                     <td className={`${cell('account')} whitespace-nowrap`}>{r.accountName} <span className="text-xs font-normal text-slate-500 dark:text-slate-400" title={r.account}>{maskAccount(r.account)}</span></td>
                     <td className={`${cell('date')} whitespace-nowrap`}>{siteDate(r.date)}</td>
-                    <td className={cell('kind')}>{r.kind === 'interest' ? t('Interest') : t('Dividend')}</td>
+                    <td className={cell('kind')}>{kindText(r)}</td>
                     <td className={`${cell('amount')} text-[var(--gain)]`}>{r.amount === undefined ? '' : `+${usd(r.amount)}`}</td>
                     {r.drip ? (
                       <>
@@ -106,7 +106,7 @@ export const Activity = memo(function Activity({ ds, accounts, store, today }: {
                       </>
                     ) : (
                       // no DRIP: said once across the three cells, quietly
-                      <td colSpan={3} className="px-2 py-1.5 text-right text-xs font-normal text-slate-500 dark:text-slate-400" data-no-drip>{t('no DRIP: left as cash')}</td>
+                      <td colSpan={3} className="px-2 py-1.5 text-right text-xs font-normal text-slate-500 dark:text-slate-400" data-no-drip>{r.pending ? t('pending: not paid yet') : t('no DRIP: left as cash')}</td>
                     )}
                   </tr>
                 ))}

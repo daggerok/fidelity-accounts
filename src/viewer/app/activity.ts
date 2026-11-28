@@ -17,16 +17,22 @@ export interface PayLine {
   kind: PayKind;
   amount: number | undefined;
   drip: { shares: number; usd: number; price: number | undefined } | null;
+  // announced, not paid yet: Fidelity lists it as "DIV OF $0.08 PENDING REINVESTMENT" with no amount. Once it is paid
+  // the next read brings the real rows instead and the line becomes a plain one
+  pending: boolean;
 }
 
 // DV = dividend or interest (Fidelity's category), paid in (D) or spent on the reinvestment buy (W, RIN or sub RN)
 const isPay = (t: Txn): boolean => t.cat === 'DV' && t.dir === 'D';
 const isReinvest = (t: Txn): boolean => t.mnemonic === 'RIN' || t.sub === 'RN' || (t.cat === 'DV' && t.dir === 'W');
 const isInterest = (t: Txn): boolean => t.mnemonic === 'INT' || /^\s*INTEREST\b/i.test(t.desc);
+// "DIV OF $0.08 PENDING REINVESTMENT as of 2026-11-27 EATON CORPORATION PLC (ETN) (Cash)": the amount is in the words
+const PENDING = /^\s*DIV OF \$([\d,]*\.?\d+) PENDING\b/i;
+const pendingAmount = (t: Txn): number | undefined => { const m = PENDING.exec(t.desc); return m ? Number(m[1]!.replace(/,/g, '')) : undefined; };
 
 /** "DIVIDEND RECEIVED WISDOMTREE TR US QUALITY DIVID GROWTH FD (DGRW) (Cash)" -> "WISDOMTREE TR US QUALITY DIVID GROWTH FD" */
 export function securityName(desc: string, symbol: string): string {
-  let s = desc.replace(/^\s*(DIVIDEND RECEIVED|REINVESTMENT|INTEREST EARNED|INTEREST)\s+/i, '').replace(/^as of \d{4}-\d\d-\d\d\s+/i, '');
+  let s = desc.replace(/^\s*(DIV OF \$[\d,.]+ PENDING REINVESTMENT|DIVIDEND RECEIVED|REINVESTMENT|INTEREST EARNED|INTEREST)\s+/i, '').replace(/^as of \d{4}-\d\d-\d\d\s+/i, '');
   // the tail in brackets: the account type, then the ticker
   s = s.replace(/\s*\((Cash|Margin|Short)\)\s*$/i, '');
   if (symbol) s = s.replace(new RegExp(`\\s*\\(${symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*$`, 'i'), '');
@@ -67,8 +73,9 @@ export function payLines(rows: Txn[], accounts: Set<string>): PayLine[] {
         symbol: of.symbol,
         name: securityName(of.desc, of.symbol),
         kind: isInterest(of) ? 'interest' : 'dividend',
-        amount: pay ? cents(pay.net) : undefined,
+        amount: pay ? cents(pendingAmount(pay) ?? pay.net) : undefined,
         drip: buy ? { shares, usd, price: shares > 0 ? cents(usd / shares) : undefined } : null,
+        pending: !!pay && pendingAmount(pay) !== undefined,
       });
     }
   });
@@ -102,6 +109,7 @@ export const inPeriod = (lines: PayLine[], period: ActivityPeriod, today: string
 /** what the lines add up to: paid, reinvested, and left as cash (paid with no reinvestment) */
 export function payTotals(lines: PayLine[]): { paid: number; reinvested: number; cash: number } {
   let paid = 0, reinvested = 0, cash = 0;
-  lines.forEach((l) => { paid += l.amount ?? 0; reinvested += l.drip?.usd ?? 0; if (!l.drip) cash += l.amount ?? 0; });
+  // a pending payment counts as paid (it is on its way) but as neither reinvested nor left as cash: that is not known yet
+  lines.forEach((l) => { paid += l.amount ?? 0; reinvested += l.drip?.usd ?? 0; if (!l.drip && !l.pending) cash += l.amount ?? 0; });
   return { paid: cents(paid), reinvested: cents(reinvested), cash: cents(cash) };
 }
