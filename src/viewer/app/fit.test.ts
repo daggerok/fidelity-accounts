@@ -35,4 +35,5 @@ test('a column is as wide as the widest of its name, its longest value and a usa
   expect(columnWidth({ head: 132.2, value: 90 })).toBe(133); // a long name
   expect(columnWidth({ head: 70, value: 118.5 })).toBe(119); // a long value
   expect(columnWidth({ head: 70, value: 90, fixed: 160 })).toBe(160); // a range bar keeps its design width
+  expect(columnWidth({ head: 70, value: 412.3 })).toBe(413); // a long text is shown whole
 });

@@ -35,4 +35,5 @@ export const phoneColumnWidth = (boxWidth: number): number => Math.max(60, Math.
  * value, and a filter input one can still type into; a column with a fixed design width (a range bar) keeps that
  */
 export const COLUMN_MIN = 84;
+// no upper limit: a text is shown whole, however long (owner 2026-11-28: "we will see as much as we can")
 export const columnWidth = (need: { head: number; value: number; fixed?: number }): number => Math.ceil(Math.max(COLUMN_MIN, need.head, need.value, need.fixed ?? 0));
