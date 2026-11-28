@@ -63,3 +63,11 @@ test('store parse', () => {
   expect(parseTxnStore('nope')).toBeNull();
   expect(parseTxnStore({ version: 2, rows: [], synced: {} })).toBeNull();
 });
+
+test('a buy keeps the price Fidelity gives; a payment has none', () => {
+  const buy = { ...row({ day: NOV24, mnemonic: 'RIN', cat: 'DV', dir: 'W', net: -0.06, qty: '0.001' }) } as Record<string, unknown>;
+  buy.amtDetail = { net: -0.06, price: 92.34 };
+  const [t1, t2] = parseTransactions({ data: { transactions: [buy, row({ day: NOV24, mnemonic: 'DIV', cat: 'DV', dir: 'D', net: 0.06 })] } }, 'X1');
+  expect(t1!.price).toBe(92.34);
+  expect('price' in t2!).toBe(false);
+});

@@ -23,6 +23,9 @@ export interface Txn {
   net: number;
   desc: string;
   cancelled: boolean;
+  // the price of a share in a buy or a sale, Fidelity's own (amtDetail.price); not there for a payment, and not in the
+  // rows read before 0.1.40
+  price?: number;
 }
 
 export interface TxnStore { version: 1; at: string; synced: Record<string, string>; rows: Txn[] }
@@ -68,6 +71,7 @@ export function parseTransactions(json: unknown, account: string): Txn[] {
     net: num(at(t, 'amtDetail', 'net')),
     desc: str(at(t, 'description')),
     cancelled: at(t, 'brokerageDetail', 'isCancelled') === true,
+    ...(num(at(t, 'amtDetail', 'price')) > 0 ? { price: num(at(t, 'amtDetail', 'price')) } : {}),
   }));
 }
 

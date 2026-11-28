@@ -268,6 +268,8 @@ export const TRANSACTIONS = defineTab<Txn>('fidelity_transactions', [
   { key: 'net', as: 'net_amount', kind: 'num', optional: true },
   { key: 'desc', as: 'description', kind: 'text', optional: true },
   { key: 'cancelled', kind: 'bool', optional: true },
+  // added last (0.1.40), so the columns before it keep their places: a tab without it is ours and gets it on a write
+  { key: 'price', kind: 'num', optional: true },
 ], (r) => key(r.account, r.date, r.mnemonic, r.symbol, String(r.net)));
 // Two transactions may be the same in every column (two buys for the same amount on one day): both are real and both
 // are written. Seen live 2026-11-26: 18,372 transactions read, 16,833 rows in the tab, about 1,500 dropped as "the

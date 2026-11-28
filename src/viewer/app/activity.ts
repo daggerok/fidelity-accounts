@@ -40,6 +40,17 @@ export function securityName(desc: string, symbol: string): string {
 }
 
 const cents = (x: number): number => Math.round(x * 100) / 100;
+/**
+ * The price of a share in a reinvestment: Fidelity's own when the row has it (read since 0.1.40). For an older row it
+ * is worked out from the dollars and the shares, but only for a buy of 0.05 share or more: the shares are rounded to
+ * 0.001, so for a tiny buy the division says $50.00 where the price was $92.34 (seen live 2026-11-28). No price is
+ * better than a wrong one
+ */
+export const WORKED_PRICE_FROM = 0.05;
+function dripPrice(buy: Txn, shares: number, usd: number): number | undefined {
+  if (buy.price && buy.price > 0) return cents(buy.price);
+  return shares >= WORKED_PRICE_FROM ? cents(usd / shares) : undefined;
+}
 
 /**
  * The dividends and the interest of some accounts, the newest first: every payment with the reinvestment of the same
@@ -74,7 +85,7 @@ export function payLines(rows: Txn[], accounts: Set<string>): PayLine[] {
         name: securityName(of.desc, of.symbol),
         kind: isInterest(of) ? 'interest' : 'dividend',
         amount: pay ? cents(pendingAmount(pay) ?? pay.net) : undefined,
-        drip: buy ? { shares, usd, price: shares > 0 ? cents(usd / shares) : undefined } : null,
+        drip: buy ? { shares, usd, price: dripPrice(buy, shares, usd) } : null,
         pending: !!pay && pendingAmount(pay) !== undefined,
       });
     }

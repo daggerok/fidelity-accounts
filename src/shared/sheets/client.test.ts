@@ -83,6 +83,25 @@ describe('SheetsClient', () => {
     expect(fake.tabs.fidelity_rate.values[2]).toEqual(['2026-02-01', 6, 0]);
   });
 
+  test('a tab that only lacks a column added at the end is ours: it gets the column, the rows are kept', async () => {
+    const GROWN = defineTab<{ date: string; rothPct: number; note?: string }>('fidelity_rate', [
+      { key: 'date', kind: 'text' },
+      { key: 'rothPct', kind: 'num' },
+      { key: 'note', kind: 'text', optional: true },
+    ], (r) => r.date);
+    const fake = fakeSheets();
+    fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [['date', 'roth_pct'], ['2026-01-01', 4]] };
+    const { c } = client(fake);
+    expect(await c.readRows(GROWN)).toEqual([{ date: '2026-01-01', rothPct: 4 }]);
+    await c.upsertById(GROWN, [{ date: '2026-02-01', rothPct: 6, note: 'new' }]);
+    expect(fake.tabs.fidelity_rate.values[0]).toEqual(['date', 'roth_pct', 'note']);
+    expect(fake.tabs.fidelity_rate.values[1]!.slice(0, 2)).toEqual(['2026-01-01', 4]);
+    expect(fake.tabs.fidelity_rate.values[2]).toEqual(['2026-02-01', 6, 'new']);
+    // a header whose first names differ is still not ours
+    fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [['day', 'roth_pct'], ['2026-01-01', 4]] };
+    await expect(client(fake).c.upsertById(GROWN, [{ date: '2026-02-01', rothPct: 6 }])).rejects.toThrow('header differs');
+  });
+
   test('a tab with another header is never cleared: writing stops with a clear error', async () => {
     const fake = fakeSheets();
     fake.tabs.fidelity_rate = { sheetId: 7, rows: 10, frozen: 1, values: [['id', 'date', 'roth_pct', 'pre_tax_pct'], ['2026-01-01', '2026-01-01', 4, 0]] };

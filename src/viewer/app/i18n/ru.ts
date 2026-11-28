@@ -533,7 +533,7 @@ export const RU: Record<string, string> = {
   'no DRIP: left as cash': 'без DRIP: осталось деньгами',
   'The dividend or the interest paid into the account': 'Дивиденд или проценты, выплаченные на счёт',
   'The shares the payment bought by DRIP that day; empty: it bought none, the payment was too small or DRIP is off': 'Акции, которые выплата купила по DRIP в тот день; пусто: ничего не купила, выплата слишком мала или DRIP выключен',
-  'The price of a share in the DRIP buy, worked out from its dollars and its shares': 'Цена акции в покупке по DRIP, посчитана из её долларов и акций',
+  'The price of a share in the DRIP buy, as Fidelity gives it; empty for an older small buy whose price cannot be worked out': 'Цена акции в покупке по DRIP, как её даёт Fidelity; пусто для старой мелкой покупки, цену которой нельзя посчитать',
   'The dollars of the payment that bought shares by DRIP': 'Доллары выплаты, на которые куплены акции по DRIP',
   // the pick list by a column's name (ui/ChoiceFilter.tsx) and the paging of Activity
   '{name}: {n} chosen. Click to choose': '{name}: выбрано {n}. Нажми, чтобы выбрать',

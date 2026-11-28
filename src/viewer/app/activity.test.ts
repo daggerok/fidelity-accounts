@@ -85,3 +85,11 @@ test('a pending dividend is a line of its own: the amount comes from its words, 
   // an amount with a comma
   expect(payLines([t({ symbol: 'BIG', net: 0, desc: 'DIV OF $1,234.50 PENDING REINVESTMENT as of 2026-11-27 BIG CO (BIG) (Cash)' })], ALL)[0]!.amount).toBe(1234.5);
 });
+
+test('the DRIP price is Fidelity\'s own; without it, worked out only for a buy big enough to trust the division', () => {
+  const line = (rows: Txn[]) => payLines(rows, ALL)[0]!;
+  expect(line([paid('AAA', 0.06), bought('AAA', 0.06, 0.001, { price: 92.34 })]).drip!.price).toBe(92.34);
+  // 0.06 / 0.001 would say $60.00: no price is shown instead
+  expect(line([paid('AAA', 0.06), bought('AAA', 0.06, 0.001)]).drip!.price).toBeUndefined();
+  expect(line([paid('AAA', 13.18), bought('AAA', 13.18, 0.131)]).drip!.price).toBe(100.61);
+});

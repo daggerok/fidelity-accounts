@@ -122,8 +122,8 @@ test('one thing has one name in every tab, the names of fidelity_positions_all',
   // no short or second name is left
   const all = [A, P, B, T, S, BT, U].reduce<string[]>((x, tab) => x.concat(tab.columns), []);
   ['account', 'number', 'name', 'symbol', 'desc', 'qty', 'cat', 'sub', 'dir', 'net', 'low52', 'high52', 'dist_rate', 'payment_frequency', 'at', 'set', 'kind'].forEach((n) => expect(all).not.toContain(n));
-  expect(T.columns).toEqual(['account_number', 'date', 'mnemonic', 'category', 'subcategory', 'direction', 'symbol_name', 'quantity', 'net_amount', 'description', 'cancelled']);
+  expect(T.columns).toEqual(['account_number', 'date', 'mnemonic', 'category', 'subcategory', 'direction', 'symbol_name', 'quantity', 'net_amount', 'description', 'cancelled', 'price']);
   // every renamed tab remembers the header it had, the same columns in the same places
   [A, P, B, T, S, BT, U].forEach((tab) => { expect(tab.earlier).toHaveLength(1); expect(tab.earlier![0]).toHaveLength(tab.columns.length); });
-  expect(T.earlier![0]).toEqual(['account', 'date', 'mnemonic', 'cat', 'sub', 'dir', 'symbol', 'qty', 'net', 'desc', 'cancelled']);
+  expect(T.earlier![0]).toEqual(['account', 'date', 'mnemonic', 'cat', 'sub', 'dir', 'symbol', 'qty', 'net', 'desc', 'cancelled', 'price']);
 });
