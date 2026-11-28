@@ -74,7 +74,7 @@ test('merged: one line per ticker, no account headers or totals, one total; one 
   setPrefs({ merge: false });
 });
 
-test('a filter shows only the rows it found: no cash, no account total, no grand total, per account and merged', async () => {
+test('a filter shows only the rows it found, with the totals of what was found: no cash, no account or grand total', async () => {
   const { act } = await import('react');
   const { createRoot } = await import('react-dom/client');
   const { Positions } = await import('./Positions');
@@ -84,16 +84,22 @@ test('a filter shows only the rows it found: no cash, no account total, no grand
   const root = createRoot(document.getElementById('root')!);
   await act(async () => { root.render(<Positions ds={DS} accounts={ACCOUNTS} />); });
   const rows = () => Number(document.querySelector('[data-rows]')!.getAttribute('data-rows'));
-  // per account: header and the one security found; twice
-  expect(rows()).toBe(4);
+  const totals = () => Array.from(document.querySelectorAll('.total-row')).map((r) => r.querySelector('td')!.textContent);
+  // per account: header and the one security found; twice; then the total of what was found (no account total: one
+  // row an account has nothing to add up)
+  expect(rows()).toBe(5);
   expect(document.querySelector('.cash-row')).toBeNull();
-  expect(document.querySelector('.total-row')).toBeNull();
+  expect(totals()).toEqual(['Found: 2']);
   expect(document.querySelectorAll('.acct-row').length).toBe(2);
   await act(async () => { setPrefs({ merge: true }); });
-  // merged: the one line of the ticker
-  expect(rows()).toBe(1);
+  // merged: the one line of the ticker and the total of what was found
+  expect(rows()).toBe(2);
   expect(document.querySelector('.cash-row')).toBeNull();
-  expect(document.querySelector('.total-row')).toBeNull();
+  expect(totals()).toEqual(['Found: 1']);
+  // two tickers found in one account: that account gets its own total too
+  await act(async () => { setPrefs({ merge: false, search: '', filters: { currentValue: '>0' } }); });
+  expect(totals()).toEqual(['Found in the account: 2', 'Found in the account: 2', 'Found: 4']);
+  await act(async () => { setPrefs({ search: '', filters: {}, merge: true }); });
   // the filter cleared: the cash and the total are back
   await act(async () => { setPrefs({ search: '' }); });
   expect(rows()).toBe(5);

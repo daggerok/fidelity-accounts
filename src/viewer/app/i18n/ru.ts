@@ -541,4 +541,6 @@ export const RU: Record<string, string> = {
   '{n} of {total} shown, more as you scroll': 'показано {n} из {total}, остальные при прокрутке',
   'Pending dividend': 'Ожидается дивиденд',
   'pending: not paid yet': 'ожидается: ещё не выплачен',
+  'Found: {n}': 'Найдено: {n}',
+  'Found in the account: {n}': 'Найдено в счёте: {n}',
 };

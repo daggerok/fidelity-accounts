@@ -4,7 +4,7 @@ import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
 import { dripMin, dripMinAdj, dripMinAdjUsd, positionsIn, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd, securities, totalsOf } from '../app/derive';
 import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
-import { mergeOn, mergePositions, type MergeKind } from '../app/merge';
+import { mergeOn, mergePositions, totalPosition, type MergeKind } from '../app/merge';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
 import { NoMatch, TypedHead, type HeadColumn, type TableControl } from './TypedHead';
 import { lang, t } from '../app/i18n';
@@ -189,6 +189,9 @@ const width = (c: { key: string; label: string }, phone = 0, widest = 0, sorted 
   ? (WIDE[c.key] ? Math.round(WIDE[c.key]! * 0.62) : phone)
   : columnWidth({ head: nameRoom(c.label, nameWidth, sorted ? ARROW : 0) + HEAD_PAD, value: widest, fixed: WIDE[c.key] }));
 const SYMBOL = 'symbol';
+// what a total of found rows shows: the columns that add up or are worked out from sums, when they hold money or percents
+const TOTALLED: MergeKind[] = ['sum', 'recomputed'];
+const MONEY: string[] = ['currency', 'percent'];
 // the first and the last cell sit one card padding (24 px) from the box edge, like the logo, Summary and the card titles
 // (owner 2026-11-25: "we need to fix spacing here as well"); a cell has 8 px of its own, the edge columns get the rest
 const EDGE = 16;
@@ -280,6 +283,12 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
   const lines = useMemo(() => {
     const out: Line[] = [];
     // the cash, security and pending rows of one block: an account's, or the merged lines of all of them (`at` keys them)
+    // the total of some rows found: the dollars and the percents added up (app/merge.ts totalPosition); shares, prices
+    // and texts of different tickers do not add up, their cells stay empty
+    const foundTotal = (key: string, label: string, found: Position[], of: Account[]): Line => {
+      const sum = totalPosition(found, of);
+      return { key, cls: 'total-row', cells: () => <><td>{label}</td>{cols.map((c) => <td key={c.key}>{sum && TOTALLED.indexOf(c.merge) >= 0 && MONEY.indexOf(types[c.key] ?? '') >= 0 ? c.cell(sum) : ''}</td>)}</> };
+    };
     // while a filter is on only the rows it found are shown (owner 2026-11-27: "here we should not see cash", "we also
     // should not see cash and grand total"): the cash, the pending line and the totals describe the whole account, not
     // the rows found, so they wait until the filters are cleared
@@ -305,13 +314,21 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
       if (filtered && !secs.length) return;
       out.push({ key: `${a.number}-h`, cls: 'acct-row', cells: () => <td colSpan={cols.length + 1}>{/* the name stays in view while the row scrolls sideways */}<span className="acct-name"><span className="font-semibold">{a.name}</span> <span className="text-xs text-slate-600 dark:text-slate-400" title={a.number}>{maskAccount(a.number)}</span></span></td> });
       block(a.number, own, secs);
+      // filtered: the total of the rows found in this account, when there is more than one to add up
+      if (filtered && secs.length > 1) out.push(foundTotal(`${a.number}-f`, t('Found in the account: {n}', { n: secs.length }), secs, [a]));
       if (!filtered) out.push({ key: `${a.number}-t`, cls: 'total-row', cells: () => <><td>{t('Account total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(own, [a]) : ''}</td>)}</> });
     });
     if (filtered && !shown.length) out.push({ key: 'none', cls: '', cells: () => <NoMatch span={cols.length + 1} /> });
+    // filtered: the total of everything found (owner 2026-11-28: "totals for our searches"), over the positions behind the
+    // rows shown: a merged line stands for every account's row of its ticker
+    if (filtered && shown.length) {
+      const picked = merging ? new Set(shown.map((p) => `${p.kind}|${p.symbol}`)) : null;
+      out.push(foundTotal('found', t('Found: {n}', { n: shown.length }), picked ? all.filter((p) => picked.has(`${p.kind}|${p.symbol}`)) : shown, accounts));
+    }
     if (several && !filtered) out.push({ key: 'grand', cls: 'total-row', cells: () => <><td>{t('Grand total')}</td>{cols.map((c) => <td key={c.key}>{c.total ? c.total(rows, accounts) : ''}</td>)}</> });
     return out;
     // cols follow colKeys; the rest are the inputs of the rows (no lint in this repo)
-  }, [all, rows, shown, accounts, filtered, colKeys, several, merging]);
+  }, [all, rows, shown, accounts, filtered, colKeys, several, merging, types]);
 
   const box = useRef<HTMLDivElement>(null);
   const headBox = useRef<HTMLDivElement>(null);
