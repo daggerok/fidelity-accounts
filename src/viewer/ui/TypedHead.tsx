@@ -52,7 +52,7 @@ const INVALID = 'border-rose-400 bg-rose-50 text-rose-800 dark:border-rose-500 d
  * One filter input: typing applies after a short pause, Enter at once, ✕ or Esc clears at once; a filter that cannot be
  * read turns red and says why in its tooltip. `note` is a small grey text inside on the right (the number of rows)
  */
-export function FilterInput({ name, label, value, type, onChange, placeholder, note, noteTitle }: { name: string; label: string; value: string; type: ColumnType; onChange: (value: string) => void; placeholder?: string; note?: string; noteTitle?: string }) {
+export function FilterInput({ name, label, value, type, onChange, placeholder, note, noteTitle, badge }: { name: string; label: string; value: string; type: ColumnType; onChange: (value: string) => void; placeholder?: string; note?: string; noteTitle?: string; badge?: React.ReactNode }) {
   const [text, setText] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
@@ -80,7 +80,10 @@ export function FilterInput({ name, label, value, type, onChange, placeholder, n
   const help = `${error ? `${t('Cannot apply this filter: {error}', { error })}. ` : ''}${word(TYPE_HELP[type])}`;
   return (
     <div className="relative flex items-center">
-      <input type="text" className={`${INPUT} ${error ? INVALID : active ? ACTIVE : IDLE}`} style={{ paddingRight: `${(note ? note.length * 0.45 + 0.4 : 0) + (active ? 1.4 : 0.4)}rem` }}
+      {/* the column's type badge sits inside the input, at its left (owner 2026-11-28: the head holds the name alone, so a
+          column is no wider than its name and its values need); the text starts after it */}
+      {badge && <span className="absolute inset-y-0 left-1 z-[1] flex items-center">{badge}</span>}
+      <input type="text" className={`${INPUT} ${error ? INVALID : active ? ACTIVE : IDLE}`} style={{ paddingRight: `${(note ? note.length * 0.45 + 0.4 : 0) + (active ? 1.4 : 0.4)}rem`, paddingLeft: badge ? `${TYPE_LABELS[type].length * 0.42 + 1}rem` : undefined }}
         value={text} placeholder={placeholder ?? TYPE_PLACEHOLDERS[type]} spellCheck={false} autoComplete="off" aria-label={t('Filter {name}', { name: label })} aria-invalid={error ? true : undefined} title={help}
         onChange={(e) => type_(e.target.value)}
         onKeyDown={(e) => {
@@ -114,14 +117,12 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
     <thead className={className} data-typed-head>
       <tr>
         {cols.map((c) => {
-          const type = control.types[c.key] ?? 'string';
           const dir = control.sort && control.sort.key === c.key ? control.sort.dir : 0;
           return (
             <th key={c.key} className={th} title={c.hint} aria-sort={dir === 1 ? 'ascending' : dir === -1 ? 'descending' : undefined} data-col={c.key}>
               {/* every name starts at the left edge of its column, like Symbol, its lines aligned left like Fidelity ("Est.
-                  annual" / "income"); every type badge ends at the right edge, right above the filter input (owner 2026-11-25:
-                  "all text should be like Symbol - aligned to the left, all auto filter icons should be aligned to the right"):
-                  a long name wraps and keeps the badge at the bottom right */}
+                  annual" / "income"), and may take two lines; the type badge lives in the filter input under it (owner
+                  2026-11-28, it stood at the right of the name since 2026-11-25) */}
               <div className={`flex items-end gap-1 ${c.wrap ? 'flex-wrap' : ''}`}>
                 {extras[c.key]}
                 {/* pb-0.5: the name's last line stands on the middle line of the 18 px type badge (and of the columns icon in
@@ -129,7 +130,6 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
                 <button type="button" className="min-w-0 cursor-pointer whitespace-normal pb-0.5 text-left font-[inherit] hover:text-[var(--brand-strong)]"
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
                 {c.choices && c.choices.length > 0 && <ChoiceFilter label={c.label} choices={c.choices} value={control.filters[c.key] ?? ''} onChange={(v) => control.onFilter(c.key, v)} />}
-                <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
             </th>
           );
@@ -137,8 +137,9 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
       </tr>
       <tr data-filter-row>
         {cols.map((c) => (
-          <th key={c.key} className={filterTh}>
-            <FilterInput name={c.key} label={c.label} value={control.filters[c.key] ?? ''} type={control.types[c.key] ?? 'string'} onChange={(v) => control.onFilter(c.key, v)} {...inputs[c.key]} />
+          <th key={c.key} className={filterTh} data-col={c.key}>
+            <FilterInput name={c.key} label={c.label} value={control.filters[c.key] ?? ''} type={control.types[c.key] ?? 'string'} onChange={(v) => control.onFilter(c.key, v)} {...inputs[c.key]}
+              badge={<TypeBadge type={control.types[c.key] ?? 'string'} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} />} />
           </th>
         ))}
       </tr>
