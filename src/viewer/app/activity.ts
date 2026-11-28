@@ -75,10 +75,19 @@ export function payLines(rows: Txn[], accounts: Set<string>): PayLine[] {
   return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** how far back the page looks (owner: like Fidelity's "Past 30 days"); the first is the default */
+/** how far back the page looks; everything by default (owner 2026-11-28: "default selector should be All") */
 export const ACTIVITY_PERIODS = ['1M', '3M', 'YTD', '1Y', 'All'] as const;
 export type ActivityPeriod = typeof ACTIVITY_PERIODS[number];
-export const asActivityPeriod = (v: unknown): ActivityPeriod => ((ACTIVITY_PERIODS as readonly unknown[]).indexOf(v) >= 0 ? (v as ActivityPeriod) : '1M');
+export const DEFAULT_ACTIVITY_PERIOD: ActivityPeriod = 'All';
+export const asActivityPeriod = (v: unknown): ActivityPeriod => ((ACTIVITY_PERIODS as readonly unknown[]).indexOf(v) >= 0 ? (v as ActivityPeriod) : DEFAULT_ACTIVITY_PERIOD);
+
+/**
+ * The page draws its lines a part at a time and more as it is scrolled (owner 2026-11-28: "pagination ... when we
+ * scroll"): the search and the order always work over every line, only the drawing is cut. How many lines to draw after
+ * one more part was asked for
+ */
+export const ACTIVITY_PAGE = 200;
+export const nextPage = (drawn: number, total: number): number => Math.min(total, drawn + ACTIVITY_PAGE);
 /** the first day of a period that ends today; '' for all of it */
 export function periodStart(period: ActivityPeriod, today: string): string {
   if (period === 'All') return '';

@@ -3,7 +3,7 @@
 // Every name and number here is made up
 import { expect, test } from 'bun:test';
 import type { Txn } from '../../shared/transactions';
-import { asActivityPeriod, inPeriod, payLines, payTotals, periodStart, securityName } from './activity';
+import { ACTIVITY_PAGE, asActivityPeriod, inPeriod, nextPage, payLines, payTotals, periodStart, securityName } from './activity';
 
 const t = (o: Partial<Txn>): Txn => ({ account: 'T1', date: '2026-11-27', mnemonic: 'DIV', cat: 'DV', sub: 'VP', dir: 'D', symbol: 'AAA', qty: 0, net: 0, desc: '', cancelled: false, ...o });
 const paid = (symbol: string, net: number, o: Partial<Txn> = {}): Txn => t({ symbol, net, desc: `DIVIDEND RECEIVED ${symbol} DEMO FUND (${symbol}) (Cash)`, ...o });
@@ -64,7 +64,11 @@ test('periods end today; totals add up what was paid, reinvested and left as cas
   expect(periodStart('1Y', '2026-11-28')).toBe('2025-11-29');
   expect(periodStart('All', '2026-11-28')).toBe('');
   expect(asActivityPeriod('3M')).toBe('3M');
-  expect(asActivityPeriod('nope')).toBe('1M');
+  expect(asActivityPeriod('nope')).toBe('All'); // everything by default
+  // drawn a part at a time: one more part, never more than there is
+  expect(nextPage(ACTIVITY_PAGE, 950)).toBe(2 * ACTIVITY_PAGE);
+  expect(nextPage(800, 950)).toBe(950);
+  expect(nextPage(950, 950)).toBe(950);
   const lines = payLines([paid('AAA', 13.18), bought('AAA', 13.18, 0.131), paid('BBB', 0.01), paid('OLD', 7, { date: '2026-06-01' })], ALL);
   expect(inPeriod(lines, '1M', '2026-11-28').map((l) => l.symbol)).toEqual(['AAA', 'BBB']);
   expect(inPeriod(lines, 'All', '2026-11-28')).toHaveLength(3);

@@ -3,13 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { COL_TYPE_CLASSES } from '../../shared/filter-engine';
 import { TYPE_HELP, TYPE_LABELS, TYPE_NAMES, TYPE_PLACEHOLDERS, compile, type ColumnType, type Sort } from '../../shared/typed-columns';
 import { t } from '../app/i18n';
+import { ChoiceFilter } from './ChoiceFilter';
 
 // The head of every table (owner 2026-11-24: type autodetection, sort and a filter for every column, in Positions and in
 // the ⤢ tables, like the investments apps): a row of column names, each a sort button with its ▲ ▼ and the badge of the
 // column type (ABC 123 % $ D FRQ; a click sets the next type, Shift+click returns to the detected one), and under it a
 // row of filter inputs. The rules are src/shared/typed-columns.ts over the workspace filter engine; this only draws
 // `wrap`: a narrow column whose extras may go to a second line (the Positions Symbol column, 120 px)
-export interface HeadColumn { key: string; label: string; hint?: string; wrap?: boolean }
+// `choices`: the values to pick from a list by the column's name (ui/ChoiceFilter.tsx); the picks go into its filter text
+export interface HeadColumn { key: string; label: string; hint?: string; wrap?: boolean; choices?: readonly string[] }
 
 /** what a table hands its head: the state and what a click or typing does to it (useTypedTable, or Positions from prefs) */
 export interface TableControl {
@@ -126,6 +128,7 @@ export function TypedHead({ cols, control, className, th = '', filterTh = '', ex
                     Positions), not 2 px under it: measured in the browser, the name box is 13.2 px and all are bottom-aligned */}
                 <button type="button" className="min-w-0 cursor-pointer whitespace-normal pb-0.5 text-left font-[inherit] hover:text-[var(--brand-strong)]"
                   title={c.hint ?? t('Sort by {name}', { name: c.label })} onClick={() => control.onSort(c.key)} data-sort={c.key}>{c.label}{arrow(control.sort, c.key)}</button>
+                {c.choices && c.choices.length > 0 && <ChoiceFilter label={c.label} choices={c.choices} value={control.filters[c.key] ?? ''} onChange={(v) => control.onFilter(c.key, v)} />}
                 <TypeBadge type={type} detected={control.detected[c.key] ?? 'string'} onClick={(reset) => control.onType(c.key, reset)} className="ml-auto flex-none" />
               </div>
             </th>
