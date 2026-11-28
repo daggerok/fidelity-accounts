@@ -28,3 +28,11 @@ export function fitRestarts(byPage: boolean, msSinceOwnChange: number): boolean 
 export const PHONE_SYMBOL_W = 76;
 export const PHONE_EDGE = 4;
 export const phoneColumnWidth = (boxWidth: number): number => Math.max(60, Math.min(84, Math.floor((boxWidth - PHONE_SYMBOL_W - PHONE_EDGE) / 4)));
+
+/**
+ * The width of a Positions column (owner 2026-11-28: "we don't need to have such wide columns if there are no such data
+ * required for them"): as wide as the widest of what it holds, its name in the head with the type badge, its longest
+ * value, and a filter input one can still type into; a column with a fixed design width (a range bar) keeps that
+ */
+export const COLUMN_MIN = 84;
+export const columnWidth = (need: { head: number; value: number; fixed?: number }): number => Math.ceil(Math.max(COLUMN_MIN, need.head, need.value, need.fixed ?? 0));
