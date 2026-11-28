@@ -17,8 +17,13 @@ export function pageReader(tag: string): void {
   type Api = { forEachNode?: (fn: (n: { data?: Record<string, Cell> }) => void) => void };
   // A page may hold more than one ag-grid (seen live 2026-11-26 under another login: the first grid's rows had no
   // rowType at all). Every grid on the page is looked at, and the positions grid is the one whose rows say their kind;
-  // when none does, the biggest one goes out so the contract check can say what it found instead
+  // when none does, the biggest one that still looks like positions goes out so the contract check can say what it
+  // found instead. A grid of another kind is never read (owner 2026-11-27: the popup "the grid that was read is not the
+  // positions one (82 rows ... fields acctNum, amtDetail, brokerageDetail": an activity table), and nothing is read
+  // on another page: Fidelity changes pages without a reload, so the reader lives on after Positions is left
+  const POSITION_FIELDS = ['actNum', 'sym', 'curVal', 'qty'];
   const read = (): Array<Record<string, Cell>> | null => {
+    if (location.pathname.indexOf('/portfolio/positions') < 0) return null;
     const apis: Api[] = [];
     document.querySelectorAll('.ag-row').forEach((row) => {
       const key = Object.getOwnPropertyNames(row).filter((k) => k.indexOf('__AG_') === 0)[0];
@@ -32,7 +37,8 @@ export function pageReader(tag: string): void {
       const rows: Array<Record<string, Cell>> = [];
       apis[i]!.forEachNode!((n) => { if (n && n.data) rows.push(n.data); });
       if (rows.some((r) => typeof (r as Record<string, unknown>).rowType === 'string')) return rows;
-      if (!best || rows.length > best.length) best = rows;
+      const alike = rows.some((r) => POSITION_FIELDS.some((f) => f in r));
+      if (alike && (!best || rows.length > best.length)) best = rows;
     }
     return best;
   };
