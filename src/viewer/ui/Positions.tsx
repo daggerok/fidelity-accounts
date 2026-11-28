@@ -11,6 +11,7 @@ import { lang, t } from '../app/i18n';
 import { DEFAULT_PREFS, prefs, setPrefs } from '../app/prefs';
 import { useStore } from './useStore';
 import { PHONE_QUERY, useMedia } from './useMedia';
+import { useFill } from './useFill';
 import { PHONE_EDGE, PHONE_SYMBOL_W, phoneColumnWidth } from '../app/fit';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
@@ -333,34 +334,11 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
       DRIVE.forEach((type) => { el.removeEventListener(type, takeRows); head?.removeEventListener(type, takeHead); });
     };
   }, []);
-  // the table reaches down to the footer (owner 2026-11-24: "fix main area", it stopped at 70% of the window): its
-  // height is the room between its top and the footer, measured again on a resize
-  const [fill, setFill] = useState<number | null>(null);
-  // the page around the table changed (the phone's navbar folded or came back, 350 ms): measure while it moves
-  const remeasure = useRef<() => void>(() => undefined);
-  useEffect(() => {
-    const timers = [0, 120, 240, 380, 500].map((ms) => setTimeout(() => remeasure.current(), ms));
-    return () => timers.forEach(clearTimeout);
-  }, [layout]);
+  // the table reaches down to the footer and knows its own width (ui/useFill.ts)
+  const { fill, width: boxWidth } = useFill(wrap, layout);
   // a phone gets the compact table: a narrow Symbol column and four columns across the box (app/fit.ts)
   const isPhone = useMedia(PHONE_QUERY);
-  const [boxWidth, setBoxWidth] = useState(0);
   const phone = isPhone ? phoneColumnWidth(boxWidth || 340) : 0;
-  useEffect(() => {
-    const el = wrap.current;
-    if (!el) return undefined;
-    const measure = () => {
-      const foot = document.querySelector('footer')?.getBoundingClientRect().top ?? window.innerHeight;
-      setFill(Math.max(240, Math.floor(foot - el.getBoundingClientRect().top)));
-      setBoxWidth(el.clientWidth);
-    };
-    measure();
-    remeasure.current = measure;
-    window.addEventListener('resize', measure);
-    const ro = new ResizeObserver(measure);
-    if (el.parentElement) ro.observe(el.parentElement);
-    return () => { window.removeEventListener('resize', measure); ro.disconnect(); };
-  }, []);
   const first = win.first;
   const last = Math.min(lines.length, win.end);
   const total = useMemo(() => securities(rows).length, [rows]);

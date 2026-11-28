@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
-import { autoWatch, dataset, loginSaved, sheetPin, watchChosen, watching } from '../app/data';
+import { autoWatch, dataset, loginSaved, sheetPin, transactions, watchChosen, watching } from '../app/data';
 import { connectGoogle, sheets } from '../app/google';
 import { lang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
@@ -12,6 +12,7 @@ import { squashed } from '../app/squash';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
+import { Activity } from './Activity';
 import { LangButton, MergeButton, ThemeButton, WatchButton } from './IconButtons';
 import { Banner } from './Banner';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -30,7 +31,7 @@ import { useStore } from './useStore';
 import { useTheme } from './useTheme';
 import { PHONE_QUERY, useMedia } from './useMedia';
 
-const tabName = (tab: MainTab): string => ({ summary: t('Summary'), positions: t('Positions') })[tab];
+const tabName = (tab: MainTab): string => ({ summary: t('Summary'), positions: t('Positions'), activity: t('Activity') })[tab];
 const TAB_PANEL = 'main-tabpanel';
 
 // open or closed panels are remembered per browser (twitter: `${PREFIX}-panel-setup`)
@@ -44,6 +45,7 @@ export function App() {
   const language = useStore(lang);
   const pr = useStore(prefs);
   const { ds: rawDs, error } = useStore(dataset);
+  const txns = useStore(transactions);
   // the owner's own order of accounts applies everywhere: the bar, Positions, the Accounts card
   const ds = useMemo(() => (rawDs ? orderAccounts(rawDs, pr.accountOrder, pr.groupOrder) : null), [rawDs, pr.accountOrder, pr.groupOrder]);
   const g = useStore(sheets);
@@ -120,7 +122,7 @@ export function App() {
   // navbar and the tabs panel go up with the cards, pushed by them, and nothing slides under anything. The line of the
   // pages lies over the top of the page once the tabs panel has gone under it: at that moment the first card stands one
   // gutter below the line, whole
-  const flow = phone && pr.tab === 'summary' && !!ds;
+  const flow = phone && pr.tab !== 'positions' && !!ds;
   const page = useRef<HTMLDivElement>(null);
   const tabsBox = useRef<HTMLDivElement>(null);
   const [past, setPast] = useState(false);
@@ -248,7 +250,7 @@ export function App() {
                 <div className="contents text-sm leading-none lg:text-base" role="tablist" aria-label={t('Pages')} onKeyDown={onTabKey}>
                   {MAIN_TABS.map((tab) => (
                     <button key={tab} id={`tab-${tab}`} type="button" role="tab" aria-selected={pr.tab === tab} aria-controls={TAB_PANEL} tabIndex={pr.tab === tab ? 0 : -1}
-                      className={`main-tab flex h-9 items-center ${tab === 'positions' ? 'order-3' : 'order-1'} ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
+                      className={`main-tab flex h-9 items-center ${tab === 'positions' ? 'order-3' : tab === 'summary' ? 'order-1' : 'order-4'} ${pr.tab === tab ? 'on' : ''}`} onClick={() => setPrefs({ tab })} data-main-tab={tab}>{tabName(tab)}</button>
                   ))}
                 </div>
                 {/* drawn between Summary and Positions (owner 2026-11-27): the gap from Summary to the icon is the page
@@ -274,7 +276,7 @@ export function App() {
             {/* the cards start one gutter below the tabs panel (or below the open settings) */}
             <main id={TAB_PANEL} role="tabpanel" aria-labelledby={`tab-${pr.tab}`} className="flex flex-col pt-4 lg:pt-6" data-tab={pr.tab}>
               <ErrorBoundary resetKey={`${ds.builtAt}|${pr.tab}`}>
-                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : <Positions ds={ds} accounts={accounts} onAsk={onAsk} layout={flat} />}
+                {accounts.length === 0 ? null : pr.tab === 'summary' ? <Summary ds={ds} accounts={accounts} title={title} titleHint={one ? [one.type, one.number].filter(Boolean).join(': ') : undefined} today={today} /> : pr.tab === 'activity' ? <Activity ds={ds} accounts={accounts} store={txns} today={today} /> : <Positions ds={ds} accounts={accounts} onAsk={onAsk} layout={flat} />}
               </ErrorBoundary>
             </main>
           </div>
