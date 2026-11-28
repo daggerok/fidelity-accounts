@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { COLUMN_MIN, FIT_SELF_MS, columnWidth, fitCount, fitRestarts, phoneColumnWidth } from './fit';
+import { COLUMN_MIN, FIT_SELF_MS, columnWidth, fitCount, fitRestarts, nameRoom, phoneColumnWidth } from './fit';
 
 test('rows grow into the room left under the card and shrink when it runs past the footer, within min and max', () => {
   expect(fitCount(5, 130, 27 * 2, 5, 20)).toBe(7); // two more pairs of movers fit into 130 px
@@ -36,4 +36,15 @@ test('a column is as wide as the widest of its name, its longest value and a usa
   expect(columnWidth({ head: 70, value: 118.5 })).toBe(119); // a long value
   expect(columnWidth({ head: 70, value: 90, fixed: 160 })).toBe(160); // a range bar keeps its design width
   expect(columnWidth({ head: 70, value: 412.3 })).toBe(413); // a long text is shown whole
+});
+
+test('a name of several words takes two lines: the room is its wider line at the best cut', () => {
+  const w = (text: string) => text.length * 10; // 10 px a character, spaces too
+  expect(nameRoom('DRIP', w)).toBe(40); // one word: one line
+  expect(nameRoom("Today's %", w)).toBe(70); // "Today's" over "%"
+  expect(nameRoom('% of account', w)).toBe(70); // "% of" over "account", not "%" over "of account"
+  expect(nameRoom('Non-adj. min. DRIP $', w)).toBe(110); // "Non-adj." over "min. DRIP $", the best of the three cuts
+  // the sorted column: the arrow stands after the last word
+  expect(nameRoom("Today's %", w, 14)).toBe(70); // "%" and the arrow are still narrower than "Today's"
+  expect(nameRoom('DRIP', w, 14)).toBe(54);
 });

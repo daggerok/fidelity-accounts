@@ -37,3 +37,19 @@ export const phoneColumnWidth = (boxWidth: number): number => Math.max(60, Math.
 export const COLUMN_MIN = 84;
 // no upper limit: a text is shown whole, however long (owner 2026-11-28: "we will see as much as we can")
 export const columnWidth = (need: { head: number; value: number; fixed?: number }): number => Math.ceil(Math.max(COLUMN_MIN, need.head, need.value, need.fixed ?? 0));
+
+/**
+ * The room a column's name needs in the head when it may take two lines (owner 2026-11-28: "its %, not absolute dollar
+ * amount values", "do all": a column of short values must not be as wide as its long name): the name is cut at the
+ * space that makes its wider line the narrowest. `widthOf` measures a piece of text; `arrow`: the room of the sort
+ * arrow, which stands after the last word, 0 for a column that is not the sorted one
+ */
+export function nameRoom(name: string, widthOf: (text: string) => number, arrow = 0): number {
+  const words = name.split(' ').filter(Boolean);
+  let best = widthOf(name) + arrow;
+  for (let i = 1; i < words.length; i++) {
+    const lines = Math.max(widthOf(words.slice(0, i).join(' ')), widthOf(words.slice(i).join(' ')) + arrow);
+    if (lines < best) best = lines;
+  }
+  return best;
+}
