@@ -63,6 +63,14 @@ html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --bran
 .nav-squash.clip>div{overflow:hidden}
 .nav-squash.flat{grid-template-rows:0fr;padding-top:0}
 @media (prefers-reduced-motion:reduce){.nav-squash{transition:none}}
+/* a card's head on a phone: its chips are laid in the head's own row, so they start right after the title and wrap
+   from there; 8 px after the title, 4 px between chips (the pill gap), ⤢ at the right end of the last line */
+@media (max-width:639.98px){
+  .card-head{column-gap:.25rem}
+  .card-head>h2{margin-right:.5rem}
+  .card-head .card-tools,.card-head .card-tools>span,.card-head [data-pills],.card-head [data-kind-filter]{display:contents}
+  .card-head [data-expand]{margin-left:auto}
+}
 /* ☰ -> ✕ */
 .burger-box{position:relative;display:block;width:1.125rem;height:.875rem}
 .burger-box>i{position:absolute;left:0;width:100%;height:2px;border-radius:1px;background:currentColor;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .2s ease-out,top .35s cubic-bezier(.4,0,.2,1)}

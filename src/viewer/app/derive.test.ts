@@ -424,32 +424,47 @@ test('upcoming dividends are ordered by several choices: the next one orders wha
   const rows = [
     row('AAA', 1.17, 5.59, 'Quarterly', '2026-11-27', '2026-12-11'),
     row('BBB', 0.72, 6.63, 'Monthly', '2026-11-27', '2026-11-30'),
-    row('CCC', 0.72, 11.9, 'Monthly', '2026-11-30', '2026-11-20'), // its pay date is past
+    row('CCC', 0.72, 11.9, 'Monthly', '2026-11-30', '2026-11-26'), // its pay date is today
     row('DDD', undefined, undefined, '', '2026-12-01', '2026-12-05'),
   ];
-  const order = (...sorts: Parameters<typeof sortDividends>[1]) => sortDividends(rows, sorts, '2026-11-27').map((r) => r.symbol).join(' ');
+  const order = (...sorts: Parameters<typeof sortDividends>[1]) => sortDividends(rows, sorts, '2026-11-26').map((r) => r.symbol).join(' ');
   // dollars: the biggest first, equal ones by the ticker, a row with no payout last
   expect(order('payout')).toBe('AAA BBB CCC DDD');
-  // dollars, then the yield: the equal payouts go by the bigger yield
-  expect(order('payout', 'yield')).toBe('AAA CCC BBB DDD');
   expect(order('yield')).toBe('CCC BBB AAA DDD');
-  // the more frequent first, then by dollars
+  // the more frequent first, then by dollars or by the yield
   expect(order('frequency', 'payout')).toBe('BBB CCC AAA DDD');
   expect(order('frequency', 'yield')).toBe('CCC BBB AAA DDD');
-  // the nearest ex date first, the same day by dollars
+  // the owner's example: monthly first, among them the nearest ex date, the same day by the bigger yield
+  expect(order('frequency', 'exDate', 'yield')).toBe('BBB CCC AAA DDD');
+  // the nearest ex date first, the same day by dollars or by the yield
   expect(order('exDate', 'payout')).toBe('AAA BBB CCC DDD');
   expect(order('exDate', 'yield')).toBe('BBB AAA CCC DDD');
-  // a pay date in the past is not "upcoming": it goes last
+  // a pay date of today is no longer ahead: it goes last
   expect(order('payDate')).toBe('BBB DDD AAA CCC');
   expect(rows.map((r) => r.symbol).join(' ')).toBe('AAA BBB CCC DDD'); // the list given is not touched
 });
 
-test('a click on a sort pill adds it after the chosen ones or takes it out, and the default comes back when none is left', () => {
+test('a sort pill: dollars and percent take each other\'s place, the rest add up in the order clicked', () => {
   expect(toggleDivSort(['payout'], 'exDate')).toEqual(['payout', 'exDate']);
+  // never both sizes: the new one stands where the other stood
+  expect(toggleDivSort(['payout'], 'yield')).toEqual(['yield']);
+  expect(toggleDivSort(['frequency', 'payout', 'exDate'], 'yield')).toEqual(['frequency', 'yield', 'exDate']);
+  // the size taken out, the frequency first, then a date, then the size again as the last tie-break
+  expect(toggleDivSort(['payout', 'frequency'], 'payout')).toEqual(['frequency']);
+  expect(toggleDivSort(['frequency'], 'exDate')).toEqual(['frequency', 'exDate']);
+  expect(toggleDivSort(['frequency', 'exDate'], 'yield')).toEqual(['frequency', 'exDate', 'yield']);
+  // a chosen one is taken out; with none left the default is back
   expect(toggleDivSort(['exDate', 'payout'], 'exDate')).toEqual(['payout']);
   expect(toggleDivSort(['exDate'], 'exDate')).toEqual(['payout']);
   expect(toggleDivSort(['payout'], 'payout')).toEqual(['payout']);
+  // a saved list is cleaned: unknown and repeated keys go, of two sizes the first stays
   expect(asDivSorts(['yield', 'nope', 'yield', 'exDate'])).toEqual(['yield', 'exDate']);
+  expect(asDivSorts(['payout', 'frequency', 'yield'])).toEqual(['payout', 'frequency']);
   expect(asDivSorts(undefined)).toEqual(['payout']);
   expect(asDivSorts([])).toEqual(['payout']);
+});
+
+test('an ex date of today is not upcoming any more: the dividend can no longer be bought', () => {
+  const p = (symbol: string, exDate: string) => ({ account: 'T1', kind: 'position' as const, symbol, description: '', quantity: 1, dividendAmount: 1, exDate, fields: {} });
+  expect(upcomingDividends([p('TODAY', '2026-11-27'), p('NEXT', '2026-11-28'), p('PAST', '2026-11-20')], '2026-11-27').map((r) => r.symbol)).toEqual(['NEXT']);
 });

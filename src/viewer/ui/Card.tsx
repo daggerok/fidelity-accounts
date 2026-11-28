@@ -15,12 +15,14 @@ export function Card({ id, title, titleHint, children, tools, lead, expand, bigT
   const box = useRef<HTMLElement>(null);
   return (
     <section ref={box} className="card mb-4 lg:mb-6 flex w-full break-inside-avoid flex-col gap-3" style={{ viewTransitionName: `card-${id}` } as React.CSSProperties} data-card={id}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {/* on a phone the chips start on the title's line, right after it, and run on to the next lines (owner 2026-11-27:
+          "start chips on the same line after Accounts with our spacing"); index.css .card-head */}
+      <div className="card-head flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* card titles in the green of "Fidelity" in the logo (owner 2026-11-24) */}
         <h2 className="text-lg font-semibold" style={{ color: 'var(--brand)' }} title={titleHint}>{title}</h2>
         {lead}
         {/* the expand icon sits as far from the top right corner as the title from the top left (owner 2026-11-24) */}
-        <span className="-my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
+        <span className="card-tools -my-1 ml-auto flex items-center gap-2">{tools}{expand && <button type="button" className={CORNER_BUTTON} title={t('Open big')} onClick={() => setOpen(true)} data-expand><ExpandIcon /></button>}</span>
       </div>
       {children}
       {/* always mounted: a list that empties under an open window (a pill switched) must not drop the window; it shows the card's own view then */}
