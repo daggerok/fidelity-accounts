@@ -53,7 +53,7 @@ function dripPrice(buy: Txn, shares: number, usd: number): number | undefined {
 }
 
 /**
- * The dividends and the interest of some accounts, the newest first: every payment with the reinvestment of the same
+ * The dividends and the interest of some accounts, the pending ones first, then the newest first: every payment with the reinvestment of the same
  * account, day and ticker beside it. Several payments of one ticker on one day (a regular and a special one) pair in
  * the order Fidelity lists them; a reinvestment with no payment that day keeps a line of its own. Cancelled rows are out
  */
@@ -90,7 +90,9 @@ export function payLines(rows: Txn[], accounts: Set<string>): PayLine[] {
       });
     }
   });
-  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // the pending ones on top, as Fidelity lists them (it dates them by the day they will post, which the history does not
+  // give us: ours carry the day they were announced, so by date alone they hid among that day's paid lines)
+  return out.sort((a, b) => (a.pending !== b.pending ? (a.pending ? -1 : 1) : a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /** how far back the page looks; everything by default (owner 2026-11-28: "default selector should be All") */
