@@ -47,10 +47,15 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
     return () => cancelAnimationFrame(frame);
   }, [shape]);
   if (points.length < 2) return <div ref={box} style={{ height }} />;
-  const pad = { l: 4, r: 64, t: 10, b: 24 };
+  const { min, max } = valueRange(points.map((p) => p.value));
+  const levels = [max - (max - min) * 0.05, (max + min) / 2, min + (max - min) * 0.05];
+  // the value labels end at the right edge of the box, where the card's other numbers end (owner 2026-11-27: the gap to
+  // the card's side was wider than everywhere else): their column is as wide as the longest label (11 px digits are
+  // about 6.4 px each) plus 8 px to the plot
+  const labels = Math.ceil(Math.max(...levels.map((v) => shortUsd(v).length)) * 6.4);
+  const pad = { l: 4, r: labels + 8, t: 10, b: 24 };
   const w = width - pad.l - pad.r;
   const h = height - pad.t - pad.b;
-  const { min, max } = valueRange(points.map((p) => p.value));
   const x = (i: number) => pad.l + (i / (points.length - 1)) * w;
   const y = (v: number) => pad.t + (1 - (v - min) / (max - min)) * h;
   const line = blend
@@ -58,7 +63,6 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
     : points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join('');
   const area = `${line}L${(pad.l + w).toFixed(1)},${pad.t + h}L${pad.l},${pad.t + h}Z`;
   const color = up ? 'var(--gain)' : 'var(--loss)';
-  const levels = [max - (max - min) * 0.05, (max + min) / 2, min + (max - min) * 0.05];
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const i = Math.round(((e.clientX - r.left - pad.l) / w) * (points.length - 1));
@@ -80,7 +84,7 @@ export function LineChart({ points, height = 220, up }: { points: Point[]; heigh
         {levels.map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={pad.l + w} y1={y(v)} y2={y(v)} stroke="currentColor" strokeOpacity="0.15" strokeDasharray="4 4" />
-            <text x={pad.l + w + 8} y={y(v) + 4} fontSize="11" fill="currentColor" fillOpacity="0.6">{shortUsd(v)}</text>
+            <text x={width} y={y(v) + 4} fontSize="11" textAnchor="end" fill="currentColor" fillOpacity="0.6" data-level>{shortUsd(v)}</text>
           </g>
         ))}
         <path d={area} fill="url(#fa-fill)" />
