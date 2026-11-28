@@ -1,5 +1,5 @@
 /// <reference lib="esnext" />
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Account } from '../../shared/model';
 import { accountsIn, groupsOf, localToday, moveAccount, moveGroup, orderAccounts, scopeTitle, toggleFold, validScope } from '../app/derive';
 import { autoWatch, dataset, loginSaved, sheetPin, watchChosen, watching } from '../app/data';
@@ -8,7 +8,7 @@ import { lang, t } from '../app/i18n';
 import { MAIN_TABS, prefs, setPrefs, type MainTab } from '../app/prefs';
 import { USERSCRIPT_ATTR, userscriptVersion } from '../app/status';
 import { rovingIndex } from '../app/focus';
-import { squashAsk, squashed } from '../app/squash';
+import { squashed } from '../app/squash';
 import { APP_VERSION, isOlder } from '../app/version';
 import { loadConfig } from '../../shared/sheets/gis';
 import { AccountTabs } from './AccountTabs';
@@ -22,6 +22,7 @@ import { Notices } from './Notices';
 import { Positions } from './Positions';
 import { SettingsPanel, SettingsTools } from './SettingsPanel';
 import { SlidePanel } from './SlidePanel';
+import { TabLine } from './TabLine';
 import { Summary } from './Summary';
 import { animate } from './animate';
 import { readTime } from './format';
@@ -69,10 +70,10 @@ export function App() {
   const themeHome = useRef<HTMLSpanElement>(null);
   const themeAway = useRef<HTMLSpanElement>(null);
   const [showSettings, setShowSettings] = useState(panelOpen);
-  // a phone (owner 2026-11-27, after Fidelity's own app): once the page is scrolled (the Positions rows, the Summary
-  // cards) the navbar folds away and the tabs panel is squashed into one line cut in pieces, so the page has the screen;
-  // the lit piece is the open page. A tap on another piece opens that page, a tap on the lit one (or the scroll back
-  // at its top) brings everything back
+  // a phone on Positions (owner 2026-11-27, after Fidelity's own app): once the rows are scrolled the navbar folds away
+  // and the tabs panel is squashed into one line cut in pieces (ui/TabLine.tsx), so the table has the screen; the lit
+  // piece is the open page. A tap on the other piece opens Summary, a tap on the lit one (or the rows back at their
+  // top) brings everything back. Summary has no fold: its whole page scrolls (`flow` below)
   const [asked, setAsked] = useState(false);
   const [held, setHeld] = useState(false);
   const onAsk = useCallback((ask: 'squash' | 'open') => { setAsked(ask === 'squash'); if (ask === 'squash') setHeld(false); }, []);
@@ -114,20 +115,23 @@ export function App() {
   // another page starts open
   useEffect(() => { setAsked(false); setHeld(false); }, [pr.tab]);
   const flat = squashed({ phone, settings: showSettings, asked, held });
-  // Summary scrolls the page itself, Positions its rows (they ask through the table): the same rule for both
-  const pageScroll = useRef<HTMLDivElement>(null);
-  const quiet = useRef(0);
+  // The phone's Summary (owner 2026-11-27: "content is clashing ... should push it upper as I scroll", "squash should
+  // happen smoothly and ... next panel below must be absolutely visible in full"): the whole page scrolls there, so the
+  // navbar and the tabs panel go up with the cards, pushed by them, and nothing slides under anything. The line of the
+  // pages lies over the top of the page once the tabs panel has gone under it: at that moment the first card stands one
+  // gutter below the line, whole
+  const flow = phone && pr.tab === 'summary' && !!ds;
+  const page = useRef<HTMLDivElement>(null);
+  const tabsBox = useRef<HTMLDivElement>(null);
+  const [past, setPast] = useState(false);
   useEffect(() => {
-    const el = pageScroll.current;
-    if (!el || !phone || pr.tab === 'positions') return undefined;
-    let before = el.scrollTop;
-    // folding and unfolding move the page under the finger by themselves (the navbar and the tabs panel change their
-    // height): those moves are not the owner's scroll, so the page asks nothing for a moment after each
-    const on = () => { const ask = performance.now() < quiet.current ? null : squashAsk(el.scrollTop, before); before = el.scrollTop; if (ask) onAsk(ask); };
-    el.addEventListener('scroll', on, { passive: true });
-    return () => el.removeEventListener('scroll', on);
-  }, [phone, pr.tab, onAsk]);
-  useLayoutEffect(() => { quiet.current = performance.now() + 600; }, [flat]);
+    const el = tabsBox.current;
+    if (!flow || !el || typeof IntersectionObserver === 'undefined') { setPast(false); return undefined; }
+    // the line's strip is 30 px tall: the tabs panel is "gone" when its bottom is above the strip's bottom
+    const io = new IntersectionObserver((seen) => setPast(!seen[seen.length - 1]!.isIntersecting), { root: page.current, rootMargin: '-30px 0px 0px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [flow]);
   // the navbar is clipped while it is folded and while it grows back (350 ms), never when it is open: its popups hang out
   const [clip, setClip] = useState(false);
   useEffect(() => {
@@ -158,7 +162,15 @@ export function App() {
   return (
     // the page is exactly one screen tall (owner 2026-11-23: the footer must always be visible): the navbar on top, the
     // footer in the bottom gutter, and only the part between them scrolls
-    <div className="flex h-dvh flex-col font-sans">
+    <div ref={page} className={`flex h-dvh flex-col font-sans ${flow ? 'overflow-y-auto' : ''}`} data-page={flow ? 'flow' : 'fixed'}>
+      {/* the line of the pages over the scrolled Summary of a phone: it takes no room, so its coming moves nothing */}
+      {flow && (
+        <div className="sticky top-0 z-30 h-0" data-line-over={past ? 'shown' : 'hidden'}>
+          <div className={`absolute inset-x-0 top-0 bg-slate-100 px-4 pt-2 transition-opacity duration-200 dark:bg-slate-950 ${past ? 'opacity-100' : 'pointer-events-none opacity-0'}`} inert={!past}>
+            <TabLine tabs={MAIN_TABS} open={pr.tab} name={tabName} onPick={(tab) => (tab === pr.tab ? page.current?.scrollTo({ top: 0, behavior: 'smooth' }) : setPrefs({ tab }))} />
+          </div>
+        </div>
+      )}
       <div className={`nav-squash shrink-0 px-4 pt-4 lg:px-6 lg:pt-6 ${flat ? 'flat' : ''} ${clip ? 'clip' : ''}`} inert={flat} data-navbar={flat ? 'folded' : 'open'}><div>
           {/* mobile first: on a phone the logo takes its own row, centered, and the buttons spread over the full width
               below it (the mykplan-adp rule: wrapped rows are spread and centered, never hugging the left) */}
@@ -210,7 +222,7 @@ export function App() {
           <Notices />
           </div>
       </div></div>
-      <div ref={pageScroll} className="min-h-0 flex-1 overflow-y-auto px-4 lg:px-6" data-scroll>
+      <div className={flow ? 'flex-none px-4' : 'min-h-0 flex-1 overflow-y-auto px-4 lg:px-6'} data-scroll>
           <SlidePanel id="settings-wrap" open={showSettings} title={`⚙️ ${t('Settings')}`} onClose={closeSettings} tools={<SettingsTools />}>
             <div onKeyDown={onSettingsKey}>
               <SettingsPanel userscript={userscript} done={done} fresh={!setupStarted(setupState(userscript))} expand={expandSetup} theme={theme} />
@@ -223,19 +235,9 @@ export function App() {
           {/* it lives in the scrolling part, under the open ⚙️ Settings (owner 2026-11-27: "settings menu should appeared above
               tabs panel, not below"), and sticks to its top with the gutter above it, so the tabs never scroll away */}
           {ds && (
-            <div className={`sticky top-0 z-20 bg-slate-100 dark:bg-slate-950 lg:pt-6 ${flat ? 'pt-2' : 'pt-4'}`} data-tabs-wrap>
-            {/* squashed: ONE line cut in pieces, a piece a page (owner 2026-11-27: "one line with separations ... squashed
-                panel with pages tabs in form of lines"): Summary left, Positions right, the lit piece is the open page */}
-            {flat && (
-              <div className="flex gap-2" data-tab-stripes>
-                {MAIN_TABS.map((tab) => (
-                  <button key={tab} type="button" className="block min-w-0 flex-1 py-2" title={tabName(tab)} aria-label={tabName(tab)} aria-current={pr.tab === tab ? 'page' : undefined} data-tab-stripe={tab}
-                    onClick={() => (pr.tab === tab ? setHeld(true) : setPrefs({ tab }))}>
-                    <span className={`block h-1.5 rounded-full ${pr.tab === tab ? 'bg-[var(--brand)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
-                  </button>
-                ))}
-              </div>
-            )}
+            <div ref={tabsBox} className={`z-20 bg-slate-100 dark:bg-slate-950 lg:pt-6 ${flow ? 'relative' : 'sticky top-0'} ${flat ? 'pt-2' : 'pt-4'}`} data-tabs-wrap>
+            {/* squashed above the scrolled Positions rows: the line of the pages in place of the panel */}
+            {flat && <TabLine tabs={MAIN_TABS} open={pr.tab} name={tabName} onPick={(tab) => (tab === pr.tab ? setHeld(true) : setPrefs({ tab }))} />}
             <nav className={`flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl border border-slate-200 bg-white px-6 py-2 dark:border-slate-700 dark:bg-slate-900 ${flat ? 'hidden' : 'flex'}`} data-tabs-panel>
               {/* the merge switch stands before the word Positions (owner 2026-11-27; it followed the tab since 2026-11-25),
                   outside the tablist in the code: a tablist holds only tabs and its arrow keys move between them (the tablist
@@ -278,7 +280,8 @@ export function App() {
           </div>
         ) : null}
       </div>
-      <footer className="flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-600 dark:text-slate-400 lg:min-h-6 lg:px-6">
+      {/* always in sight (owner 2026-11-23), also where the whole page scrolls: there it sticks to the bottom */}
+      <footer className={`flex min-h-4 shrink-0 items-center justify-center px-4 text-center text-[0.625rem] leading-tight text-slate-600 dark:text-slate-400 lg:min-h-6 lg:px-6 ${flow ? 'sticky bottom-0 z-10 bg-slate-100 dark:bg-slate-950' : ''}`}>
         <a href="https://github.com/daggerok/fidelity-accounts" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-slate-900 dark:hover:text-slate-200">daggerok &copy; {year}</a>
       </footer>
     </div>
