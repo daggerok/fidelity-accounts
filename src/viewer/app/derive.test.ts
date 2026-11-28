@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, adjustedDrip, rowDripAdj, rowDripAdjUsd, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -467,4 +467,23 @@ test('a sort pill: dollars and percent take each other\'s place, the rest add up
 test('an ex date of today is not upcoming any more: the dividend can no longer be bought', () => {
   const p = (symbol: string, exDate: string) => ({ account: 'T1', kind: 'position' as const, symbol, description: '', quantity: 1, dividendAmount: 1, exDate, fields: {} });
   expect(upcomingDividends([p('TODAY', '2026-11-27'), p('NEXT', '2026-11-28'), p('PAST', '2026-11-20')], '2026-11-27').map((r) => r.symbol)).toEqual(['NEXT']);
+});
+
+test('Adj. DRIP: a buy worth under a dollar is raised to the fewest shares worth a dollar (the owner\'s KO)', () => {
+  // KO at $97.40 paying $0.53: 0.189 share is the threshold, 0.179 is held, so DRIP says 0.01 share (the unrounded gap is worth $0.95)
+  const ko: Position = { account: 'A', kind: 'position', symbol: 'KO', description: '', lastPrice: 97.4, dividendAmount: 0.53, quantity: 0.179, fields: {} };
+  expect(dripGap(ko)).toEqual({ shares: 0.01, usd: 0.95 });
+  // 0.01 x 97.40 = $0.97 cannot be bought: 0.011 x 97.40 = $1.07 can
+  expect(rowDripAdj(ko)).toEqual({ shares: 0.011, usd: 1.07 });
+  expect(rowDripAdjUsd(ko)).toBe(1.07);
+  // a buy already worth a dollar, nothing to buy and a minus stay as they are
+  expect(adjustedDrip({ shares: 0.14, usd: 7.33 }, 52.3)).toEqual({ shares: 0.14, usd: 7.33 });
+  expect(adjustedDrip({ shares: 0, usd: 0 }, 52.3)).toEqual({ shares: 0, usd: 0 });
+  expect(adjustedDrip({ shares: -0.76, usd: -39.75 }, 52.3)).toEqual({ shares: -0.76, usd: -39.75 });
+  // a share above $1,000: the smallest piece is already worth more than a dollar
+  expect(adjustedDrip({ shares: 0.001, usd: 2.5 }, 2500)).toEqual({ shares: 0.001, usd: 2.5 });
+  // exactly a dollar's worth is not raised; no price, nothing to work out
+  expect(adjustedDrip({ shares: 0.004, usd: 1 }, 250)).toEqual({ shares: 0.004, usd: 1 });
+  expect(adjustedDrip({ shares: 0.003, usd: 0.75 }, 250)).toEqual({ shares: 0.004, usd: 1 });
+  expect(adjustedDrip({ shares: 0.01, usd: 0.5 }, undefined)).toEqual({ shares: 0.01, usd: 0.5 });
 });

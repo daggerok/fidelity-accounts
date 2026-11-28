@@ -77,7 +77,7 @@ test('the fields JSON: raw sums and percents follow the merged values, static fi
 test('a ticker of one account keeps its row; only % of account is worked out over all the shown accounts', () => {
   const o = line('ONE');
   const { percentOfAccount, fields, ...rest } = ONE;
-  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, percent_of_account: 5 }, accounts: ['T0000002'], drip: null, dripAdjUsd: null });
+  expect(o).toEqual({ ...rest, percentOfAccount: 5, fields: { ...fields, percent_of_account: 5 }, accounts: ['T0000002'], drip: null, dripAdj: null, dripAdjUsd: null });
   expect(o.todayGlPct).toBe(1.52); // Fidelity's own, not worked out again
 });
 
@@ -137,6 +137,9 @@ test('Adj. DRIP $ of a merged line: the order of each account is brought up to o
   // two accounts short by cents each: two orders of one dollar
   const [both] = mergePositions([cheap('T0000001', 0.2), cheap('T0000002', 0.3)], ACCOUNTS);
   expect(both!.dripAdjUsd).toBe(2);
+  // and the shares of those two orders: at $1 a share, one share each
+  expect(both!.dripAdj).toEqual({ shares: 2, usd: 2 });
+  expect(value('dripAdj', both!)).toBe(2);
   expect(value('dripAdjUsd', both!)).toBe(2);
 });
 

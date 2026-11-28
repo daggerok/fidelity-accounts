@@ -2,7 +2,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
-import { dripMin, dripMinAdjUsd, positionsIn, rangePos, rowDrip, rowDripAdjUsd, securities, totalsOf } from '../app/derive';
+import { dripMin, dripMinAdjUsd, positionsIn, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd, securities, totalsOf } from '../app/derive';
 import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
 import { mergeOn, mergePositions, type MergeKind } from '../app/merge';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
@@ -15,7 +15,7 @@ import { PHONE_EDGE, PHONE_SYMBOL_W, phoneColumnWidth } from '../app/fit';
 import { RangeBar } from './RangeBar';
 import { Zoom } from './Zoom';
 import { CellScroll } from './CellScroll';
-import { DRIP_ADJ_USD_HINT, DRIP_HINT, DRIP_MIN_ADJ_USD_HINT, DRIP_MIN_HINT, DRIP_MIN_USD_HINT, DRIP_USD_HINT, DripValue } from './Drip';
+import { DRIP_ADJ_HINT, DRIP_ADJ_USD_HINT, DRIP_HINT, DRIP_MIN_ADJ_USD_HINT, DRIP_MIN_HINT, DRIP_MIN_USD_HINT, DRIP_USD_HINT, DripValue } from './Drip';
 import { ColumnPicker } from './ColumnPicker';
 import { shownKeys } from '../app/columns';
 import { rowWindow, sameWindow } from '../app/row-window';
@@ -98,7 +98,8 @@ export const COLUMNS = (): Col[] => [
   { key: 'drip', merge: 'sum', label: 'DRIP', group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
   { key: 'dripUsd', merge: 'sum', label: 'DRIP $', group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
   // the threshold of DRIP, hidden at first (prefs NEW_COLUMN_KEYS): from the last price and the dividend only, so static
-  // the dollars as an order Fidelity takes, at least $1 (derive.ts adjustedBuy): a merged line adds up each account's adjusted order
+  // the buy as an order Fidelity takes, worth at least $1 (derive.ts adjustedDrip): a merged line adds up each account's adjusted order
+  { key: 'dripAdj', merge: 'sum', label: t('Adj. DRIP'), group: OURS(), hint: DRIP_ADJ_HINT(), cell: (p) => { const d = rowDripAdj(p); return d === null ? DASH : <DripValue value={d.shares} as="shares" />; } },
   { key: 'dripAdjUsd', merge: 'sum', label: t('Adj. DRIP $'), group: OURS(), hint: DRIP_ADJ_USD_HINT(), cell: (p) => { const v = rowDripAdjUsd(p); return v === null ? DASH : <DripValue value={v} as="usd" />; } },
   { key: 'dripMin', merge: 'static', label: t('Min. DRIP'), group: OURS(), hint: DRIP_MIN_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMin) },
   { key: 'dripMinUsd', merge: 'static', label: t('Min. DRIP $'), group: OURS(), hint: DRIP_MIN_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" min />, dripMin) },
