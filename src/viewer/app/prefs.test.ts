@@ -51,12 +51,14 @@ test('the columns added later start hidden once: by default and for a choice sav
   expect(later.hidden).toEqual(['sector']);
   // seen version 2 with a version-2 column turned on: only the later columns get hidden, the chosen one stays
   const v2 = load(JSON.stringify({ hidden: ['sector'], columnsV: 2 }));
-  expect(v2.hidden).toEqual(['sector'].concat(NEW_COLUMNS_BY_V[3]!, NEW_COLUMNS_BY_V[4]!, NEW_COLUMNS_BY_V[5]!));
+  expect(v2.hidden).toEqual(['sector'].concat(NEW_COLUMNS_BY_V[3]!, NEW_COLUMNS_BY_V[4]!, NEW_COLUMNS_BY_V[5]!, NEW_COLUMNS_BY_V[6]!));
   expect(v2.hidden).not.toContain('bid');
   // seen version 3 with a version-3 column turned on and DRIP hidden: only the columns of version 4 and 5 get hidden
   const v3 = load(JSON.stringify({ hidden: ['drip'], columnsV: 3 }));
-  expect(v3.hidden).toEqual(['drip', 'dripMin', 'dripMinUsd', 'dripAdjUsd', 'dripMinAdjUsd']);
+  expect(v3.hidden).toEqual(['drip', 'dripMin', 'dripMinUsd', 'dripAdjUsd', 'dripMinAdjUsd', 'dripAdj']);
   // seen version 4 with Min. DRIP turned on: only the two adjusted columns get hidden
-  expect(load(JSON.stringify({ hidden: [], columnsV: 4 })).hidden).toEqual(['dripAdjUsd', 'dripMinAdjUsd']);
-  expect(load(JSON.stringify({ hidden: [], columnsV: 5 })).hidden).toEqual([]);
+  expect(load(JSON.stringify({ hidden: [], columnsV: 4 })).hidden).toEqual(['dripAdjUsd', 'dripMinAdjUsd', 'dripAdj']);
+  // seen version 5: only Adj. DRIP of version 6 gets hidden
+  expect(load(JSON.stringify({ hidden: [], columnsV: 5 })).hidden).toEqual(['dripAdj']);
+  expect(load(JSON.stringify({ hidden: [], columnsV: 6 })).hidden).toEqual([]);
 });

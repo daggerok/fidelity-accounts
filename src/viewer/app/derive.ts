@@ -486,13 +486,26 @@ export function symbolDrip(parts: { drip: Drip | null }[], add: 'short' | 'all' 
  */
 export const FIDELITY_MIN_BUY_USD = 1;
 export const adjustedBuy = (usd: number): number => (usd > 0 && usd < FIDELITY_MIN_BUY_USD ? FIDELITY_MIN_BUY_USD : usd);
-/** Adj. DRIP $ of a Positions row: a merged line carries its own (each account's order adjusted, then added up: every
- * account buys on its own), a row of one account adjusts its DRIP $ */
-export const rowDripAdjUsd = (p: Position & { drip?: Drip | null; dripAdjUsd?: number | null }): number | null => {
-  if (p.dripAdjUsd !== undefined) return p.dripAdjUsd;
+/**
+ * Adj. DRIP and Adj. DRIP $ (owner 2026-11-27: KO, DRIP 0.01 share at $97.40 is $0.97, "we cannot buy anything for
+ * less than 1$, so we must show 0.011 which will cause $1.07"): the buy of DRIP as an order Fidelity takes. Shares
+ * worth under a dollar at the last price are raised to the fewest thousandths of a share worth a dollar or more, and
+ * the dollars are those shares at that price. A buy already worth a dollar, and nothing to buy, stay as they are
+ */
+export function adjustedDrip(d: Drip, price: number | undefined): Drip {
+  if (!(d.shares > 0) || !price || price <= 0 || d.shares * price >= FIDELITY_MIN_BUY_USD) return d;
+  const least = up(FIDELITY_MIN_BUY_USD / price, 1000);
+  return { shares: least, usd: Math.max(FIDELITY_MIN_BUY_USD, near(least * price, 100)) };
+}
+/** Adj. DRIP of a Positions row: a merged line carries its own (each account's order adjusted, then added up: every
+ * account buys on its own), a row of one account adjusts its DRIP */
+export const rowDripAdj = (p: Position & { drip?: Drip | null; dripAdj?: Drip | null }): Drip | null => {
+  if (p.dripAdj !== undefined) return p.dripAdj;
   const d = rowDrip(p);
-  return d ? adjustedBuy(d.usd) : null;
+  return d ? adjustedDrip(d, p.lastPrice) : null;
 };
+/** Adj. DRIP $: the dollars of that order */
+export const rowDripAdjUsd = (p: Position & { drip?: Drip | null; dripAdj?: Drip | null }): number | null => rowDripAdj(p)?.usd ?? null;
 /** Adj. min. DRIP $: the dollars of Min. DRIP as an order Fidelity takes */
 export const dripMinAdjUsd = (p: Position): number | null => { const d = dripMin(p); return d ? adjustedBuy(d.usd) : null; };
 
