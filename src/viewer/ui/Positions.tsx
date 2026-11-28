@@ -160,7 +160,17 @@ const nameWidth = (text: string): number => {
 const BADGE_W: Record<string, number> = { string: 32, number: 30, frequency: 32, date: 20, datetime: 26 };
 const headRoom = (type: string | undefined): number => 16 + 4 + (BADGE_W[type ?? ''] ?? 20) + 14;
 // the longest value of a column, in the cell font, with the cell padding
+// every text is measured once (the font never changes): the widest value of a column is looked for over all its rows
+const measured = new Map<string, number>();
 const valueWidth = (text: string): number => {
+  const known = measured.get(text);
+  if (known !== undefined) return known;
+  const w = measureValue(text);
+  if (measured.size > 50000) measured.clear();
+  measured.set(text, w);
+  return w;
+};
+const measureValue = (text: string): number => {
   if (ruler === undefined) ruler = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   if (!ruler) return text.length * 8 + 16;
   ruler.font = '400 14px Inter, ui-sans-serif, system-ui, sans-serif';
@@ -172,20 +182,21 @@ const valueWidth = (text: string): number => {
 // `phone` is the width of a plain column on a phone (app/fit.ts phoneColumnWidth), 0 elsewhere: there the names wrap
 // and the type badges are hidden (index.css .pos-table.compact), so a column needs no room for them; a wide one keeps
 // its share
-// elsewhere a column is as wide as what it holds (app/fit.ts columnWidth, owner 2026-11-28): `longest` is its longest
-// value among the positions, `type` its type badge
-const width = (c: { key: string; label: string }, phone = 0, longest = '', type?: string): number => (phone
+// elsewhere a column is as wide as what it holds (app/fit.ts columnWidth, owner 2026-11-28): `widest` is the width of
+// its widest value among the positions, `type` its type badge
+const width = (c: { key: string; label: string }, phone = 0, widest = 0, type?: string): number => (phone
   ? (WIDE[c.key] ? Math.round(WIDE[c.key]! * 0.62) : phone)
-  : columnWidth({ head: nameWidth(c.label) + headRoom(type), value: longest ? valueWidth(longest) : 0, fixed: WIDE[c.key] }));
+  : columnWidth({ head: nameWidth(c.label) + headRoom(type), value: widest, fixed: WIDE[c.key] }));
 const SYMBOL = 'symbol';
 // the first and the last cell sit one card padding (24 px) from the box edge, like the logo, Summary and the card titles
 // (owner 2026-11-25: "we need to fix spacing here as well"); a cell has 8 px of its own, the edge columns get the rest
 const EDGE = 16;
-/** what the widths follow besides the names: each column's longest value and its type */
-type Needs = { longest: Record<string, string>; types: Record<string, string> };
-const NO_NEEDS: Needs = { longest: {}, types: {} };
+/** what the widths follow besides the names: the width of each column's widest value, and its type */
+type Needs = { widest: Record<string, number>; types: Record<string, string> };
+const NO_NEEDS: Needs = { widest: {}, types: {} };
+const TOTAL_ROOM = 22; // two more digits and a comma at 14 px
 const colWidth = (cols: { key: string; label: string }[], i: number, phone = 0, needs: Needs = NO_NEEDS): number =>
-  width(cols[i]!, phone, needs.longest[cols[i]!.key], needs.types[cols[i]!.key]) + (i === cols.length - 1 ? (phone ? PHONE_EDGE : EDGE) : 0);
+  width(cols[i]!, phone, needs.widest[cols[i]!.key], needs.types[cols[i]!.key]) + (i === cols.length - 1 ? (phone ? PHONE_EDGE : EDGE) : 0);
 const symbolWidth = (phone: number): number => (phone ? PHONE_SYMBOL_W + PHONE_EDGE : SYMBOL_W + EDGE);
 /** the column widths both tables share: Symbol, then every chosen column (memo: the widths measure the names in a canvas) */
 const Cols = memo(function Cols({ cols, phone, needs }: { cols: { key: string; label: string }[]; phone: number; needs: Needs }) {
@@ -362,20 +373,26 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
   const last = Math.min(lines.length, win.end);
   const total = useMemo(() => securities(rows).length, [rows]);
   const on = activeFilters(filters);
-  // the longest value of every shown column over ALL the positions, not the filtered ones: a filter being typed must
-  // not make the columns jump
+  // the widest value of every shown column over ALL the positions, not the filtered ones: a filter being typed must
+  // not make the columns jump. What is measured is what the cell SHOWS (a cell that draws plain text gives it; Market
+  // cap shows "Mega cap ($857.63B)" while it sorts by the number), and the widest text, not the longest: "Dec-10-2026"
+  // is wider than "Jul-11-2026" (owner 2026-11-28: Market cap and Pay date were cut, Pay date only for some accounts)
   const needs = useMemo((): Needs => {
-    const longest: Record<string, string> = {};
+    const widest: Record<string, number> = {};
     const list = securities(rows);
     cols.forEach((c) => {
       const col = positionColumn(c.key);
-      let best = '';
-      for (let i = 0; i < list.length; i++) { const s = col.text(list[i]!); if (s.length > best.length) best = s; }
+      let best = 0;
+      for (let i = 0; i < list.length; i++) {
+        const shownCell = c.cell(list[i]!);
+        const w = valueWidth(typeof shownCell === 'string' ? shownCell : col.text(list[i]!));
+        if (w > best) best = w;
+      }
       // a column with totals holds sums longer than any of its rows (Account total, Grand total): room for two more
       // digits and their comma
-      longest[c.key] = c.total && best ? `${best}00,` : best;
+      widest[c.key] = c.total && best ? best + TOTAL_ROOM : best;
     });
-    return { longest, types: types as Record<string, string> };
+    return { widest, types: types as Record<string, string> };
   }, [rows, cols, types]);
   const tableWidth = useMemo(() => symbolWidth(phone) + cols.reduce((sum, _c, i) => sum + colWidth(cols, i, phone, needs), 0), [cols, phone, needs]);
 
