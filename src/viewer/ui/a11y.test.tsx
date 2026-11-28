@@ -196,3 +196,33 @@ test('an account\'s beta is a button named in words that opens its breakdown and
   expect(document.activeElement).toBe(button);
   await act(async () => root.unmount());
 });
+
+test('a window opened with a pointer gives the focus back without its ring, opened with the keys with it', async () => {
+  const { act, useState } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { Zoom } = await import('./Zoom');
+  function Page() {
+    const [open, setOpen] = useState(false);
+    return <div><button id="opener" onClick={() => setOpen(true)}>open</button><Zoom open={open} title="T" onClose={() => setOpen(false)}><p>x</p></Zoom></div>;
+  }
+  document.body.innerHTML = '<div id="root"></div>';
+  const root = createRoot(document.getElementById('root')!);
+  await act(async () => root.render(<Page />));
+  const opener = document.getElementById('opener')!;
+  const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+  // the keys: Enter on the button
+  opener.focus();
+  await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); opener.click(); });
+  await esc();
+  expect(document.activeElement).toBe(opener);
+  expect(opener.hasAttribute('data-quiet-focus')).toBe(false);
+  // a pointer: the focus comes back all the same, marked quiet until the button loses it
+  await act(async () => { window.dispatchEvent(new Event('pointerdown', { bubbles: true })); opener.click(); });
+  expect(document.activeElement?.hasAttribute('data-quiet-focus')).toBe(true); // ✕ of the window
+  await esc();
+  expect(document.activeElement).toBe(opener);
+  expect(opener.hasAttribute('data-quiet-focus')).toBe(true);
+  opener.blur();
+  expect(opener.hasAttribute('data-quiet-focus')).toBe(false);
+  await act(async () => { root.unmount(); });
+});
