@@ -32,3 +32,22 @@ export function filterColumns<T extends { label: string; hint?: string }>(cols: 
   const s = q.trim().toLowerCase();
   return s ? cols.filter((c) => `${c.label} ${c.hint ?? ''}`.toLowerCase().includes(s)) : cols;
 }
+
+/**
+ * A column of the app's own (DRIP and the like) that is switched on goes to the front of the table (owner 2026-11-28:
+ * "by default we will be adding them from left ... before all non custom columns, but if needed we can move them"):
+ * among the own columns that already stand in a row at the front it takes its default place, and all the other columns
+ * keep theirs. `first`: the keys of the own columns. Returns the new order of every key
+ */
+export function turnOnFirst(all: string[], order: string[], hidden: string[], key: string, first: readonly string[]): string[] {
+  const arranged = arrange(all, order).filter((k) => k !== key);
+  const shown = arranged.filter((k) => hidden.indexOf(k) < 0);
+  let run = 0;
+  while (run < shown.length && first.indexOf(shown[run]!) >= 0) run += 1;
+  const lead = shown.slice(0, run);
+  const at = lead.filter((k) => all.indexOf(k) < all.indexOf(key)).length;
+  // the shown column it goes right before: the next own one of the front row, else the first column after that row
+  const before = at < lead.length ? lead[at] : shown[run];
+  arranged.splice(before === undefined ? arranged.length : arranged.indexOf(before), 0, key);
+  return arranged;
+}

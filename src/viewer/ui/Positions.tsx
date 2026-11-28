@@ -96,19 +96,20 @@ const lowHigh = (p: Position): string => { const lo = p.fields.day_range_low; co
 // static"; DRIP and DRIP $: each account's own number added up, "when we have merge, we want to aggregate drips similarly
 // like we do for gains". The ($ and %) pairs sum the dollars, their % is worked out as Today's % and Total %
 export const COLUMNS = (): Col[] => [
-  // DRIP in pairs (owner 2026-11-27): the regular column is the adjusted one, the buy or the threshold as an order Fidelity
-  // takes, worth at least $1 (derive.ts adjustedDrip), and has the plain name; right after it its plain calculation,
-  // named Non-adj. and off unless turned on. The keys keep their first meaning (drip = the calculation, dripAdj = the
+  // The eight DRIP columns (owner 2026-11-28): the four plain calculations first, named Non-adj. and off unless turned on,
+  // then the four regular ones, each four in the order Min. DRIP $, Min. DRIP, DRIP $, DRIP. The regular column is the
+  // adjusted one, the buy or the threshold as an order Fidelity takes, worth at least $1 (derive.ts adjustedDrip), and
+  // has the plain name. The keys keep their first meaning (drip = the calculation, dripAdj = the
   // order), so saved views stay as they are. A merged line adds up each account's order; Min. DRIP is the threshold,
   // from the last price and the dividend only, so static. What shows by default: app/position-columns.ts DEFAULT_HIDDEN
-  { key: 'dripAdj', merge: 'sum', label: 'DRIP', group: OURS(), hint: DRIP_ADJ_HINT(), cell: (p) => { const d = rowDripAdj(p); return d === null ? DASH : <DripValue value={d.shares} as="shares" />; } },
-  { key: 'drip', merge: 'sum', label: t('Non-adj. DRIP'), group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
-  { key: 'dripAdjUsd', merge: 'sum', label: 'DRIP $', group: OURS(), hint: DRIP_ADJ_USD_HINT(), cell: (p) => { const v = rowDripAdjUsd(p); return v === null ? DASH : <DripValue value={v} as="usd" />; } },
-  { key: 'dripUsd', merge: 'sum', label: t('Non-adj. DRIP $'), group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
-  { key: 'dripMinAdj', merge: 'static', label: t('Min. DRIP'), group: OURS(), hint: DRIP_MIN_ADJ_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMinAdj) },
-  { key: 'dripMin', merge: 'static', label: t('Non-adj. min. DRIP'), group: OURS(), hint: DRIP_MIN_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMin) },
-  { key: 'dripMinAdjUsd', merge: 'static', label: t('Min. DRIP $'), group: OURS(), hint: DRIP_MIN_ADJ_USD_HINT(), cell: (p) => { const v = dripMinAdjUsd(p); return v === null ? DASH : <DripValue value={v} as="usd" min />; } },
   { key: 'dripMinUsd', merge: 'static', label: t('Non-adj. min. DRIP $'), group: OURS(), hint: DRIP_MIN_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" min />, dripMin) },
+  { key: 'dripMin', merge: 'static', label: t('Non-adj. min. DRIP'), group: OURS(), hint: DRIP_MIN_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMin) },
+  { key: 'dripUsd', merge: 'sum', label: t('Non-adj. DRIP $'), group: OURS(), hint: DRIP_USD_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.usd} as="usd" />) },
+  { key: 'drip', merge: 'sum', label: t('Non-adj. DRIP'), group: OURS(), hint: DRIP_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" />) },
+  { key: 'dripMinAdjUsd', merge: 'static', label: t('Min. DRIP $'), group: OURS(), hint: DRIP_MIN_ADJ_USD_HINT(), cell: (p) => { const v = dripMinAdjUsd(p); return v === null ? DASH : <DripValue value={v} as="usd" min />; } },
+  { key: 'dripMinAdj', merge: 'static', label: t('Min. DRIP'), group: OURS(), hint: DRIP_MIN_ADJ_HINT(), cell: (p) => dripOf(p, (d) => <DripValue value={d.shares} as="shares" min />, dripMinAdj) },
+  { key: 'dripAdjUsd', merge: 'sum', label: 'DRIP $', group: OURS(), hint: DRIP_ADJ_USD_HINT(), cell: (p) => { const v = rowDripAdjUsd(p); return v === null ? DASH : <DripValue value={v} as="usd" />; } },
+  { key: 'dripAdj', merge: 'sum', label: 'DRIP', group: OURS(), hint: DRIP_ADJ_HINT(), cell: (p) => { const d = rowDripAdj(p); return d === null ? DASH : <DripValue value={d.shares} as="shares" />; } },
   { key: 'todayGlPct', merge: 'recomputed', group: GL(), label: t("Today's %"), hint: t("Today's gain/loss %"), cell: (p) => glCell(p.todayGlPct, signedPct(p.todayGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGlPct ?? undefined, signedPct(x.todayGlPct)); } },
   { key: 'todayGl', merge: 'sum', group: GL(), label: t("Today's $"), hint: t("Today's gain/loss $"), cell: (p) => glCell(p.todayGl, signedUsd(p.todayGl)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.todayGl, signedUsd(x.todayGl)); } },
   { key: 'totalGlPct', merge: 'recomputed', group: GL(), label: t('Total %'), hint: t('Total gain/loss %'), cell: (p) => glCell(p.totalGlPct, signedPct(p.totalGlPct)), total: (_ps, a) => { const x = totalsOf(a); return glCell(x.totalGlPct ?? undefined, signedPct(x.totalGlPct)); } },
@@ -243,6 +244,8 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
   const [showCols, setShowCols] = useState(false);
   const colsButton = useRef<HTMLButtonElement>(null);
   const every = useMemo(() => COLUMNS(), [language]);
+  // the app's own columns: switched on, they go to the front of the table (ui/ColumnPicker.tsx)
+  const ownKeys = useMemo(() => every.filter((c) => c.group === OURS()).map((c) => c.key), [every]);
   const cols = useMemo(() => {
     const byKey = new Map(every.map((c) => [c.key, c]));
     return shownKeys(every.map((c) => c.key), pr.columns, pr.hidden).map((k) => byKey.get(k)!);
@@ -408,7 +411,7 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
           title={t('Clear all {n} filters', { n: on })} onClick={() => setPrefs({ search: '', filters: {} })} data-clear-filters>{t('Clear Filters')}</button>
       )}
       <Zoom open={showCols} title={t('Columns')} origin={colsButton} narrow onClose={() => setShowCols(false)}>
-        <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} defaultHidden={DEFAULT_PREFS.hidden} onChange={setPrefs} />
+        <ColumnPicker cols={every} order={pr.columns} hidden={pr.hidden} defaultHidden={DEFAULT_PREFS.hidden} onChange={setPrefs} first={ownKeys} />
       </Zoom>
       {/* one rounded box: the header table on top, the rows below it in their own scroll box, so the vertical scrollbar
           runs beside the rows only; both tables share the column widths, and both keep a scrollbar gutter so they line up */}
