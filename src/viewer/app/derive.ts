@@ -485,12 +485,16 @@ export const FIDELITY_MIN_BUY_USD = 1;
  * 2026-11-27: KO, DRIP 0.01 share at $97.40 is $0.97, "we cannot buy anything for
  * less than 1$, so we must show 0.011 which will cause $1.07"): the buy of DRIP as an order Fidelity takes. Shares
  * worth under a dollar at the last price are raised to the fewest thousandths of a share worth a dollar or more, and
- * the dollars are those shares at that price. A buy already worth a dollar, and nothing to buy, stay as they are
+ * the dollars are those shares at that price, rounded up to a cent, so an order of that many dollars buys them all.
+ * Nothing to buy and a minus stay as they are
  */
 export function adjustedDrip(d: Drip, price: number | undefined): Drip {
-  if (!(d.shares > 0) || !price || price <= 0 || d.shares * price >= FIDELITY_MIN_BUY_USD) return d;
-  const least = up(FIDELITY_MIN_BUY_USD / price, 1000);
-  return { shares: least, usd: Math.max(FIDELITY_MIN_BUY_USD, near(least * price, 100)) };
+  if (!(d.shares > 0) || !price || price <= 0) return d;
+  const shares = d.shares * price >= FIDELITY_MIN_BUY_USD ? d.shares : up(FIDELITY_MIN_BUY_USD / price, 1000);
+  // the dollars are what to type into a buy order (owner 2026-11-27: "we should paste really needed value, not less
+  // than needed"): an order in dollars buys the thousandths of a share those dollars cover and no more, so the amount
+  // is those shares at the last price rounded UP to a cent. $1.07 at $97.40 buys 0.010 share, $1.08 buys the 0.011
+  return { shares, usd: Math.max(FIDELITY_MIN_BUY_USD, up(shares * price, 100)) };
 }
 /** Adj. DRIP of a Positions row: a merged line carries its own (each account's order adjusted, then added up: every
  * account buys on its own), a row of one account adjusts its DRIP */

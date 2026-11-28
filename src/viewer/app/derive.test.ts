@@ -474,11 +474,18 @@ test('Adj. DRIP: a buy worth under a dollar is raised to the fewest shares worth
   // KO at $97.40 paying $0.53: 0.189 share is the threshold, 0.179 is held, so DRIP says 0.01 share (the unrounded gap is worth $0.95)
   const ko: Position = { account: 'A', kind: 'position', symbol: 'KO', description: '', lastPrice: 97.4, dividendAmount: 0.53, quantity: 0.179, fields: {} };
   expect(dripGap(ko)).toEqual({ shares: 0.01, usd: 0.95 });
-  // 0.01 x 97.40 = $0.97 cannot be bought: 0.011 x 97.40 = $1.07 can
-  expect(rowDripAdj(ko)).toEqual({ shares: 0.011, usd: 1.07 });
-  expect(rowDripAdjUsd(ko)).toBe(1.07);
+  // 0.01 x 97.40 = $0.97 cannot be bought: 0.011 share can. Its dollars are what to type into the order: 0.011 x 97.40
+  // = $1.0714, and an order of $1.07 would buy only 0.010 share, so $1.08
+  expect(rowDripAdj(ko)).toEqual({ shares: 0.011, usd: 1.08 });
+  expect(rowDripAdjUsd(ko)).toBe(1.08);
+  // whatever the price, an order of the dollars shown buys at least the shares shown (in whole thousandths)
+  [3.17, 9.99, 52.3, 97.4, 250, 733.33, 2500].forEach((price) => [0.001, 0.0137, 0.14, 1.2345, 12].forEach((gap) => {
+    const a = adjustedDrip({ shares: Math.ceil(gap * 1000 - 1e-9) / 1000, usd: 0 }, price);
+    expect(a.usd).toBeGreaterThanOrEqual(1);
+    expect(Math.floor((a.usd / price) * 1000 + 1e-6) / 1000).toBeGreaterThanOrEqual(a.shares);
+  }));
   // a buy already worth a dollar, nothing to buy and a minus stay as they are
-  expect(adjustedDrip({ shares: 0.14, usd: 7.33 }, 52.3)).toEqual({ shares: 0.14, usd: 7.33 });
+  expect(adjustedDrip({ shares: 0.14, usd: 7.28 }, 52.3)).toEqual({ shares: 0.14, usd: 7.33 }); // 0.14 x 52.30 = 7.322, up to a cent
   expect(adjustedDrip({ shares: 0, usd: 0 }, 52.3)).toEqual({ shares: 0, usd: 0 });
   expect(adjustedDrip({ shares: -0.76, usd: -39.75 }, 52.3)).toEqual({ shares: -0.76, usd: -39.75 });
   // a share above $1,000: the smallest piece is already worth more than a dollar
