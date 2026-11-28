@@ -59,6 +59,12 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
   // in the chosen order: one or several of dollars, yield, frequency, ex date, pay date (app/derive.ts sortDividends)
   const divs = useMemo(() => sortDividends(divsFound, pr.dividendsSort, today), [divsFound, pr.dividendsSort, today]);
   const divSortName: Record<DivSort, string> = { payout: t('Dividends $'), yield: t('Dividends %'), frequency: t('Frequency'), exDate: t('Ex. date'), payDate: t('Payout date') };
+  // the order pills: on their own line in the card, and in the full view before the periods (owner 2026-11-27: "we must
+  // have them to see to the left before existing chips"); there the table keeps this order until a column is sorted
+  const divOrder = (className: string) => (
+    <OrderPills items={DIV_SORTS} value={pr.dividendsSort} label={t('Sort dividends by')} labelOf={(k) => divSortName[k]} className={className}
+      onToggle={(k) => animate(() => setPrefs({ dividendsSort: toggleDivSort(prefs.get().dividendsSort, k) }))} />
+  );
   const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`, 3);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
   const { Y: incY, Q: incQ, M: incM, estAnnual } = useMemo(() => incomeView(txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome), [txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome]);
@@ -132,14 +138,14 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
           <KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />
         </span>
       )}
+        bigTools={divOrder('justify-end')}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
           <>
           {/* the order on its own line under the title's line (owner 2026-11-27: the periods and the kinds stay beside the
               title as they were, this line goes right under them): Dividends $ on the right is the default; several may
               be chosen, the next one orders what the first left equal */}
-          <OrderPills items={DIV_SORTS} value={pr.dividendsSort} label={t('Sort dividends by')} labelOf={(k) => divSortName[k]} className="mb-1 justify-end"
-            onToggle={(k) => animate(() => setPrefs({ dividendsSort: toggleDivSort(prefs.get().dividendsSort, k) }))} />
+          {divOrder('mb-1 justify-end')}
           <div ref={divsBox} className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {divs.slice(0, divsN).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" data-fit-row>
