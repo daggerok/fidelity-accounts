@@ -18,9 +18,9 @@ export const DRIP_MIN_HINT = (): string => nonAdj(t('The fewest shares to hold s
 export const DRIP_MIN_USD_HINT = (): string => nonAdj(t('Dollars, at the last price, of the fewest shares to hold so the next dividend buys 0.001 share by DRIP, the plain calculation: it may be under $1, which Fidelity does not sell'));
 
 export const DRIP_ADJ_HINT = (): string => adj(t('Shares to buy so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes: shares worth under $1 are raised to the fewest shares worth $1 or more; minus: the dividend already buys 0.001 share'));
-export const DRIP_ADJ_USD_HINT = (): string => adj(t('Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes: never under $1, the least Fidelity sells; minus: the dividend already buys 0.001 share'));
+export const DRIP_ADJ_USD_HINT = (): string => adj(t('Dollars to type into a buy order so the next dividend buys 0.001 share by DRIP: the shares needed at the last price, rounded up to a cent so the order is not short, never under $1, the least Fidelity sells; minus: the dividend already buys 0.001 share'));
 export const DRIP_MIN_ADJ_HINT = (): string => adj(t('The fewest shares to hold so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes when bought from nothing: never shares worth under $1; the same in every account'));
-export const DRIP_MIN_ADJ_USD_HINT = (): string => adj(t('Dollars, at the last price, of the fewest shares to hold so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes when bought from nothing: never under $1'));
+export const DRIP_MIN_ADJ_USD_HINT = (): string => adj(t('Dollars to type into a buy order, from nothing, for the fewest shares to hold so the next dividend buys 0.001 share by DRIP: those shares at the last price, rounded up to a cent so the order is not short, never under $1'));
 
 /** `min`: Min. DRIP and Min. DRIP $, a threshold to hold, plain with no sign */
 export function DripValue({ value, as, min = false }: { value: number; as: 'shares' | 'usd'; min?: boolean }) {
