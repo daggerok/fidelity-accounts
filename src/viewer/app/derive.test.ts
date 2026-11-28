@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, yieldNote, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -85,6 +85,9 @@ test('movers by % or $: the worst loser last; accounts sorted by the chosen meas
   const accs = [{ number: '1', name: 'a', group: 'g', balance: 10, todayGl: 5, todayGlPct: 50, totalGl: -1, totalGlPct: -10, asOf: 't' }, { number: '2', name: 'b', group: 'g', balance: 20, todayGl: 1, todayGlPct: 5, totalGl: 3, totalGlPct: 15, asOf: 't' }];
   expect(sortAccounts(accs, 'value').map((a) => a.number)).toEqual(['2', '1']);
   expect(sortAccounts(accs, 'todayUsd').map((a) => a.number)).toEqual(['1', '2']);
+  // by beta: the largest first, an account without one last
+  expect(sortAccounts(accs, 'beta', (n) => (n === '2' ? 1.2 : 0.8)).map((a) => a.number)).toEqual(['2', '1']);
+  expect(sortAccounts(accs, 'beta', (n) => (n === '1' ? 0.8 : undefined)).map((a) => a.number)).toEqual(['1', '2']);
   expect(sortAccounts(accs, 'totalPct').map((a) => a.number)).toEqual(['2', '1']);
 });
 
@@ -413,4 +416,40 @@ test('a dividend row says the yield a year and the payments a year after its tic
   expect(yieldNote({ paymentFrequency: 'Semi-annually' })).toBe('2');
   expect(yieldNote({ dividendAmount: 0.25, lastPrice: 0, paymentFrequency: 'Annually' })).toBe('1');
   expect(yieldNote({})).toBe('');
+});
+
+test('upcoming dividends are ordered by several choices: the next one orders what the first left equal', () => {
+  const row = (symbol: string, payout: number | undefined, distRate: number | undefined, paymentFrequency: string, exDate: string, payDate: string) =>
+    ({ account: 'T1', kind: 'position' as const, symbol, description: '', fields: {}, shares: 1, payout, distRate, paymentFrequency, exDate, payDate });
+  const rows = [
+    row('AAA', 1.17, 5.59, 'Quarterly', '2026-11-27', '2026-12-11'),
+    row('BBB', 0.72, 6.63, 'Monthly', '2026-11-27', '2026-11-30'),
+    row('CCC', 0.72, 11.9, 'Monthly', '2026-11-30', '2026-11-20'), // its pay date is past
+    row('DDD', undefined, undefined, '', '2026-12-01', '2026-12-05'),
+  ];
+  const order = (...sorts: Parameters<typeof sortDividends>[1]) => sortDividends(rows, sorts, '2026-11-27').map((r) => r.symbol).join(' ');
+  // dollars: the biggest first, equal ones by the ticker, a row with no payout last
+  expect(order('payout')).toBe('AAA BBB CCC DDD');
+  // dollars, then the yield: the equal payouts go by the bigger yield
+  expect(order('payout', 'yield')).toBe('AAA CCC BBB DDD');
+  expect(order('yield')).toBe('CCC BBB AAA DDD');
+  // the more frequent first, then by dollars
+  expect(order('frequency', 'payout')).toBe('BBB CCC AAA DDD');
+  expect(order('frequency', 'yield')).toBe('CCC BBB AAA DDD');
+  // the nearest ex date first, the same day by dollars
+  expect(order('exDate', 'payout')).toBe('AAA BBB CCC DDD');
+  expect(order('exDate', 'yield')).toBe('BBB AAA CCC DDD');
+  // a pay date in the past is not "upcoming": it goes last
+  expect(order('payDate')).toBe('BBB DDD AAA CCC');
+  expect(rows.map((r) => r.symbol).join(' ')).toBe('AAA BBB CCC DDD'); // the list given is not touched
+});
+
+test('a click on a sort pill adds it after the chosen ones or takes it out, and the default comes back when none is left', () => {
+  expect(toggleDivSort(['payout'], 'exDate')).toEqual(['payout', 'exDate']);
+  expect(toggleDivSort(['exDate', 'payout'], 'exDate')).toEqual(['payout']);
+  expect(toggleDivSort(['exDate'], 'exDate')).toEqual(['payout']);
+  expect(toggleDivSort(['payout'], 'payout')).toEqual(['payout']);
+  expect(asDivSorts(['yield', 'nope', 'yield', 'exDate'])).toEqual(['yield', 'exDate']);
+  expect(asDivSorts(undefined)).toEqual(['payout']);
+  expect(asDivSorts([])).toEqual(['payout']);
 });
