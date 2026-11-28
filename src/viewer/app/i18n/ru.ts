@@ -68,7 +68,10 @@ export const RU: Record<string, string> = {
   'Sort accounts by': 'Сортировать счета по',
   'Show as bars': 'Показать полосами',
   Other: 'Прочее',
-  '{period} balance change': '{period} изменение баланса',
+  // the words of the balance card are short on purpose: with longer ones the facts on its right dropped under the
+  // balance while the English card kept them beside it (owner 2026-11-27: "ru must be as en"). Measured in the
+  // browser: the facts are 231 px wide in Russian, 215 in English, and wrap at the same window widths
+  '{period} balance change': 'баланс за {period}',
   Today: 'Сегодня',
   'On average': 'В среднем',
   'received {received} of the planned {total}; still to come {coming}': 'получено {received} из плана {total}; ещё придёт {coming}',
@@ -90,9 +93,9 @@ export const RU: Record<string, string> = {
   'Every security': 'Все бумаги',
   'Both on or both off: every security': 'Обе включены или обе выключены: все бумаги',
   'Ex-dividend dates of': 'Экс-даты для',
-  'Total gain/loss': 'Прибыль/убыток всего',
+  'Total gain/loss': 'Прибыль/убыток',
   'Cost basis': 'Себестоимость',
-  'Cash (core)': 'Наличные (core)',
+  'Cash (core)': 'Кэш (core)',
   'Pending activity': 'Операции в обработке',
   'Your top and bottom movers': 'Лидеры роста и падения',
   'No price changes yet today': 'Сегодня цены ещё не менялись',
