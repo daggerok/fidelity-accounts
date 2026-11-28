@@ -40,3 +40,32 @@ export function chipStep(key: string, alone: boolean, self: boolean): -1 | 1 | n
   if (!self || !alone) return null;
   return key === 'ArrowLeft' ? -1 : key === 'ArrowRight' ? 1 : null;
 }
+
+/**
+ * A focus the page moves by itself must not draw the focus ring for someone who works with the mouse or a finger (owner
+ * 2026-11-27: after ⤢ and Esc "I see this selection box", "I don't want to keep it"): the focus still goes where it
+ * should, for the keys and the screen reader, but quietly, until the element loses it. `byPointer`: the window was
+ * opened with a pointer, not with the keys
+ */
+export const QUIET_FOCUS = 'data-quiet-focus';
+export function focusQuietly(el: HTMLElement | null | undefined, byPointer: boolean): void {
+  if (!el) return;
+  if (byPointer) {
+    el.setAttribute(QUIET_FOCUS, '');
+    el.addEventListener('blur', () => el.removeAttribute(QUIET_FOCUS), { once: true });
+  }
+  el.focus({ preventScroll: true });
+}
+/** how the last thing on the page was done: true after a press of a pointer, false after Tab, Enter or Space */
+let pointerLast = false;
+// the window being watched: a new one (each test file brings its own) is watched afresh
+let watched: unknown = null;
+export function lastWasPointer(): boolean {
+  if (typeof window !== 'undefined' && watched !== window) {
+    watched = window;
+    pointerLast = false;
+    window.addEventListener('pointerdown', () => { pointerLast = true; }, true);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') pointerLast = false; }, true);
+  }
+  return pointerLast;
+}
