@@ -120,7 +120,7 @@ export const COLUMNS = (): Col[] => [
   { key: 'currentValue', merge: 'sum', group: ACCT(), label: t('Value'), hint: t('Current value'), cell: (p) => usd(p.currentValue), total: (_ps, a) => usd(totalsOf(a).balance) },
   { key: 'quantity', merge: 'sum', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
   { key: 'lastPrice', merge: 'static', group: QUOTE(), label: t('Last price'), cell: (p) => usd(p.lastPrice) },
-  { key: 'percentOfAccount', merge: 'recomputed', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
+  { key: 'percentOfAccount', merge: 'recomputed', group: ACCT(), label: t('Account %'), hint: t('The share of the account this position is; of all the shown accounts on a merged line'), cell: (p) => pct(p.percentOfAccount) },
   // their totals are the rates weighed by value over every security, one without the rate ("--") counting as 0
   // (derive.ts weightedRate)
   { key: 'distRate', merge: 'static', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate), total: (ps) => rateCell(weightedRate(ps, (p) => p.distRate)), weighed: true },
