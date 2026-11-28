@@ -32,7 +32,7 @@ const COLS = (rows: Row[]): (TypedColumn<Row> & HeadColumn)[] => [
   { key: 'kind', label: t('Type'), text: kindText, choices: choicesOf(rows, kindText) },
   { key: 'amount', label: t('Paid'), hint: t('The dividend or the interest paid into the account'), text: (r) => usd(r.amount), value: (r) => r.amount },
   { key: 'dripShares', label: t('DRIP shares'), hint: t('The shares the payment bought by DRIP that day; empty: it bought none, the payment was too small or DRIP is off'), text: (r) => (r.drip ? qty(r.drip.shares) : ''), value: (r) => r.drip?.shares },
-  { key: 'dripPrice', label: t('DRIP price'), hint: t('The price of a share in the DRIP buy, worked out from its dollars and its shares'), text: (r) => (r.drip ? usd(r.drip.price) : ''), value: (r) => r.drip?.price },
+  { key: 'dripPrice', label: t('DRIP price'), hint: t('The price of a share in the DRIP buy, as Fidelity gives it; empty for an older small buy whose price cannot be worked out'), text: (r) => (r.drip ? usd(r.drip.price) : ''), value: (r) => r.drip?.price },
   { key: 'dripUsd', label: t('Reinvested'), hint: t('The dollars of the payment that bought shares by DRIP'), text: (r) => (r.drip ? usd(r.drip.usd) : ''), value: (r) => r.drip?.usd },
 ];
 const RIGHT = ['amount', 'dripShares', 'dripPrice', 'dripUsd'];
