@@ -47,7 +47,7 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
   const { tot, ps, n52, sectors, types, balance } = useMemo(() => summaryBase(ds, accounts), [ds, accounts]);
   const moverPs = useMemo(() => ofKind(ps, pr.moversOf), [ps, pr.moversOf]);
   // on a big screen the movers and the dividends show as many rows as fit above the footer (useFitRows)
-  const [moversBox, moversN] = useFitRows(5, MOVERS_MAX, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`);
+  const [moversBox, moversN] = useFitRows(5, MOVERS_MAX, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`, 2);
   const m = useMemo(() => movers(moverPs, moversN, pr.moversBy), [moverPs, moversN, pr.moversBy]);
   const mBig = useMemo(() => movers(moverPs, MOVERS_MAX, pr.moversBy), [moverPs, pr.moversBy]);
   const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %'), beta: 'β' };
@@ -59,7 +59,7 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
   // in the chosen order: one or several of dollars, yield, frequency, ex date, pay date (app/derive.ts sortDividends)
   const divs = useMemo(() => sortDividends(divsFound, pr.dividendsSort, today), [divsFound, pr.dividendsSort, today]);
   const divSortName: Record<DivSort, string> = { payout: t('Dividends $'), yield: t('Dividends %'), frequency: t('Frequency'), exDate: t('Ex. date'), payDate: t('Payout date') };
-  const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`);
+  const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`, 3);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
   const { Y: incY, Q: incQ, M: incM, estAnnual } = useMemo(() => incomeView(txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome), [txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome]);
 
@@ -130,14 +130,16 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
           <Pills items={DIV_WINDOWS} value={pr.dividendsWindow} label={t('Ex-dividend dates until')} labelOf={(w) => w}
             onChange={(w) => animate(() => setPrefs({ dividendsWindow: w }))} />
           <KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />
-          {/* the order, on its own line under them, like the Accounts order (owner 2026-11-27): Dividends $ on the right is
-              the default; several may be chosen, the next one orders what the first left equal */}
-          <OrderPills items={DIV_SORTS} value={pr.dividendsSort} label={t('Sort dividends by')} labelOf={(k) => divSortName[k]} className="w-full justify-end"
-            onToggle={(k) => animate(() => setPrefs({ dividendsSort: toggleDivSort(prefs.get().dividendsSort, k) }))} />
         </span>
       )}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
+          <>
+          {/* the order on its own line under the title's line (owner 2026-11-27: the periods and the kinds stay beside the
+              title as they were, this line goes right under them): Dividends $ on the right is the default; several may
+              be chosen, the next one orders what the first left equal */}
+          <OrderPills items={DIV_SORTS} value={pr.dividendsSort} label={t('Sort dividends by')} labelOf={(k) => divSortName[k]} className="mb-1 justify-end"
+            onToggle={(k) => animate(() => setPrefs({ dividendsSort: toggleDivSort(prefs.get().dividendsSort, k) }))} />
           <div ref={divsBox} className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {divs.slice(0, divsN).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" data-fit-row>
@@ -157,6 +159,7 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
               <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
             </div>
           </div>
+          </>
         ) : <Empty text={t('No ex-dividend dates until {date}', { date: siteDate(divsUntil) })} />}
       </Card>
 
