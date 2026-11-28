@@ -6,7 +6,7 @@ import type { Position } from '../../shared/model';
 import { parseCellValue } from '../../shared/filter-engine';
 import { columnTypes, sortRows, type ColumnType, type TypedColumn } from '../../shared/typed-columns';
 import { DASH, bigNum, bigUsd, pct, qty, signedPct, signedQty, signedUsd, signedUsdPct, siteDate, usd } from '../ui/format';
-import { dripMin, dripMinAdjUsd, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd } from './derive';
+import { dripMin, dripMinAdj, dripMinAdjUsd, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd } from './derive';
 import type { MergeKind } from './merge';
 
 type Cell = Omit<TypedColumn<Position>, 'key'>;
@@ -95,6 +95,8 @@ export const NEW_COLUMNS_BY_V: Record<number, string[]> = {
   5: ['dripAdjUsd', 'dripMinAdjUsd'],
   // owner 2026-11-27: the shares of the adjusted order ("should we use Adj. DRIP?")
   6: ['dripAdj'],
+  // owner 2026-11-27: the shares of the adjusted threshold
+  7: ['dripMinAdj'],
 };
 export const NEW_COLUMN_KEYS: string[] = Object.keys(NEW_COLUMNS_BY_V).map(Number).sort((a, b) => a - b).reduce<string[]>((all, v) => all.concat(NEW_COLUMNS_BY_V[v]!), []);
 
@@ -137,6 +139,7 @@ const CELLS: Record<string, Cell> = {
   dripMinUsd: num((p) => dripMin(p)?.usd, usd),
   dripAdj: num((p) => rowDripAdj(p)?.shares, signedQty),
   dripAdjUsd: num((p) => rowDripAdjUsd(p) ?? undefined, signedUsd),
+  dripMinAdj: num((p) => dripMinAdj(p)?.shares, qty),
   dripMinAdjUsd: num((p) => dripMinAdjUsd(p) ?? undefined, usd),
   todayGlPct: num((p) => p.todayGlPct, signedPct),
   todayGl: num((p) => p.todayGl, signedUsd),

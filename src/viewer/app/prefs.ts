@@ -39,7 +39,7 @@ export interface Prefs {
   merge: boolean; // Positions of several accounts as one line per ticker (app/merge.ts)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 6, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: NEW_COLUMN_KEYS.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -80,7 +80,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
 }
 
 /** the version of the Positions columns list; a lower stored one hides the columns that came after it */
-export const COLUMNS_V = 6;
+export const COLUMNS_V = 7;
 export function withNewColumns(hidden: string[], v: unknown): string[] {
   const seen = typeof v === 'number' ? v : 1;
   const added = Object.keys(NEW_COLUMNS_BY_V).map(Number).filter((n) => n > seen).reduce<string[]>((all, n) => all.concat(NEW_COLUMNS_BY_V[n]!), []);
