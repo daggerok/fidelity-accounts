@@ -6,9 +6,10 @@ import { ALL_PERIODS, periodAlias, type Period } from '../../shared/history';
 import { createStore } from '../../shared/store';
 import { cleanFilters, cleanTypes, type ColumnType } from '../../shared/typed-columns';
 import { DEFAULT_HIDDEN, NEW_COLUMNS_BY_V } from './position-columns';
+import { asActivityPeriod, type ActivityPeriod } from './activity';
 import { ACCOUNT_SORTS, DEFAULT_DIV_SORTS, asDivSorts, asDivWindow, asKind, type AccountSort, type DivSort, type DivWindow, type Kind } from './derive';
 
-export const MAIN_TABS = ['summary', 'positions'] as const;
+export const MAIN_TABS = ['summary', 'positions', 'activity'] as const;
 export type MainTab = (typeof MAIN_TABS)[number];
 
 // 'all', 'none', 'group:<name>', 'account:<number>' or 'set:<number>,<number>'
@@ -32,6 +33,7 @@ export interface Prefs {
   dividendsOf: Kind; // the upcoming ex-dividend dates of every security, ETFs or stocks
   dividendsWindow: DivWindow; // how far the upcoming dividends look ahead
   dividendsSort: DivSort[]; // the order of the upcoming dividends, the first chosen first
+  activityPeriod: ActivityPeriod; // how far back the Activity page looks
   accountSort: AccountSort; // the Accounts card order
   accountOrder: string[]; // the owner's own order of accounts (dragged in the accounts bar)
   groupOrder: string[]; // the owner's own order of groups (dragged as a whole)
@@ -39,7 +41,7 @@ export interface Prefs {
   merge: boolean; // Positions of several accounts as one line per ticker (app/merge.ts)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: DEFAULT_HIDDEN.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: DEFAULT_HIDDEN.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', activityPeriod: '1M', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {
@@ -68,6 +70,7 @@ export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = global
       dividendsOf: asKind(p.dividendsOf),
       dividendsWindow: asDivWindow(p.dividendsWindow),
       dividendsSort: asDivSorts(p.dividendsSort),
+      activityPeriod: asActivityPeriod(p.activityPeriod),
       accountSort: (ACCOUNT_SORTS as readonly string[]).indexOf(String(p.accountSort)) >= 0 ? (p.accountSort as AccountSort) : 'mine',
       accountOrder: Array.isArray(p.accountOrder) ? p.accountOrder.filter((x): x is string => typeof x === 'string') : [],
       groupOrder: Array.isArray(p.groupOrder) ? p.groupOrder.filter((x): x is string => typeof x === 'string') : [],
