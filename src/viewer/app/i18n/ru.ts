@@ -501,4 +501,10 @@ export const RU: Record<string, string> = {
   'Hide the buttons': 'Скрыть кнопки',
   'Yield a year / payments a year': 'Доходность в год / выплат в год',
   'Open Positions merged: one line per ticker over the shown accounts': 'Открыть «Позиции» объединёнными: одна строка на тикер по показанным счетам',
+  // the order of Upcoming dividends (ui/Summary.tsx)
+  'Sort dividends by': 'Сортировать дивиденды по',
+  'Dividends $': 'Дивиденды $',
+  'Dividends %': 'Дивиденды %',
+  'Ex. date': 'Экс-дата',
+  'Payout date': 'Дата выплаты',
 };

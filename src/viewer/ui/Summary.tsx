@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
 import type { Account, Dataset } from '../../shared/model';
-import { ACCOUNT_SORTS, movers, ofKind, payoutTotal, sortAccounts, yieldNote, DIV_WINDOWS, type AccountSort } from '../app/derive';
+import { ACCOUNT_SORTS, movers, ofKind, payoutTotal, sortAccounts, sortDividends, toggleDivSort, yieldNote, DIV_SORTS, DIV_WINDOWS, type AccountSort, type DivSort } from '../app/derive';
 import { MOVERS_MAX, accountBetas, dividendsView, incomeView, summaryBase } from '../app/summary';
 import { BalanceChart, PeriodChangeRow } from './BalanceChart';
 import { animate } from './animate';
@@ -8,7 +8,7 @@ import { memo, useMemo } from 'react';
 import { GainLoss } from './GainLoss';
 import { Toggle } from './Toggle';
 import { KindFilter } from './KindFilter';
-import { Pills } from './Pills';
+import { OrderPills, Pills } from './Pills';
 import { useFitRows } from './useFitRows';
 import { AccountBeta } from './BetaBreakdown';
 import { Card } from './Card';
@@ -50,12 +50,15 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
   const [moversBox, moversN] = useFitRows(5, MOVERS_MAX, 2, `${pr.moversBy}-${pr.moversOf}-${moverPs.length}`);
   const m = useMemo(() => movers(moverPs, moversN, pr.moversBy), [moverPs, moversN, pr.moversBy]);
   const mBig = useMemo(() => movers(moverPs, MOVERS_MAX, pr.moversBy), [moverPs, pr.moversBy]);
-  const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %') };
-  const shownAccounts = useMemo(() => sortAccounts(accounts, pr.accountSort), [accounts, pr.accountSort]);
+  const sortName: Record<AccountSort, string> = { mine: t('My order'), value: t('Value'), todayUsd: t("Today's $"), todayPct: t("Today's %"), totalUsd: t('Total $'), totalPct: t('Total %'), beta: 'β' };
   const betas = useMemo(() => accountBetas(ps, accounts, ds.betas), [ps, accounts, ds.betas]);
+  const shownAccounts = useMemo(() => sortAccounts(accounts, pr.accountSort, (n) => betas.get(n)?.beta ?? undefined), [accounts, pr.accountSort, betas]);
   // sorted by Total $ or Total %: each account shows its total gain or loss, not today's (owner 2026-11-25)
   const totalView = pr.accountSort === 'totalUsd' || pr.accountSort === 'totalPct';
-  const { ps: divPs, until: divsUntil, divs } = useMemo(() => dividendsView(ps, pr.dividendsOf, pr.dividendsWindow, today), [ps, pr.dividendsOf, pr.dividendsWindow, today]);
+  const { ps: divPs, until: divsUntil, divs: divsFound } = useMemo(() => dividendsView(ps, pr.dividendsOf, pr.dividendsWindow, today), [ps, pr.dividendsOf, pr.dividendsWindow, today]);
+  // in the chosen order: one or several of dollars, yield, frequency, ex date, pay date (app/derive.ts sortDividends)
+  const divs = useMemo(() => sortDividends(divsFound, pr.dividendsSort, today), [divsFound, pr.dividendsSort, today]);
+  const divSortName: Record<DivSort, string> = { payout: t('Dividends $'), yield: t('Dividends %'), frequency: t('Frequency'), exDate: t('Ex. date'), payDate: t('Payout date') };
   const [divsBox, divsN] = useFitRows(8, divs.length, 1, `${pr.dividendsWindow}-${pr.dividendsOf}-${divs.length}`);
   // Fidelity's annual estimate: the accounts' own for All (cash interest in it), the positions' sum for ETFs or Stocks
   const { Y: incY, Q: incQ, M: incM, estAnnual } = useMemo(() => incomeView(txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome), [txns, accounts, ps, pr.incomeOf, today, tot.estAnnualIncome]);
@@ -127,17 +130,15 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
           <Pills items={DIV_WINDOWS} value={pr.dividendsWindow} label={t('Ex-dividend dates until')} labelOf={(w) => w}
             onChange={(w) => animate(() => setPrefs({ dividendsWindow: w }))} />
           <KindFilter value={pr.dividendsOf} label={t('Ex-dividend dates of')} onChange={(v) => animate(() => setPrefs({ dividendsOf: v }))} />
+          {/* the order, on its own line under them, like the Accounts order (owner 2026-11-27): Dividends $ on the right is
+              the default; several may be chosen, the next one orders what the first left equal */}
+          <OrderPills items={DIV_SORTS} value={pr.dividendsSort} label={t('Sort dividends by')} labelOf={(k) => divSortName[k]} className="w-full justify-end"
+            onToggle={(k) => animate(() => setPrefs({ dividendsSort: toggleDivSort(prefs.get().dividendsSort, k) }))} />
         </span>
       )}
         expand={divs.length ? <DividendsTable rows={divs} ps={divPs} accounts={shownAccounts} /> : undefined}>
         {divs.length ? (
           <div ref={divsBox} className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-            {/* the total on top, as the first row (owner 2026-11-24) */}
-            {/* DRIP only in the ⤢ table (owner 2026-11-24: "hide DRIP on plate and show only in zoomed view") */}
-            <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
-              <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
-              <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
-            </div>
             {divs.slice(0, divsN).map((p) => (
               <div key={p.symbol} className="flex items-center justify-between gap-3 py-1.5 text-sm" data-fit-row>
                 {/* the ticker with its yield a year and payments a year (owner 2026-11-27: "AU 5.59% / 4"), both dates on the line
@@ -149,6 +150,12 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
                 </div>
               </div>
             ))}
+            {/* the total at the bottom, as the last row (owner 2026-11-27; it was the first since 2026-11-24) */}
+            {/* DRIP only in the ⤢ table (owner 2026-11-24: "hide DRIP on plate and show only in zoomed view") */}
+            <div className="flex items-center justify-between gap-3 py-1.5 text-sm" data-dividends-total>
+              <div><span className="font-semibold">{t('Total')}</span> <span className="text-xs text-slate-500 dark:text-slate-400">{t('{n} payouts', { n: divs.length })}</span></div>
+              <div className="num font-semibold">{usd(payoutTotal(divs))}</div>
+            </div>
           </div>
         ) : <Empty text={t('No ex-dividend dates until {date}', { date: siteDate(divsUntil) })} />}
       </Card>

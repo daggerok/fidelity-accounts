@@ -195,13 +195,17 @@ export function toggleKind(value: Kind, k: 'etf' | 'stock'): Kind {
 /** a saved filter value, anything unknown is both ticked */
 export const asKind = (v: unknown): Kind => (v === 'none' || v === 'etf' || v === 'stock' ? v : 'all');
 
-export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct'] as const;
+export const ACCOUNT_SORTS = ['mine', 'value', 'todayUsd', 'todayPct', 'totalUsd', 'totalPct', 'beta'] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];
 
-/** the Accounts card order (owner 2026-11-23): by value, or by today's or total P&L in $ or %; largest first */
-export function sortAccounts(accounts: Account[], by: AccountSort): Account[] {
+/**
+ * The Accounts card order (owner 2026-11-23): by value, or by today's or total P&L in $ or %; largest first. By beta
+ * (owner 2026-11-27: "additional sort order called Beta or its symbol"): `betaOf` gives an account's beta, the largest
+ * first, an account without one last
+ */
+export function sortAccounts(accounts: Account[], by: AccountSort, betaOf: (number: string) => number | undefined = () => undefined): Account[] {
   if (by === 'mine') return accounts.slice(); // the order of the accounts bar
-  const v = (a: Account): number => (by === 'value' ? a.balance : by === 'todayUsd' ? a.todayGl : by === 'todayPct' ? a.todayGlPct : by === 'totalUsd' ? a.totalGl : a.totalGlPct) ?? -Infinity;
+  const v = (a: Account): number => (by === 'beta' ? betaOf(a.number) : by === 'value' ? a.balance : by === 'todayUsd' ? a.todayGl : by === 'todayPct' ? a.todayGlPct : by === 'totalUsd' ? a.totalGl : a.totalGlPct) ?? -Infinity;
   return accounts.slice().sort((a, b) => v(b) - v(a));
 }
 
@@ -266,12 +270,59 @@ export function windowEnd(today: string, w: DivWindow): string {
  * the yield a year and how many times a year it pays. The yield is Fidelity's distribution rate; without it, the
  * dividend per share times the payments a year over the last price. A part that is not known is left out
  */
+/** the yield a year in percent: Fidelity's distribution rate, else worked out from the dividend, the frequency and the price */
+export function yieldRate(p: Pick<Position, 'distRate' | 'dividendAmount' | 'lastPrice' | 'paymentFrequency'>): number | undefined {
+  if (typeof p.distRate === 'number' && Number.isFinite(p.distRate)) return p.distRate;
+  const times = perYear(p.paymentFrequency ?? '');
+  const worked = Number.isFinite(times) && p.dividendAmount !== undefined && p.lastPrice ? (p.dividendAmount * times * 100) / p.lastPrice : undefined;
+  return worked !== undefined && Number.isFinite(worked) ? worked : undefined;
+}
 export function yieldNote(p: Pick<Position, 'distRate' | 'dividendAmount' | 'lastPrice' | 'paymentFrequency'>): string {
   const times = perYear(p.paymentFrequency ?? '');
-  const known = Number.isFinite(times);
-  const worked = known && p.dividendAmount !== undefined && p.lastPrice ? (p.dividendAmount * times * 100) / p.lastPrice : undefined;
-  const rate = typeof p.distRate === 'number' && Number.isFinite(p.distRate) ? p.distRate : worked;
-  return [rate !== undefined && Number.isFinite(rate) ? `${rate.toFixed(2)}%` : '', known ? String(times) : ''].filter(Boolean).join(' / ');
+  const rate = yieldRate(p);
+  return [rate !== undefined ? `${rate.toFixed(2)}%` : '', Number.isFinite(times) ? String(times) : ''].filter(Boolean).join(' / ');
+}
+
+/**
+ * The order of the Upcoming dividends rows (owner 2026-11-27): by the payout in dollars (the default), the yield, the
+ * frequency, the ex date or the pay date, and by several at once: the first chosen orders the rows, the next one only
+ * the rows the first left equal, and so on. Listed as the pills stand, left to right; the default is the rightmost
+ */
+export const DIV_SORTS = ['payDate', 'exDate', 'frequency', 'yield', 'payout'] as const;
+export type DivSort = typeof DIV_SORTS[number];
+export const DEFAULT_DIV_SORTS: DivSort[] = ['payout'];
+export function asDivSorts(v: unknown): DivSort[] {
+  const out: DivSort[] = [];
+  if (Array.isArray(v)) v.forEach((k) => { if ((DIV_SORTS as readonly unknown[]).indexOf(k) >= 0 && out.indexOf(k as DivSort) < 0) out.push(k as DivSort); });
+  return out.length ? out : DEFAULT_DIV_SORTS.slice();
+}
+/** a click on a pill: adds it after the chosen ones, or takes it out; with none left the default is back */
+export function toggleDivSort(sorts: DivSort[], key: DivSort): DivSort[] {
+  const next = sorts.indexOf(key) >= 0 ? sorts.filter((k) => k !== key) : sorts.concat(key);
+  return next.length ? next : DEFAULT_DIV_SORTS.slice();
+}
+// bigger first; a row without the number goes last
+const bigFirst = (a: number | undefined, b: number | undefined): number => {
+  const x = a !== undefined && Number.isFinite(a), y = b !== undefined && Number.isFinite(b);
+  return x && y ? b! - a! : x ? -1 : y ? 1 : 0;
+};
+// the nearest date from today on first ("today or later, not past"); a past or missing date goes last
+const soonFirst = (a: string | undefined, b: string | undefined, today: string): number => {
+  const x = !!a && a >= today, y = !!b && b >= today;
+  return x && y ? (a! < b! ? -1 : a! > b! ? 1 : 0) : x ? -1 : y ? 1 : 0;
+};
+const DIV_ORDER: Record<DivSort, (a: Upcoming, b: Upcoming, today: string) => number> = {
+  payout: (a, b) => bigFirst(a.payout, b.payout),
+  yield: (a, b) => bigFirst(yieldRate(a), yieldRate(b)),
+  frequency: (a, b) => bigFirst(perYear(a.paymentFrequency ?? ''), perYear(b.paymentFrequency ?? '')),
+  exDate: (a, b, today) => soonFirst(a.exDate, b.exDate, today),
+  payDate: (a, b, today) => soonFirst(a.payDate, b.payDate, today),
+};
+export function sortDividends(rows: Upcoming[], sorts: DivSort[], today: string): Upcoming[] {
+  return rows.slice().sort((a, b) => {
+    for (let i = 0; i < sorts.length; i++) { const d = DIV_ORDER[sorts[i]!](a, b, today); if (d) return d; }
+    return a.symbol < b.symbol ? -1 : a.symbol > b.symbol ? 1 : 0;
+  });
 }
 
 /** the sum of the payouts of a list of upcoming dividends */

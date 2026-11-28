@@ -34,3 +34,20 @@ export function Pills<T extends string>({ items, value, label, labelOf, onChange
     </div>
   );
 }
+
+// A row of pill buttons where several are chosen in an order (the Upcoming dividends sort): each chosen pill is filled
+// and, once there is more than one, says its place (1, 2, ...); a click adds a pill after the chosen ones or takes it out
+export function OrderPills<T extends string>({ items, value, label, labelOf, onToggle, className = '' }: { items: readonly T[]; value: readonly T[]; label: string; labelOf: (v: T) => string; onToggle: (v: T) => void; className?: string }) {
+  return (
+    <div className={`flex flex-wrap ${PILL_GAP} ${className}`} role="group" aria-label={label} data-order-pills>
+      {items.map((v) => {
+        const at = value.indexOf(v);
+        return (
+          <button key={v} type="button" aria-pressed={at >= 0} onClick={() => onToggle(v)} className={pillClass(at >= 0)} style={pillStyle(at >= 0)} data-order={at >= 0 ? at + 1 : undefined}>
+            {labelOf(v)}{at >= 0 && value.length > 1 && <span className="num ml-1 text-[10px] font-bold opacity-80">{at + 1}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
