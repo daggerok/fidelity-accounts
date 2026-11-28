@@ -21,7 +21,9 @@ const CARDS = '[data-summary]';
 // the last own row change of any card (the movers and the dividends move each other in the packed columns)
 let lastOwnChange = -Infinity;
 
-export function useFitRows(base: number, max: number, perStep: number, key: string): [React.RefObject<HTMLDivElement | null>, number] {
+// `least`: on a low screen a card may drop under its own count down to this many rows, so it still ends above the
+// footer with its last line in sight (owner 2026-11-27: a lower window cut the Upcoming dividends card and its total)
+export function useFitRows(base: number, max: number, perStep: number, key: string, least: number = base): [React.RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement>(null);
   const [n, setN] = useState(base);
   // own row changes since the last outside reason (a resize, the page around, new data or `key`)
@@ -46,7 +48,7 @@ export function useFitRows(base: number, max: number, perStep: number, key: stri
       const row = el.querySelector('[data-fit-row]');
       if (!card || !foot || !row) return;
       const room = foot.getBoundingClientRect().top - GUTTER - card.getBoundingClientRect().bottom;
-      const next = fitCount(n, room, row.getBoundingClientRect().height * perStep, base, max);
+      const next = fitCount(n, room, row.getBoundingClientRect().height * perStep, Math.min(least, base), max);
       if (next === n || next === asked.current) return;
       rounds.current += 1;
       lastOwnChange = performance.now();
