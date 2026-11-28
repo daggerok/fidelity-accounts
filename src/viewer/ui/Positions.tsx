@@ -2,7 +2,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersIcon } from './icons';
 import type { Account, Dataset, Position } from '../../shared/model';
-import { dripMin, dripMinAdj, dripMinAdjUsd, positionsIn, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd, securities, totalsOf } from '../app/derive';
+import { dripMin, dripMinAdj, dripMinAdjUsd, weightedRate, positionsIn, rangePos, rowDrip, rowDripAdj, rowDripAdjUsd, securities, totalsOf } from '../app/derive';
 import { FIELD_COLUMNS, fieldText, fieldValue, positionColumn, type FieldGroup } from '../app/position-columns';
 import { mergeOn, mergePositions, totalPosition, type MergeKind } from '../app/merge';
 import { activeFilters, columnTypes, nextSort, rowTest, sortRows, withFilter, withType } from '../../shared/typed-columns';
@@ -28,9 +28,11 @@ import { DASH, bigUsd, maskAccount, pct, qty, signedPct, signedUsd, signedUsdPct
 // Fidelity's. Columns are chosen in a window like the ⤢ of the cards and remembered. Every column has a detected type,
 // sorts by it and has a filter under its name (owner 2026-11-24; TypedHead, what a column reads: app/position-columns.ts)
 // `merge`: how the column joins a ticker's rows of several accounts when merge is on (app/merge.ts), chosen with the column
-interface Col { key: string; label: string; group: string; merge: MergeKind; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode }
+interface Col { key: string; label: string; group: string; merge: MergeKind; hint?: string; cell: (p: Position) => React.ReactNode; total?: (ps: Position[], a: Account[]) => React.ReactNode; weighed?: boolean }
 
 const sum = (ps: Position[], f: (p: Position) => number | undefined) => ps.reduce((s, p) => s + (f(p) ?? 0), 0);
+// a total with nothing to weigh stays empty, not "--": the row is a total, not a position
+const rateCell = (rate: number | undefined): string => (rate === undefined ? '' : pct(rate));
 const glCell = (v: number | undefined, text: string) => <span className={tone(v)}>{text}</span>;
 
 function Range({ p }: { p: Position }) {
@@ -119,8 +121,10 @@ export const COLUMNS = (): Col[] => [
   { key: 'quantity', merge: 'sum', group: ACCT(), label: t('Quantity'), cell: (p) => qty(p.quantity) },
   { key: 'lastPrice', merge: 'static', group: QUOTE(), label: t('Last price'), cell: (p) => usd(p.lastPrice) },
   { key: 'percentOfAccount', merge: 'recomputed', group: ACCT(), label: t('% of account'), cell: (p) => pct(p.percentOfAccount) },
-  { key: 'distRate', merge: 'static', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate) },
-  { key: 'secYield', merge: 'static', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield) },
+  // their totals are the rates weighed by value over every security, one without the rate ("--") counting as 0
+  // (derive.ts weightedRate)
+  { key: 'distRate', merge: 'static', group: DIV(), label: t('Dist. rate'), cell: (p) => pct(p.distRate), total: (ps) => rateCell(weightedRate(ps, (p) => p.distRate)), weighed: true },
+  { key: 'secYield', merge: 'static', group: DIV(), label: t('SEC yield'), cell: (p) => pct(p.secYield), total: (ps) => rateCell(weightedRate(ps, (p) => p.secYield)), weighed: true },
   { key: 'estAnnualIncome', merge: 'sum', group: DIV(), label: t('Est. income'), hint: t('Est. annual income'), cell: (p) => usd(p.estAnnualIncome), total: (ps) => usd(sum(ps, (p) => p.estAnnualIncome)) },
   { key: 'paymentFrequency', merge: 'static', group: DIV(), label: t('Frequency'), hint: t('Payment frequency'), cell: (p) => p.paymentFrequency ?? DASH },
   { key: 'marketCap', merge: 'static', group: QUOTE(), label: t('Market cap'), cell: (p) => (p.marketCapText ?? bigUsd(p.marketCap)) },
@@ -287,7 +291,7 @@ export const Positions = memo(function Positions({ ds, accounts, onAsk, layout }
     // and texts of different tickers do not add up, their cells stay empty
     const foundTotal = (key: string, label: string, found: Position[], of: Account[]): Line => {
       const sum = totalPosition(found, of);
-      return { key, cls: 'total-row', cells: () => <><td>{label}</td>{cols.map((c) => <td key={c.key}>{sum && TOTALLED.indexOf(c.merge) >= 0 && MONEY.indexOf(types[c.key] ?? '') >= 0 ? c.cell(sum) : ''}</td>)}</> };
+      return { key, cls: 'total-row', cells: () => <><td>{label}</td>{cols.map((c) => <td key={c.key}>{c.weighed && c.total ? c.total(found, of) : sum && TOTALLED.indexOf(c.merge) >= 0 && MONEY.indexOf(types[c.key] ?? '') >= 0 ? c.cell(sum) : ''}</td>)}</> };
     };
     // while a filter is on only the rows it found are shown (owner 2026-11-27: "here we should not see cash", "we also
     // should not see cash and grand total"): the cash, the pending line and the totals describe the whole account, not

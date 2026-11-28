@@ -338,6 +338,25 @@ export function sortDividends(rows: Upcoming[], sorts: DivSort[], today: string)
   });
 }
 
+/**
+ * A rate of several positions as one number, for a total row (owner 2026-11-28: "Dist rate and SEC yield would be also
+ * good to show similarly to Est. income", "all -- is similar to zero"): the rates weighed by what each position is
+ * worth, a security without the rate counting as 0 (it pays nothing, so it pulls the number of the lot down). Cash and
+ * pending activity are left out. undefined: no security to weigh
+ */
+export function weightedRate(ps: Position[], rate: (p: Position) => number | undefined): number | undefined {
+  let top = 0;
+  let bottom = 0;
+  ps.forEach((p) => {
+    const value = p.currentValue;
+    if (p.kind !== 'position' || typeof value !== 'number' || !(value > 0)) return;
+    const r = rate(p);
+    if (typeof r === 'number' && Number.isFinite(r)) top += r * value;
+    bottom += value;
+  });
+  return bottom > 0 ? Math.round((top / bottom) * 100) / 100 : undefined;
+}
+
 /** the sum of the payouts of a list of upcoming dividends */
 export const payoutTotal = (rows: Upcoming[]): number => Math.round(rows.reduce((x, r) => x + (r.payout ?? 0), 0) * 100) / 100;
 
