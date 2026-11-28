@@ -265,8 +265,6 @@ export const RU: Record<string, string> = {
   'No column matches': 'Нет таких столбцов',
   'The default columns back, each in its default place': 'Вернуть столбцы по умолчанию, каждый на своё место',
   'Move {name}: drag, or the arrow keys': 'Переместить {name}: перетащите или стрелками',
-  'Shares to buy so the next dividend buys 0.001 share by DRIP; minus: it already does': 'Сколько акций докупить, чтобы следующий дивиденд купил по DRIP 0.001 акции; минус: уже покупает',
-  'Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP; minus: it already does': 'На сколько долларов докупить по последней цене, чтобы следующий дивиденд купил по DRIP 0.001 акции; минус: уже покупает',
 
   // settings
   Data: 'Данные',
@@ -467,12 +465,6 @@ export const RU: Record<string, string> = {
   'Non-adj. min. DRIP $': 'Нескорр. мин. DRIP $',
   'Adj.: {hint}': 'Скорр.: {hint}',
   'Non-adj.: {hint}': 'Нескорр.: {hint}',
-  'Shares to buy for DRIP as an order Fidelity takes: shares worth under $1 are raised to the fewest shares worth $1 or more; minus: the dividend already buys 0.001 share': 'Сколько акций докупить для DRIP как заявка, которую примет Fidelity: акции дешевле $1 подняты до наименьшего числа акций на $1 или больше; минус: дивиденд уже покупает 0.001 акции',
-  'The dollars of that order: those shares at the last price, never under $1': 'Доллары этой заявки: эти акции по последней цене, не меньше $1',
-  'The fewest shares to hold for DRIP as an order Fidelity takes, to buy from nothing: never shares worth under $1': 'Наименьшее число акций для DRIP как заявка, которую примет Fidelity, для покупки с нуля: не меньше акций, чем на $1',
-  'The dollars of that threshold: those shares at the last price, never under $1': 'Доллары этого порога: эти акции по последней цене, не меньше $1',
-  'The fewest shares to hold so the next dividend buys 0.001 share by DRIP: from the last price and the dividend, the same in every account': 'Наименьшее число акций, чтобы следующий дивиденд купил по DRIP 0.001 акции: из последней цены и дивиденда, одно и то же в любом счёте',
-  'The fewest shares to hold for DRIP, in dollars at the last price': 'Наименьшее число акций для DRIP, в долларах по последней цене',
   // Export and Import of the settings (ui/SettingsTransfer.tsx)
   'Export': 'Экспорт',
   'Import': 'Импорт',
@@ -514,4 +506,13 @@ export const RU: Record<string, string> = {
   'Dividends %': 'Дивиденды %',
   'Ex. date': 'Экс-дата',
   'Payout date': 'Дата выплаты',
+  // the DRIP hints, each complete by itself (ui/Drip.tsx)
+  'Shares to buy so the next dividend buys 0.001 share by DRIP, the plain calculation: it may be worth under $1, which Fidelity does not sell; minus: the dividend already buys 0.001 share': 'Сколько акций докупить, чтобы следующий дивиденд купил по DRIP 0.001 акции, чистый расчёт: может стоить меньше $1, а столько Fidelity не продаёт; минус: дивиденд уже покупает 0.001 акции',
+  'Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP, the plain calculation: it may be under $1, which Fidelity does not sell; minus: the dividend already buys 0.001 share': 'На сколько долларов докупить по последней цене, чтобы следующий дивиденд купил по DRIP 0.001 акции, чистый расчёт: может быть меньше $1, а столько Fidelity не продаёт; минус: дивиденд уже покупает 0.001 акции',
+  'The fewest shares to hold so the next dividend buys 0.001 share by DRIP, the plain calculation from the last price and the dividend: it may be worth under $1, which Fidelity does not sell; the same in every account': 'Наименьшее число акций на счёте, чтобы следующий дивиденд купил по DRIP 0.001 акции, чистый расчёт из последней цены и дивиденда: может стоить меньше $1, а столько Fidelity не продаёт; одно и то же в любом счёте',
+  'Dollars, at the last price, of the fewest shares to hold so the next dividend buys 0.001 share by DRIP, the plain calculation: it may be under $1, which Fidelity does not sell': 'Стоимость по последней цене наименьшего числа акций, при котором следующий дивиденд купит по DRIP 0.001 акции, чистый расчёт: может быть меньше $1, а столько Fidelity не продаёт',
+  'Shares to buy so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes: shares worth under $1 are raised to the fewest shares worth $1 or more; minus: the dividend already buys 0.001 share': 'Сколько акций докупить, чтобы следующий дивиденд купил по DRIP 0.001 акции, как заявка, которую примет Fidelity: акции дешевле $1 подняты до наименьшего числа акций на $1 или больше; минус: дивиденд уже покупает 0.001 акции',
+  'Dollars to buy at the last price so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes: never under $1, the least Fidelity sells; minus: the dividend already buys 0.001 share': 'На сколько долларов докупить по последней цене, чтобы следующий дивиденд купил по DRIP 0.001 акции, как заявка, которую примет Fidelity: не меньше $1, меньше Fidelity не продаёт; минус: дивиденд уже покупает 0.001 акции',
+  'The fewest shares to hold so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes when bought from nothing: never shares worth under $1; the same in every account': 'Наименьшее число акций на счёте, чтобы следующий дивиденд купил по DRIP 0.001 акции, как заявка, которую примет Fidelity при покупке с нуля: не меньше акций, чем на $1; одно и то же в любом счёте',
+  'Dollars, at the last price, of the fewest shares to hold so the next dividend buys 0.001 share by DRIP, as an order Fidelity takes when bought from nothing: never under $1': 'Стоимость по последней цене наименьшего числа акций, при котором следующий дивиденд купит по DRIP 0.001 акции, как заявка, которую примет Fidelity при покупке с нуля: не меньше $1',
 };
