@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 /// <reference lib="esnext" />
 import { expect, test } from 'bun:test';
-import { FIT_SELF_MS, fitCount, fitRestarts, phoneColumnWidth } from './fit';
+import { COLUMN_MIN, FIT_SELF_MS, columnWidth, fitCount, fitRestarts, phoneColumnWidth } from './fit';
 
 test('rows grow into the room left under the card and shrink when it runs past the footer, within min and max', () => {
   expect(fitCount(5, 130, 27 * 2, 5, 20)).toBe(7); // two more pairs of movers fit into 130 px
@@ -28,4 +28,11 @@ test('on a phone the Symbol column and four columns fill the box', () => {
   expect(phoneColumnWidth(341)).toBe(65); // 375 px
   expect(phoneColumnWidth(200)).toBe(60); // never narrower
   expect(phoneColumnWidth(600)).toBe(84); // never wider
+});
+
+test('a column is as wide as the widest of its name, its longest value and a usable filter input', () => {
+  expect(columnWidth({ head: 60, value: 40 })).toBe(COLUMN_MIN); // little in it: the filter input still fits
+  expect(columnWidth({ head: 132.2, value: 90 })).toBe(133); // a long name
+  expect(columnWidth({ head: 70, value: 118.5 })).toBe(119); // a long value
+  expect(columnWidth({ head: 70, value: 90, fixed: 160 })).toBe(160); // a range bar keeps its design width
 });
