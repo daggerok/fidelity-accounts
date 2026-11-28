@@ -325,14 +325,14 @@ function onPortfolio(): void {
   // the API reads, one after the other when schedule.ts says they are due: on any portfolio page (they need no grid),
   // a few seconds after it opens, after each read of the grid and every 5 minutes while the page stays open
   let dueBusy = false;
-  const runDue = async () => {
+  const runDue = async (asked = false) => {
     if (dueBusy) return;
     // nothing to ask while the page shows no account of the stored copy (another login before its first Positions read)
     if (!here().length) return;
     dueBusy = true;
     try {
       if (historyDue(readAt('history'), new Date())) await syncHistory();
-      const plan = txnsPlan(readAt('txns'), new Date(), watching());
+      const plan = txnsPlan(readAt('txns'), new Date(), watching(), asked);
       if (plan) await syncTransactions(plan);
       if (betasDue(storedDataset(), new Date())) await syncBetas();
     } finally {
@@ -378,7 +378,7 @@ function onPortfolio(): void {
         else if (told) announce('ok', positionsRead(ds.accounts.length, ds.positions.length, saved));
         readDone = true;
       })();
-      void runDue();
+      void runDue(told);
     } catch (err) {
       const line = `read failed: ${err instanceof Error ? err.message : String(err)}`;
       badge.status(`!${line}`);

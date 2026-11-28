@@ -539,4 +539,6 @@ export const RU: Record<string, string> = {
   '{name}: {n} chosen. Click to choose': '{name}: выбрано {n}. Нажми, чтобы выбрать',
   '{name}: choose from a list': '{name}: выбрать из списка',
   '{n} of {total} shown, more as you scroll': 'показано {n} из {total}, остальные при прокрутке',
+  'Pending dividend': 'Ожидается дивиденд',
+  'pending: not paid yet': 'ожидается: ещё не выплачен',
 };

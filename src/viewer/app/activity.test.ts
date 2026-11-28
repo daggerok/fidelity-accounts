@@ -74,3 +74,14 @@ test('periods end today; totals add up what was paid, reinvested and left as cas
   expect(inPeriod(lines, 'All', '2026-11-28')).toHaveLength(3);
   expect(payTotals(inPeriod(lines, '1M', '2026-11-28'))).toEqual({ paid: 13.19, reinvested: 13.18, cash: 0.01 });
 });
+
+test('a pending dividend is a line of its own: the amount comes from its words, nothing is reinvested or left as cash yet', () => {
+  const pending = t({ symbol: 'PPP', net: 0, mnemonic: 'FRN', sub: 'OC', desc: 'DIV OF $0.08 PENDING REINVESTMENT as of 2026-11-27 DEMO CORPORATION PLC (PPP) (Cash)' });
+  const lines = payLines([pending, paid('AAA', 1), bought('AAA', 1, 0.01)], ALL);
+  const p = lines.find((l) => l.symbol === 'PPP')!;
+  expect(p).toMatchObject({ amount: 0.08, pending: true, drip: null, name: 'DEMO CORPORATION PLC', kind: 'dividend' });
+  expect(lines.find((l) => l.symbol === 'AAA')!.pending).toBe(false);
+  expect(payTotals(lines)).toEqual({ paid: 1.08, reinvested: 1, cash: 0 });
+  // an amount with a comma
+  expect(payLines([t({ symbol: 'BIG', net: 0, desc: 'DIV OF $1,234.50 PENDING REINVESTMENT as of 2026-11-27 BIG CO (BIG) (Cash)' })], ALL)[0]!.amount).toBe(1234.5);
+});

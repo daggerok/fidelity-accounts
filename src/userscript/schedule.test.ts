@@ -46,4 +46,8 @@ test('transactions: after 20:00, nothing until the open, once after the open, ev
   expect(txnsPlan('2026-11-28T01:30:00Z', ny('2026-11-28T17:00:00Z'), true)).toBeNull(); // Saturday
   expect(txnsPlan('2026-11-28T01:30:00Z', ny('2026-11-30T14:30:00Z'), false)).toBe('full'); // Monday 9:30
   expect(txnsPlan('not a date', ny('2026-11-25T15:00:00Z'), false)).toBe('full');
+  // a sync the owner asked for reads the ten days again at any hour, also on a Saturday, not more often than every 10 minutes
+  expect(txnsPlan('2026-11-28T01:30:00Z', ny('2026-11-28T17:00:00Z'), false, true)).toBe('full');
+  expect(txnsPlan('2026-11-28T16:55:00Z', ny('2026-11-28T17:00:00Z'), false, true)).toBeNull();
+  expect(txnsPlan(wedOpen, ny('2026-11-25T22:00:00Z'), false, true)).toBe('full'); // Wed 17:00, closed
 });
