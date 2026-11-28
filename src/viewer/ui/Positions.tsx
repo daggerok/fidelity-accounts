@@ -143,9 +143,9 @@ const ROW = 50;
 // a long name scrolls inside its cell (CellScroll)
 const SYMBOL_W = 150;
 const OVERSCAN = 12;
-// wide enough for a name in two lines with its type badge and for a filter like >2026-12-01
-const WIDE: Record<string, number> = { high52: 150, paymentFrequency: 160, marketCap: 160, sector: 160, dayRange: 160, todayGlBoth: 170, totalGlBoth: 170 };
-FIELD_COLUMNS.forEach((c) => { if (c.width) WIDE[c.key] = c.width; });
+// only the columns that draw a bar keep a design width; a column of text is as wide as its widest value (owner
+// 2026-11-28: Frequency was 160 px for the word Quarterly)
+const WIDE: Record<string, number> = { high52: 150, dayRange: 160 };
 // every column name on one line (owner 2026-11-25: "they all must be one-liners"): a column is at least as wide as its
 // name in the header font, plus the cell padding, the type badge and room for the sort arrow, in any language
 let ruler: CanvasRenderingContext2D | null | undefined;

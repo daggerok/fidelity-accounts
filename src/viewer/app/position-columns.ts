@@ -25,11 +25,11 @@ export type FieldGroup = 'acct' | 'quote' | 'div' | 'fund' | 'perf' | 'other';
 // type has no meaning over several accounts (blank); the cost method and the holding type are the account's own settings,
 // shown only when every account agrees; shares on loan show when they are on loan in any account (owner 2026-11-25:
 // "loaned should show yes if loaned in any account")
-export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; merge: MergeKind; sortBy?: string; width?: number; since?: number }
+export interface FieldColumn { key: string; field: string; format: FieldFormat; group: FieldGroup; merge: MergeKind; sortBy?: string; since?: number }
 export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'avgCost', field: 'cost_basis_per_share', format: 'usd', group: 'acct', merge: 'recomputed' },
-  { key: 'acctType', field: 'meta_account_type', format: 'text', group: 'acct', width: 140, merge: 'blank' },
-  { key: 'costMethod', field: 'meta_cost_basis_type', format: 'text', group: 'acct', width: 140, merge: 'agree' },
+  { key: 'acctType', field: 'meta_account_type', format: 'text', group: 'acct', merge: 'blank' },
+  { key: 'costMethod', field: 'meta_cost_basis_type', format: 'text', group: 'acct', merge: 'agree' },
   { key: 'hardToBorrow', field: 'is_hard_to_borrow', format: 'flag', group: 'acct', merge: 'static' },
   { key: 'lastChange', field: 'last_price_change', format: 'signedUsd', group: 'quote', merge: 'static' },
   { key: 'lastChangePct', field: 'last_price_change_pct', format: 'signedPct', group: 'quote', merge: 'static' },
@@ -55,11 +55,11 @@ export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'shortRatio', field: 'short_interest_ratio', format: 'num', group: 'fund', merge: 'static' },
   { key: 'sharesOut', field: 'shares_outstanding', format: 'big', group: 'fund', merge: 'static' },
   { key: 'earningsDate', field: 'earnings_announcement_date', format: 'date', group: 'fund', merge: 'static' },
-  { key: 'analystRating', field: 'equity_summary_rating', format: 'text', group: 'fund', sortBy: 'equity_summary_score', width: 140, merge: 'static' },
-  { key: 'industry', field: 'industry', format: 'text', group: 'fund', width: 160, merge: 'static' },
-  { key: 'subIndustry', field: 'sub_industry', format: 'text', group: 'fund', width: 180, merge: 'static' },
+  { key: 'analystRating', field: 'equity_summary_rating', format: 'text', group: 'fund', sortBy: 'equity_summary_score', merge: 'static' },
+  { key: 'industry', field: 'industry', format: 'text', group: 'fund', merge: 'static' },
+  { key: 'subIndustry', field: 'sub_industry', format: 'text', group: 'fund', merge: 'static' },
   { key: 'morningstar', field: 'morningstar_rate', format: 'stars', group: 'fund', merge: 'static' },
-  { key: 'morningstarCategory', field: 'morningstar_category', format: 'text', group: 'fund', width: 180, merge: 'static' },
+  { key: 'morningstarCategory', field: 'morningstar_category', format: 'text', group: 'fund', merge: 'static' },
   { key: 'expenseGross', field: 'expense_ratio_gross', format: 'pct', group: 'fund', merge: 'static' },
   { key: 'expenseNet', field: 'expense_ratio_net', format: 'pct', group: 'fund', merge: 'static' },
   { key: 'returnYtd', field: 'ytd_daily', format: 'signedPct', group: 'perf', merge: 'static' },
@@ -68,7 +68,7 @@ export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'return5y', field: 'five_year', format: 'signedPct', group: 'perf', merge: 'static' },
   { key: 'return10y', field: 'ten_year', format: 'signedPct', group: 'perf', merge: 'static' },
   { key: 'cusip', field: 'symbol_cusip', format: 'text', group: 'other', merge: 'static' },
-  { key: 'securityType', field: 'meta_security_type', format: 'text', group: 'other', width: 140, merge: 'static' },
+  { key: 'securityType', field: 'meta_security_type', format: 'text', group: 'other', merge: 'static' },
   { key: 'optionable', field: 'is_optionable', format: 'flag', group: 'other', merge: 'static' },
   { key: 'currency', field: 'currency', format: 'text', group: 'other', merge: 'static' },
   // version 3 (owner 2026-11-25: "it also has some other stuff we can add")
@@ -79,7 +79,7 @@ export const FIELD_COLUMNS: FieldColumn[] = [
   { key: 'volatility90', field: 'volatility_90_day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
   { key: 'volatility120', field: 'volatility_120_day', format: 'pct', group: 'quote', since: 3, merge: 'static' },
   { key: 'prevShortInterest', field: 'previous_short_interest', format: 'big', group: 'fund', since: 3, merge: 'static' },
-  { key: 'industryGroup', field: 'industry_group', format: 'text', group: 'fund', width: 160, since: 3, merge: 'static' },
+  { key: 'industryGroup', field: 'industry_group', format: 'text', group: 'fund', since: 3, merge: 'static' },
   { key: 'news', field: 'headline_time_text', format: 'text', group: 'other', sortBy: 'headline_time', since: 3, merge: 'static' },
   { key: 'holdingType', field: 'meta_holding_type', format: 'text', group: 'other', since: 3, merge: 'agree' },
   { key: 'loaned', field: 'is_loaned', format: 'flag', group: 'other', since: 3, merge: 'any' },
