@@ -71,3 +71,14 @@ test('a buy keeps the price Fidelity gives; a payment has none', () => {
   expect(t1!.price).toBe(92.34);
   expect('price' in t2!).toBe(false);
 });
+
+test('a pending payment is dated by the day it will post, any other row by the day it was traded', () => {
+  const pending = { ...row({ day: NOV24, mnemonic: 'FRN', cat: 'DV', dir: 'D', net: 0 }) } as Record<string, unknown>;
+  pending.description = 'DIV OF $0.08 PENDING REINVESTMENT as of 2026-11-24 DEMO CO (AAAA) (Cash)';
+  pending.dateDetail = { tradedDate: NOV24, postedDate: NOV24 + 3 * 86400 };
+  const paid = { ...row({ day: NOV24, mnemonic: 'DIV', cat: 'DV', dir: 'D', net: 0.08 }) } as Record<string, unknown>;
+  paid.dateDetail = { tradedDate: NOV24, postedDate: NOV24 + 3 * 86400 };
+  const [a, b] = parseTransactions({ data: { transactions: [pending, paid] } }, 'X1');
+  expect(a!.date).toBe('2026-11-27');
+  expect(b!.date).toBe('2026-11-24');
+});

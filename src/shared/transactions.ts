@@ -55,13 +55,16 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** a nested field of an untyped answer */
 const at = (o: unknown, ...keys: string[]): unknown => keys.reduce<unknown>((x, k) => (x && typeof x === 'object' ? (x as Record<string, unknown>)[k] : undefined), o);
 
+const PENDING_ROW = /\bPENDING\b/i;
 /** the rows of one answer; throws when the answer has no transactions list (Fidelity changed it) */
 export function parseTransactions(json: unknown, account: string): Txn[] {
   const list = (json as { data?: { transactions?: unknown } } | null)?.data?.transactions;
   if (!Array.isArray(list)) throw new Error('transactions: no data.transactions in the answer');
   return list.map((t) => ({
     account: str(at(t, 'acctNum')) || account,
-    date: nyDate(num(at(t, 'dateDetail', 'tradedDate')) || num(at(t, 'date'))),
+    // a payment that is announced and not paid yet ("... PENDING REINVESTMENT ...") is dated by the day it will post,
+    // as Fidelity lists it (Nov-30 for a dividend as of Nov-27), every other row by the day it was traded
+    date: nyDate((PENDING_ROW.test(str(at(t, 'description'))) && num(at(t, 'dateDetail', 'postedDate'))) || num(at(t, 'dateDetail', 'tradedDate')) || num(at(t, 'date'))),
     mnemonic: str(at(t, 'brokerageDetail', 'additionalDetail', 'mnemonic')),
     cat: str(at(t, 'catDetail', 'txnCatCode')),
     sub: str(at(t, 'catDetail', 'txnSubCatCode')),
@@ -97,6 +100,8 @@ export function splitWindow([from, to]: [string, string]): Array<[string, string
   return [[from, mid], [addDays(mid, 1), to]];
 }
 
+/** the day after every day: a window that ends here takes the rows dated ahead too (pending payments) */
+export const OPEN_END = '9999-12-31';
 /** the stored rows with one account's window [from, to] replaced by a fresh read of it */
 export function replaceWindow(rows: Txn[], account: string, from: string, to: string, fresh: Txn[]): Txn[] {
   return rows.filter((r) => r.account !== account || r.date < from || r.date > to).concat(fresh)

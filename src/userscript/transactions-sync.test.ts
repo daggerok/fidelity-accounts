@@ -5,7 +5,7 @@ import { expect, test } from 'bun:test';
 import { nyDate } from '../shared/transactions';
 import { pagePost } from './history-sync';
 import { EMPTY_STORE, lastTxnsRead, readTransactions, sameTxns, startDay } from './transactions-sync';
-import { parseTxnStore, type TxnStore } from '../shared/transactions';
+import { parseTxnStore, type Txn, type TxnStore } from '../shared/transactions';
 
 const accounts = [{ number: 'X1', name: 'A', group: 'G', asOf: 't' }, { number: 'X2', name: 'B', group: 'G', asOf: 't' }];
 type Body = { filter: { accounts: Array<{ acctNum: string }>; searchCriteriaDetail: { txnFromDate: number; txnToDate: number } } };
@@ -66,4 +66,18 @@ test('the time of the last read: the store\'s own or a later check that changed 
   expect(lastTxnsRead(store, 'garbage')).toBe('2026-11-24T15:00:00.000Z');
   expect(lastTxnsRead(null, null)).toBe('');
   expect(lastTxnsRead({ ...store, at: '' }, '2026-11-24T15:10:00.000Z')).toBe('2026-11-24T15:10:00.000Z');
+});
+
+test('a row dated ahead of today (a pending payment) is replaced by each read, never listed twice', async () => {
+  const pending = (date: string): Txn => ({ account: 'X1', date, mnemonic: 'FRN', cat: 'DV', sub: 'OC', dir: 'D', symbol: 'AAAA', qty: 0, net: 0, desc: 'DIV OF $0.08 PENDING REINVESTMENT', cancelled: false });
+  const old: Txn = { ...pending('2026-10-01'), mnemonic: 'DIV', desc: 'old' };
+  const stored = { version: 1 as const, at: '', synced: { X1: '2026-11-24' }, rows: [old, pending('2026-11-27')] };
+  // Fidelity still lists the pending row: the read brings it again
+  const nov27 = Math.floor(Date.parse('2026-11-27T17:00:00Z') / 1000);
+  const post = async () => ({ data: { transactions: [{ acctNum: 'X1', dateDetail: { tradedDate: nov27 - 3 * 86400, postedDate: nov27 }, catDetail: { txnCatCode: 'DV', txnSubCatCode: 'OC' }, brokerageDetail: { additionalDetail: { mnemonic: 'FRN', depositWithdrawalCode: 'D' } }, securityDetail: { symbol: 'AAAA' }, quantity: '0', amtDetail: { net: 0 }, description: 'DIV OF $0.08 PENDING REINVESTMENT as of 2026-11-24 DEMO (AAAA) (Cash)' }] } });
+  const { store } = await readTransactions([accounts[0]!], stored, undefined, '2026-11-25', post);
+  expect(store.rows.map((r) => `${r.date} ${r.mnemonic}`)).toEqual(['2026-10-01 DIV', '2026-11-27 FRN']);
+  // once it is paid, Fidelity stops listing it and it goes
+  const paid = async () => ({ data: { transactions: [] } });
+  expect((await readTransactions([accounts[0]!], store, undefined, '2026-11-28', paid)).store.rows.map((r) => r.date)).toEqual(['2026-10-01']);
 });

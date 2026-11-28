@@ -6,7 +6,7 @@
 import { addDays } from '../shared/dates';
 import type { History } from '../shared/history';
 import type { Account } from '../shared/model';
-import { SPLIT_AT, TRANSACTIONS_URL, monthWindows, parseTransactions, replaceWindow, splitWindow, txnRequest, type Txn, type TxnStore } from '../shared/transactions';
+import { OPEN_END, SPLIT_AT, TRANSACTIONS_URL, monthWindows, parseTransactions, replaceWindow, splitWindow, txnRequest, type Txn, type TxnStore } from '../shared/transactions';
 import type { Post } from './history-sync';
 
 export const EMPTY_STORE: TxnStore = { version: 1, at: '', synced: {}, rows: [] };
@@ -65,7 +65,9 @@ export async function readTransactions(accounts: Account[], store: TxnStore, his
     try {
       const fresh: Txn[] = [];
       for (const w of monthWindows(from, today)) fresh.push(...(await readWindow(a, w, post)));
-      rows = replaceWindow(rows, a.number, from, today, fresh);
+      // everything from `from` on is replaced, the rows dated ahead of today too: a pending payment carries the day it
+      // will post, and kept beside each fresh read it would be listed once more every time
+      rows = replaceWindow(rows, a.number, from, OPEN_END, fresh);
       synced[a.number] = today;
     } catch {
       failed.push(a.number);

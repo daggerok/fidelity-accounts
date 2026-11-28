@@ -90,8 +90,9 @@ export const Activity = memo(function Activity({ ds, accounts, store, today }: {
               <TypedHead cols={cols} control={table.control} className={`${ZOOM_HEAD} sticky top-0 z-[1]`} th="px-2 pt-2 pb-1 align-bottom font-medium" filterTh="min-w-[6.5rem] px-2 pb-2 font-normal" />
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {table.rows.slice(0, drawn).map((r) => (
-                  // new ones stand out in bold, as on Fidelity (owner 2026-11-28): paid today, or announced and not paid yet
-                  <tr key={r.id} className={r.date === today || r.pending ? 'font-semibold' : ''} data-today={r.date === today ? 'yes' : undefined} data-pending={r.pending ? 'yes' : undefined}>
+                  // new ones stand out, as on Fidelity (owner 2026-11-28): paid today in bold; announced and not paid yet in
+                  // bold on a tinted line, so they are seen at once ("not very pronounced" in bold alone)
+                  <tr key={r.id} className={r.pending ? 'bg-amber-50 font-semibold dark:bg-amber-400/10' : r.date === today ? 'font-semibold' : ''} data-today={r.date === today ? 'yes' : undefined} data-pending={r.pending ? 'yes' : undefined}>
                     {/* a phone shows the ticker alone: the long name made every row four lines tall there */}
                     <td className={`${cell('symbol')} max-sm:whitespace-nowrap`}><span>{r.symbol}</span> <span className="text-xs font-normal text-slate-500 dark:text-slate-400 max-sm:hidden">{r.name}</span></td>
                     <td className={`${cell('account')} whitespace-nowrap`}>{r.accountName} <span className="text-xs font-normal text-slate-500 dark:text-slate-400" title={r.account}>{maskAccount(r.account)}</span></td>
