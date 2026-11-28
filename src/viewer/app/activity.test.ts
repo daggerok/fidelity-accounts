@@ -82,6 +82,9 @@ test('a pending dividend is a line of its own: the amount comes from its words, 
   expect(p).toMatchObject({ amount: 0.08, pending: true, drip: null, name: 'DEMO CORPORATION PLC', kind: 'dividend' });
   expect(lines.find((l) => l.symbol === 'AAA')!.pending).toBe(false);
   expect(payTotals(lines)).toEqual({ paid: 1.08, reinvested: 1, cash: 0 });
+  // pending lines stand on top, whatever their date, then the newest first
+  const mixed = payLines([paid('NEW', 2, { date: '2026-11-28' }), { ...pending, date: '2026-11-20' }, paid('OLD', 3, { date: '2026-11-10' })], ALL);
+  expect(mixed.map((l) => l.symbol)).toEqual(['PPP', 'NEW', 'OLD']);
   // an amount with a comma
   expect(payLines([t({ symbol: 'BIG', net: 0, desc: 'DIV OF $1,234.50 PENDING REINVESTMENT as of 2026-11-27 BIG CO (BIG) (Cash)' })], ALL)[0]!.amount).toBe(1234.5);
 });
