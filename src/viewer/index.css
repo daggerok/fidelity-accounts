@@ -63,11 +63,13 @@ html.dark[data-palette='blue'] { --brand: #60a5fa; --brand-soft: #172554; --bran
 .nav-squash.clip>div{overflow:hidden}
 .nav-squash.flat{grid-template-rows:0fr;padding-top:0}
 @media (prefers-reduced-motion:reduce){.nav-squash{transition:none}}
-/* a card's head on a phone: its chips are laid in the head's own row, so they start right after the title and wrap
-   from there; 8 px after the title, 4 px between chips (the pill gap), ⤢ at the right end of the last line */
+/* a card's head on a phone: its chips are laid in the head's own row, so they may share the title's line and wrap
+   from there; at least 8 px after the title, 4 px between chips (the pill gap) */
 @media (max-width:639.98px){
-  .card-head{column-gap:.25rem}
-  .card-head>h2{margin-right:.5rem}
+  /* every line of chips ends at the right edge (owner 2026-11-27: "align chips to the right always"); the title keeps
+     the left one and takes the free room of its line */
+  .card-head{column-gap:.25rem;justify-content:flex-end}
+  .card-head>h2{margin-right:auto;padding-right:.5rem}
   .card-head .card-tools,.card-head .card-tools>span,.card-head [data-pills],.card-head [data-kind-filter]{display:contents}
   /* a card with a corner button (⤢): the button comes first, on the title's line at the opposite end, and the chips
      start on the next line (owner 2026-11-27: "X should be in opposite side and it prio"). `order` places them: the
