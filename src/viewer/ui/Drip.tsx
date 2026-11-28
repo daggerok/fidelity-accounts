@@ -12,7 +12,8 @@ export const DRIP_MIN_USD_HINT = (): string => t('The fewest shares to hold for 
 
 export const DRIP_ADJ_HINT = (): string => t('DRIP as an order Fidelity takes: shares worth under $1 are raised to the fewest shares worth $1 or more');
 export const DRIP_ADJ_USD_HINT = (): string => t('The dollars of Adj. DRIP: those shares at the last price, never under $1');
-export const DRIP_MIN_ADJ_USD_HINT = (): string => t('Min. DRIP $ as an order Fidelity takes: an amount under $1 is shown as $1, the least Fidelity sells');
+export const DRIP_MIN_ADJ_HINT = (): string => t('Min. DRIP as an order Fidelity takes, to buy from nothing: never shares worth under $1');
+export const DRIP_MIN_ADJ_USD_HINT = (): string => t('The dollars of Adj. min. DRIP: those shares at the last price, never under $1');
 
 /** `min`: Min. DRIP and Min. DRIP $, a threshold to hold, plain with no sign */
 export function DripValue({ value, as, min = false }: { value: number; as: 'shares' | 'usd'; min?: boolean }) {

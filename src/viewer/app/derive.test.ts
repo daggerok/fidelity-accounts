@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, adjustedDrip, rowDripAdj, rowDripAdjUsd, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, adjustedBuy } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, adjustedDrip, rowDripAdj, rowDripAdjUsd, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, dripMinAdj, dripMinAdjUsd } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -395,15 +395,16 @@ test('payout parts over the symbol map are the same as over the positions', () =
   expect(payoutParts(map, accounts, { ...upcomingDividends(ps, '2026-11-24')[0]!, symbol: 'GONE' })).toEqual([]);
 });
 
-test('an order under a dollar is shown as one dollar, the least Fidelity sells; nothing to buy stays as it is', () => {
-  expect(adjustedBuy(0.01)).toBe(1);
-  expect(adjustedBuy(0.99)).toBe(1);
-  expect(adjustedBuy(1)).toBe(1);
-  expect(adjustedBuy(1.01)).toBe(1.01);
-  expect(adjustedBuy(250)).toBe(250);
-  expect(adjustedBuy(0)).toBe(0); // nothing to buy
-  expect(adjustedBuy(-0.5)).toBe(-0.5); // the dividend already buys 0.001 share
-  expect(adjustedBuy(-12000)).toBe(-12000);
+test('Adj. min. DRIP: the threshold as an order, never shares worth under a dollar', () => {
+  // $10 a share paying $0.20: 0.001 share is 1 cent, 0.05 share earns it, worth $0.50 -> 0.1 share, $1.00
+  const cheap: Position = { account: 'A', kind: 'position', symbol: 'CHP', description: '', lastPrice: 10, dividendAmount: 0.2, quantity: 0, fields: {} };
+  expect(dripMin(cheap)).toEqual({ shares: 0.05, usd: 0.5 });
+  expect(dripMinAdj(cheap)).toEqual({ shares: 0.1, usd: 1 });
+  expect(dripMinAdjUsd(cheap)).toBe(1);
+  // a threshold already worth more than a dollar is the same adjusted
+  const usual: Position = { ...cheap, lastPrice: 52.3, dividendAmount: 0.25 };
+  expect(dripMinAdj(usual)).toEqual(dripMin(usual));
+  expect(dripMinAdj({ ...cheap, dividendAmount: undefined })).toBeNull();
 });
 
 test('a dividend row says the yield a year and the payments a year after its ticker', () => {
