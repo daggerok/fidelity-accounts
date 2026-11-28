@@ -41,7 +41,7 @@ export interface Prefs {
   merge: boolean; // Positions of several accounts as one line per ticker (app/merge.ts)
 }
 
-export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: DEFAULT_HIDDEN.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', activityPeriod: '1M', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
+export const DEFAULT_PREFS: Prefs = { scope: 'all', tab: 'summary', sort: { key: 'todayGlPct', dir: -1 }, search: '', filters: {}, types: {}, hidden: DEFAULT_HIDDEN.slice(), columnsV: 7, columns: [], period: '1Y', views: {}, moversBy: 'pct', moversOf: 'all', incomeOf: 'all', dividendsOf: 'all', activityPeriod: 'All', dividendsSort: DEFAULT_DIV_SORTS.slice(), dividendsWindow: 'MTD', accountSort: 'mine', accountOrder: [], groupOrder: [], collapsed: [], merge: false };
 const KEY = 'fidelity-accounts.prefs';
 
 export function loadPrefs(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): Prefs {

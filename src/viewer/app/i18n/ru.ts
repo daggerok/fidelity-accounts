@@ -535,4 +535,8 @@ export const RU: Record<string, string> = {
   'The shares the payment bought by DRIP that day; empty: it bought none, the payment was too small or DRIP is off': 'Акции, которые выплата купила по DRIP в тот день; пусто: ничего не купила, выплата слишком мала или DRIP выключен',
   'The price of a share in the DRIP buy, worked out from its dollars and its shares': 'Цена акции в покупке по DRIP, посчитана из её долларов и акций',
   'The dollars of the payment that bought shares by DRIP': 'Доллары выплаты, на которые куплены акции по DRIP',
+  // the pick list by a column's name (ui/ChoiceFilter.tsx) and the paging of Activity
+  '{name}: {n} chosen. Click to choose': '{name}: выбрано {n}. Нажми, чтобы выбрать',
+  '{name}: choose from a list': '{name}: выбрать из списка',
+  '{n} of {total} shown, more as you scroll': 'показано {n} из {total}, остальные при прокрутке',
 };
