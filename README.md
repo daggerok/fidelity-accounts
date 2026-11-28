@@ -61,6 +61,8 @@ Sheet tabs:
 | `fidelity_betas` | the beta of each held symbol, its source and months behind it | rewritten after its daily run |
 | `fidelity_updates` | when each data set (summary, positions, transactions, betas) was last written | updated after every write |
 
+One thing has one name in every tab, the names of `fidelity_positions_all`: `account_number`, `account_name`, `symbol_name`, `symbol_description`, `quantity`, `week_52_low` and so on, all in snake_case. A tab written under earlier names gets its header renamed in place on the next write, the rows stay
+
 ## When Fidelity changes something
 
 Everything this app relies on at Fidelity is listed in `src/shared/contract.ts`: each entry says what we expect (a page address, a selector, the fields of a row, the shape of an answer) and which of our files use it. The script checks the real data against it on every read; a broken entry shows on the corner panel and under ⚙️ in the viewer as `✗ grid.fields: POSITION.curVal is gone (fix in src/shared/parse.ts)`. The tests run the same checks on recorded shapes and on broken copies
