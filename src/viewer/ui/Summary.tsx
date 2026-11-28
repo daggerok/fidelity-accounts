@@ -71,7 +71,9 @@ export const Summary = memo(function Summary({ ds, accounts, title, titleHint, t
 
   return (
     // the space between cards equals the space from the screen edge to the navbar: 16 px, 24 px from lg (owner 2026-11-24)
-    <div className="gap-4 md:columns-2 lg:gap-6 xl:columns-3" data-summary>
+    <div className="-mb-4 gap-4 md:columns-2 lg:-mb-6 lg:gap-6 xl:columns-3" data-summary>
+      {/* the last card of a column keeps its bottom margin; the negative one of this box takes it back, so the page ends
+          at the cards and the footer alone is the gap under them */}
       <Card id="balance" title={title} titleHint={titleHint} expand={balance.length >= 2 ? <BalanceChart series={balance} big /> : undefined}>
         {/* the balance and today's change on the left, the other facts in a compact table on the right (owner 2026-11-24:
             "move that part to top right"); on a narrow card they wrap under */}

@@ -11,7 +11,9 @@ import { fitCount, fitRestarts } from '../app/fit';
 // change; it sets state only when the count changes, so a phone, the frames of the 0.35 s settings slide that cross no
 // row and a size change that changes nothing draw nothing
 const WIDE = '(min-width: 1280px)';
-const GUTTER = 24; // the gap above the footer, as between the cards on a big screen
+// the footer IS the gap under the cards (one gutter tall, its text centred in it; owner 2026-11-27: the smallest gap
+// was two gutters, "can we reduce it to our actual spacing"): a card may end right at the footer's top
+const GUTTER = 0;
 const ROUNDS = 6;
 // the page around the cards: its size changes always measure from a fresh count of rounds. The cards' own box changes with
 // our rows too, so it starts again only long after the last own change (fitRestarts): one card growing moves the cards of
