@@ -6,7 +6,7 @@ import { ROWS, SIDEBAR } from '../../shared/fixtures/grid';
 import type { Account, Position } from '../../shared/model';
 import { buildDataset } from '../../shared/parse';
 import { sortPositions } from './position-columns';
-import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, adjustedDrip, rowDripAdj, rowDripAdjUsd, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, dripMinAdj, dripMinAdjUsd } from './derive';
+import { dripMin, asKind, ALL_FOLD, toggleFold, moveAccount, moveGroup, stepMove, orderAccounts, sortAccounts, scopeOf, toggleAccount, accountsIn, allocation, groupsOf, movers, near52, positionsIn, rangeRows, payoutParts, payDatesIn, securitiesBySymbol, incomeFacts, kindOf, ofKind, toggleKind, kindOn, estAnnualOf, addMonths, localToday, incomeIn, periodBounds, rangePos, totalsOf, upcomingDividends, payoutTotal, weightedRate, adjustedDrip, rowDripAdj, rowDripAdjUsd, yieldNote, sortDividends, toggleDivSort, asDivSorts, validScope, dripGap, perPayment, windowEnd, asDivWindow, symbolDrip, dripToBuy, scopeTitle, dripMinAdj, dripMinAdjUsd } from './derive';
 
 const ds = buildDataset({ rows: ROWS, sidebar: SIDEBAR, asOf: null, builtAt: 't' });
 
@@ -494,4 +494,19 @@ test('Adj. DRIP: a buy worth under a dollar is raised to the fewest shares worth
   expect(adjustedDrip({ shares: 0.004, usd: 1 }, 250)).toEqual({ shares: 0.004, usd: 1 });
   expect(adjustedDrip({ shares: 0.003, usd: 0.75 }, 250)).toEqual({ shares: 0.004, usd: 1 });
   expect(adjustedDrip({ shares: 0.01, usd: 0.5 }, undefined)).toEqual({ shares: 0.01, usd: 0.5 });
+});
+
+test('a rate of several positions is weighed by their value, a position without the rate counting as zero', () => {
+  const p = (currentValue: number, distRate?: number, secYield?: number, kind: Position['kind'] = 'position'): Position => ({ account: 'A', kind, symbol: 'X', description: '', currentValue, distRate, secYield, fields: {} });
+  const ps = [p(100, 4), p(300, 2, 1), p(600), p(5000, 9, 9, 'core')];
+  // (4 x 100 + 2 x 300 + 0 x 600) / 1000: the one that pays nothing counts as 0, the cash is left out
+  expect(weightedRate(ps, (x) => x.distRate)).toBe(1);
+  // (1 x 300 + 0 x 100 + 0 x 600) / 1000
+  expect(weightedRate(ps, (x) => x.secYield)).toBe(0.3);
+  // every one "--": zero, not nothing
+  expect(weightedRate([p(600), p(400)], (x) => x.distRate)).toBe(0);
+  // by hand: 50% of the money at 3%, 50% at 1% -> 2%
+  expect(weightedRate([p(500, 3), p(500, 1)], (x) => x.distRate)).toBe(2);
+  expect(weightedRate([], (x) => x.distRate)).toBeUndefined();
+  expect(weightedRate([p(5000, 9, 9, 'core')], (x) => x.distRate)).toBeUndefined(); // only cash: no security to weigh
 });
